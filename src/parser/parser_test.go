@@ -699,12 +699,12 @@ func TestNewParserSelect4(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if selectStmt.Distinct == false {
 		t.Fatalf("expected distinct")
@@ -749,4 +749,41 @@ func TestNewParserSelect4(t *testing.T) {
 	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Right.(*Literal).Value.(uint64) != uint64(5) {
 		t.Fatalf("expected 5, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Right.(*Literal).Value)
 	}
+}
+
+func TestNewParserSelect6(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT DISTINCT a.col1, b.col2 from s1.tbl1 as a, s2.tbl2 as b;")) // just for parser tests
+	t.Log("Testing: SELECT DISTINCT a.col1, b.col2 from s1.tbl1 as a, s2.tbl2 as b;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
 }

@@ -1141,6 +1141,15 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 	}
 
 	for p.peek(0).value != "FROM" || p.peek(0).tokenT != SEMICOLON_TOK {
+		if p.peek(0).tokenT == COMMA_TOK {
+			p.consume()
+			continue
+		} else if p.peek(0).tokenT == KEYWORD_TOK {
+			if p.peek(0).value == "FROM" {
+				break
+			}
+		}
+
 		// can be binary expression, column spec, or aggregate function
 		if p.peek(0).tokenT == ASTERISK_TOK {
 			// if we encounter an asterisk, we add all columns and no more columns nor expressions can be added
@@ -1451,6 +1460,13 @@ func (p *Parser) parseColumnSpec() (*ColumnSpec, error) {
 		columnName := strings.Split(p.peek(0).value.(string), ".")[2]
 
 		columnSpec.SchemaName = &Identifier{Value: schemaName}
+		columnSpec.TableName = &Identifier{Value: tableName}
+		columnSpec.ColumnName = &Identifier{Value: columnName}
+	} else if len(strings.Split(p.peek(0).value.(string), ".")) == 2 {
+		// alias.column_name
+		tableName := strings.Split(p.peek(0).value.(string), ".")[0]
+		columnName := strings.Split(p.peek(0).value.(string), ".")[1]
+
 		columnSpec.TableName = &Identifier{Value: tableName}
 		columnSpec.ColumnName = &Identifier{Value: columnName}
 	} else {
