@@ -53,6 +53,8 @@ func Optimize(ast parser.Node, cat *catalog.Catalog) *PhysicalPlan {
 		return OpUseStmt(ast.(*parser.UseStmt), cat)
 	case *parser.InsertStmt:
 		return OpInsertStmt(ast.(*parser.InsertStmt), cat)
+	case *parser.SelectStmt:
+		return OpSelectStmt(ast.(*parser.SelectStmt), cat)
 
 	}
 
@@ -87,4 +89,34 @@ func OpUseStmt(stmt *parser.UseStmt, cat *catalog.Catalog) *PhysicalPlan {
 // OpInsertStmt optimizes the InsertStmt
 func OpInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for insert
+}
+
+func OpSelectStmt(stmt *parser.SelectStmt, cat *catalog.Catalog) *PhysicalPlan {
+	// Generate plans based on the query
+	// Once we have the plans, we can choose the best one based on the cost
+	plans := []*PhysicalPlan{}
+
+	// We can have multiple plans for a query
+
+	best := getBestPlan(plans)
+	if best == nil {
+		return nil
+	}
+
+	return &PhysicalPlan{Plan: best}
+}
+
+// getBestPlan returns the best plan from a list of optimized plans for a given query
+func getBestPlan(plans OptimizedPlans) *PhysicalPlan {
+	// We return the plan with the lowest cost
+
+	currPlan := plans[0]
+
+	for _, plan := range plans {
+		if plan.PlanCost.Cost < currPlan.PlanCost.Cost {
+			currPlan = plan
+		}
+	}
+
+	return currPlan
 }

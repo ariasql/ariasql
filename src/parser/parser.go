@@ -21,6 +21,7 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -2338,7 +2339,8 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 		}
 
 		currLogiCond := where.Cond
-		// Look for AND or OR
+
+		// Look for AND, OR
 		if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
 			for p.peek(0).value == "AND" || p.peek(0).value == "OR" {
 				// Parse logical expression
@@ -2348,6 +2350,7 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 				}
 
 				if currLogiCond != nil {
+					log.Println("im here..")
 
 					where.Cond.(*LogicalCondition).LeftCond = currLogiCond
 					currLogiCond = where.Cond
