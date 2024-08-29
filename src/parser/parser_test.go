@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -1142,10 +1143,10 @@ func TestNewParserSelect11(t *testing.T) {
 
 	}
 
-	//sel, err := PrintAST(selectStmt)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//log.Println(sel)
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
 }

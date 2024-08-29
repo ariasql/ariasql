@@ -1151,6 +1151,267 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 	return selectStmt, nil
 }
 
+func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	switch p.peek(0).value {
+	case "=":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Eq,
+		}
+
+		p.consume() // Consume =
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	case "<>":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Ne,
+		}
+
+		p.consume() // Consume <>, !=
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	case "<":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Lt,
+		}
+
+		p.consume() // Consume <
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	case "<=":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Le,
+		}
+
+		p.consume() // Consume <=
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	case ">":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Gt,
+		}
+
+		p.consume() // Consume >
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	case ">=":
+		compPred := &ComparisonPredicate{
+			LeftExpr:  columnSpec,
+			RightExpr: nil,
+			Operator:  Ge,
+		}
+
+		p.consume() // Consume =
+
+		if p.peek(0).tokenT == LITERAL_TOK {
+			compPred.RightExpr = &ValueExpr{
+				Value: p.peek(0).value,
+			}
+		}
+
+		where.Cond = compPred
+	default:
+		return errors.New("expected comparison operator")
+	}
+
+	p.consume() // Consume value
+
+	return nil
+}
+
+func (p *Parser) parseInPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	p.consume() // Consume IN
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	in := &InPredicate{
+		Expr:   columnSpec,
+		Values: make([]interface{}, 0),
+	}
+
+	// Check for subquery
+	if p.peek(0).value == "SELECT" {
+		log.Println("djm")
+
+		subquery, err := p.parseSelectStmt()
+		if err != nil {
+			return err
+		}
+
+		in.Subquery = subquery.(*SelectStmt)
+
+		where.Cond = in
+
+	} else {
+
+		for p.peek(0).tokenT != RPAREN_TOK {
+			if p.peek(0).tokenT != LITERAL_TOK {
+				return errors.New("expected literal")
+			}
+
+			in.Values = append(in.Values, &ValueExpr{
+				Value: &Literal{Value: p.peek(0).value},
+			})
+
+			p.consume() // Consume literal
+
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			if p.peek(0).tokenT != COMMA_TOK {
+				return errors.New("expected ,")
+			}
+
+			p.consume() // Consume ,
+
+		}
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		where.Cond = in
+	}
+
+	return nil
+}
+
+func (p *Parser) parseBetweenPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	p.consume() // Consume BETWEEN
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return errors.New("expected literal")
+	}
+
+	lower := p.peek(0).value
+
+	p.consume() // Consume literal
+
+	if p.peek(0).value != "AND" {
+		return errors.New("expected AND")
+	}
+
+	p.consume() // Consume AND
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return errors.New("expected literal")
+	}
+
+	upper := p.peek(0).value
+
+	p.consume() // Consume literal
+
+	between := &BetweenPredicate{
+		Expr: columnSpec,
+		Lower: &ValueExpr{
+			Value: &Literal{Value: lower},
+		},
+		Upper: &ValueExpr{
+			Value: &Literal{Value: upper},
+		},
+	}
+
+	where.Cond = between
+
+	return nil
+}
+
+func (p *Parser) parseLikePredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	p.consume() // consume LIKE
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return errors.New("expected literal")
+	}
+
+	likeExpr := &LikePredicate{
+		Expr: columnSpec,
+		Pattern: &Literal{
+			Value: p.peek(0).value,
+		},
+	}
+
+	where.Cond = likeExpr
+
+	p.consume() // consume literal
+
+	return nil
+}
+
+func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
+func (p *Parser) parseExistsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
+func (p *Parser) parseAnyPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
+func (p *Parser) parseAllPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
+func (p *Parser) parseSomePredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
+func (p *Parser) parseNotPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+
+	return nil
+}
+
 // parseWhere parses the WHERE clause of a SELECT statement
 func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 	p.consume() // Consume WHERE
@@ -1180,188 +1441,29 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 
 			// Check for predicate
 			if p.peek(0).tokenT == COMPARISON_TOK {
-				switch p.peek(0).value {
-				case "=":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Eq,
-					}
-
-					p.consume() // Consume =
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				case "<>":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Ne,
-					}
-
-					p.consume() // Consume <>, !=
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				case "<":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Lt,
-					}
-
-					p.consume() // Consume <
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				case "<=":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Le,
-					}
-
-					p.consume() // Consume <=
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				case ">":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Gt,
-					}
-
-					p.consume() // Consume >
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				case ">=":
-					compPred := &ComparisonPredicate{
-						LeftExpr:  columnSpec,
-						RightExpr: nil,
-						Operator:  Ge,
-					}
-
-					p.consume() // Consume =
-
-					if p.peek(0).tokenT == LITERAL_TOK {
-						compPred.RightExpr = &ValueExpr{
-							Value: p.peek(0).value,
-						}
-					}
-
-					where.Cond = compPred
-				default:
-					return errors.New("expected comparison operator")
+				err = p.parseComparisonPredicate(where, columnSpec)
+				if err != nil {
+					return err
 				}
-
-				p.consume() // Consume value
 
 			} else if p.peek(0).tokenT == KEYWORD_TOK {
 				switch p.peek(0).value {
 				case "IN":
-					p.consume() // Consume IN
-
-					if p.peek(0).tokenT != LPAREN_TOK {
-						return errors.New("expected (")
-					}
-
-					p.consume() // Consume (
-
-					in := &InPredicate{
-						Expr:   columnSpec,
-						Values: make([]interface{}, 0),
-					}
-
-					// Check for subquery
-					if p.peek(0).value == "SELECT" {
-						log.Println("djm")
-
-						subquery, err := p.parseSelectStmt()
-						if err != nil {
-							return err
-						}
-
-						in.Subquery = subquery.(*SelectStmt)
-
-						where.Cond = in
-
-					} else {
-
-						for p.peek(0).tokenT != RPAREN_TOK {
-							if p.peek(0).tokenT != LITERAL_TOK {
-								return errors.New("expected literal")
-							}
-
-							in.Values = append(in.Values, &ValueExpr{
-								Value: &Literal{Value: p.peek(0).value},
-							})
-
-							p.consume() // Consume literal
-
-							if p.peek(0).tokenT == RPAREN_TOK {
-								break
-							}
-
-							if p.peek(0).tokenT != COMMA_TOK {
-								return errors.New("expected ,")
-							}
-
-							p.consume() // Consume ,
-
-						}
-
-						if p.peek(0).tokenT != RPAREN_TOK {
-							return errors.New("expected )")
-						}
-
-						p.consume() // Consume )
-
-						where.Cond = in
+					err = p.parseInPredicate(where, columnSpec)
+					if err != nil {
+						return err
 					}
 				case "BETWEEN":
+					err = p.parseBetweenPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
+
 				case "LIKE":
-					p.consume() // consume LIKE
-					if p.peek(0).tokenT != LITERAL_TOK {
-						return errors.New("expected literal")
+					err = p.parseLikePredicate(where, columnSpec)
+					if err != nil {
+						return err
 					}
-
-					likeExpr := &LikePredicate{
-						Expr: columnSpec,
-						Pattern: &Literal{
-							Value: p.peek(0).value,
-						},
-					}
-
-					where.Cond = likeExpr
-
-					p.consume() // consume literal
 				case "IS":
 				case "EXISTS":
 				case "ANY":
