@@ -21,6 +21,7 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -1356,6 +1357,8 @@ func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 
 // parseGroupBy parses a GROUP BY
 func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
+	groupByClause := &GroupByClause{}
+	selectStmt.GroupBy = groupByClause
 
 	p.consume() // Consume GROUP
 
@@ -1364,6 +1367,8 @@ func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
 	}
 
 	p.consume() // Consume BY
+
+	log.Println("parseGroupBy", p.peek(0).value)
 
 	for {
 		if p.peek(0).tokenT != IDENT_TOK {
@@ -1381,9 +1386,9 @@ func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
 
 		groupBy := []interface{}{}
 
-		groupBy = append(groupBy, ColumnSpec{
+		groupBy = append(groupBy, &ColumnSpec{
 			TableName:  &Identifier{Value: tableName},
-			ColumnName: &Identifier{Value: tableName},
+			ColumnName: &Identifier{Value: columnName},
 		})
 
 		selectStmt.GroupBy.Columns = groupBy
@@ -2541,14 +2546,14 @@ func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
 		Tables: make([]*Table, 0),
 	}
 
-	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" {
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
 		}
 
 		if p.peek(0).tokenT == KEYWORD_TOK {
-			if p.peek(0).value == "WHERE" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" {
+			if p.peek(0).value == "WHERE" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
 				break
 			}
 		}
@@ -2731,8 +2736,22 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 			if p.peek(0).tokenT == SEMICOLON_TOK {
 				break
 			}
+		} else if p.peek(0).tokenT == KEYWORD_TOK {
+			switch p.peek(0).value {
+			case "AVG", "COUNT", "MAX", "MIN", "SUM":
+				// Parse aggregate function
+				aggFunc, err := p.parseAggregateFunc()
+				if err != nil {
+					return err
+				}
+
+				columnSet.Exprs = append(columnSet.Exprs, aggFunc)
+			default:
+				return errors.New("expected aggregate function")
+
+			}
 		} else {
-			return errors.New("expected identifier or literal")
+			return errors.New("expected identifier or literal or keyword")
 
 		}
 

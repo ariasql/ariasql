@@ -2250,3 +2250,92 @@ func TestNewParserSelect25(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect26(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT sch.tbl.column1, COUNT(sch.tbl.column2) FROM sch.tbl GROUP BY tbl.column1;")) // just for parser tests
+	t.Log("Testing: SELECT sch.tbl.column1, COUNT(sch.tbl.column2) FROM sch.tbl GROUP BY sch.tbl.column1;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value != "column1" {
+		t.Fatalf("expected column1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.ColumnSet.Exprs[1].(*AggFunc).FuncName)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).SchemaName.Value != "sch" {
+		t.Fatalf("expected sch, got %s", selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "column2" {
+		t.Fatalf("expected column2, got %s", selectStmt.ColumnSet.Exprs[1].(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.From.Tables[0].SchemaName.Value != "sch" {
+		t.Fatalf("expected sch, got %s", selectStmt.From.Tables[0].SchemaName.Value)
+	}
+
+	if selectStmt.From.Tables[0].TableName.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.From.Tables[0].TableName.Value)
+	}
+
+	if selectStmt.GroupBy == nil {
+		t.Fatalf("expected non-nil group by clause")
+	}
+
+	if selectStmt.GroupBy.Columns[0].(*ColumnSpec).TableName.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.GroupBy.Columns[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.GroupBy.Columns[0].(*ColumnSpec).ColumnName.Value != "column1" {
+		t.Fatalf("expected column1, got %s", selectStmt.GroupBy.Columns[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+}
