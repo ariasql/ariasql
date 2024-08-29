@@ -47,6 +47,7 @@ var (
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE", "TEXT",
 		"INNER", "OUTER", "LEFT", "RIGHT", "JOIN", "CROSS", "NATURAL", "FULL", "EXCEPT", "INTERSECT",
+		"LIMIT", "OFFSET",
 	}
 )
 
@@ -1275,6 +1276,7 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 
 // parseLimit parses a LIMIT-OFFSET
 func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
+	log.Println("hello")
 	p.consume() // Consume LIMIT
 
 	if p.peek(0).tokenT != LITERAL_TOK {
@@ -2560,14 +2562,14 @@ func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
 		Tables: make([]*Table, 0),
 	}
 
-	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value == "LIMIT" || p.peek(0).value == "OFFSET" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
 		}
 
 		if p.peek(0).tokenT == KEYWORD_TOK {
-			if p.peek(0).value == "WHERE" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
+			if p.peek(0).value == "WHERE" || p.peek(0).value == "LIMIT" || p.peek(0).value == "OFFSET" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
 				break
 			}
 		}

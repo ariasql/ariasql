@@ -18,7 +18,6 @@ package parser
 
 import (
 	"ariasql/catalog"
-	"log"
 	"testing"
 )
 
@@ -2472,8 +2471,8 @@ func TestNewParserSelect28(t *testing.T) {
 }
 
 func TestNewParserSelect29(t *testing.T) {
-	lexer := NewLexer([]byte("SELECT * FROM s.t ORDER BY t.c ASC;")) // just for parser tests
-	t.Log("Testing: SELECT * FROM s.t ORDER BY t.c ASC;")
+	lexer := NewLexer([]byte("SELECT * FROM s.t LIMIT 5 OFFSET 2;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t LIMIT 5 OFFSET 2;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -2499,11 +2498,32 @@ func TestNewParserSelect29(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+
+		t.Fatalf("expected non-nil column set")
 	}
 
-	log.Println(sel)
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Limit == nil {
+		t.Fatalf("expected non-nil limit clause")
+	}
+
+	if selectStmt.Limit.Count != 5 {
+		t.Fatalf("expected 5, got %d", selectStmt.Limit.Count)
+	}
+
+	if selectStmt.Limit.Offset != 2 {
+		t.Fatalf("expected 2, got %d", selectStmt.Limit.Offset)
+	}
 
 }
