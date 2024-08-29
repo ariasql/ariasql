@@ -21,6 +21,7 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -1328,9 +1329,87 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 		return p.parseLiteral()
 	case IDENT_TOK:
 		return p.parseColumnSpec()
+	case KEYWORD_TOK:
+		switch p.peek(0).value {
+		case "AVG", "COUNT", "MAX", "MIN", "SUM":
+			log.Println("YO")
+			return p.parseAggregateFunc()
+
+		default:
+			return nil, errors.New("expected aggregate function")
+		}
 	default:
 		return nil, errors.New("expected literal or column spec")
 	}
+}
+
+func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
+	// Eat aggregate function
+	aggFunc := &AggFunc{FuncName: p.peek(0).value.(string)}
+
+	p.consume()
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	for p.peek(0).tokenT != RPAREN_TOK && (p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).tokenT != COMMA_TOK || p.peek(0).value != "FROM") {
+		// Catch nested aggregate functions, binary expressions, column specs, and literals
+		if p.peek(0).tokenT == KEYWORD_TOK {
+			switch p.peek(0).value {
+			case "AVG", "COUNT", "MAX", "MIN", "SUM":
+				// Parse aggregate function
+				innerAggFunc, err := p.parseAggregateFunc()
+				if err != nil {
+					return nil, err
+				}
+
+				aggFunc.Args = append(aggFunc.Args, innerAggFunc)
+			default:
+				return nil, errors.New("expected aggregate function")
+			}
+		} else if p.peek(0).tokenT == LPAREN_TOK {
+			// Parse binary expression
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return nil, err
+			}
+
+			aggFunc.Args = append(aggFunc.Args, expr)
+
+		} else if p.peek(0).tokenT == IDENT_TOK {
+			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK {
+				// Parse binary expression
+				expr, err := p.parseBinaryExpr(0)
+				if err != nil {
+					return nil, err
+				}
+
+				aggFunc.Args = append(aggFunc.Args, expr)
+			} else {
+				// Parse column spec
+				columnSpec, err := p.parseColumnSpec()
+				if err != nil {
+					return nil, err
+				}
+
+				aggFunc.Args = append(aggFunc.Args, columnSpec)
+			}
+		} else {
+			return nil, errors.New("expected aggregate function, binary expression, or column spec")
+		}
+
+	}
+
+	if p.peek(0).tokenT != RPAREN_TOK {
+		return nil, errors.New("expected )")
+	}
+
+	p.consume()
+
+	return aggFunc, nil
 }
 
 func (p *Parser) parseLiteral() (*Literal, error) {

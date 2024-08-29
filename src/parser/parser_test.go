@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -615,7 +616,7 @@ func TestNewParserSelect2(t *testing.T) {
 
 func TestNewParserSelect3(t *testing.T) {
 	lexer := NewLexer([]byte("SELECT 11+2 AS res;"))
-	t.Log("Testing: SELECT  11+2 AS res;")
+	t.Log("Testing: SELECT 11+2 AS res;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -668,4 +669,84 @@ func TestNewParserSelect3(t *testing.T) {
 		t.Fatalf("expected 2, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*Literal).Value)
 	}
 
+}
+
+func TestNewParserSelect4(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT DISTINCT 11+2*COUNT(x.x.x+5) AS res;")) // just for parser tests
+	t.Log("Testing: SELECT DISTINCT 11+2*COUNT(x.x.x+5) AS res;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.Distinct == false {
+		t.Fatalf("expected distinct")
+	}
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Alias.Value != "res" {
+		t.Fatalf("expected res, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Alias.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Op != "+" {
+		t.Fatalf("expected +, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Left.(*Literal).Value.(uint64) != uint64(11) {
+		t.Fatalf("expected 11, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Left.(*Literal).Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Op != "*" {
+		t.Fatalf("expected *, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Left.(*ColumnSpec).ColumnName.Value != "x" {
+		t.Fatalf("expected x, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Left.(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Op != "+" {
+		t.Fatalf("expected +, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Right.(*Literal).Value.(uint64) != uint64(5) {
+		t.Fatalf("expected 5, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*AggFunc).Args[0].(*BinaryExpr).Right.(*Literal).Value)
+	}
 }

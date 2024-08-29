@@ -117,7 +117,7 @@ type ColumnSet struct {
 // AggFunc represents an aggregate function
 type AggFunc struct {
 	FuncName string
-	Expr     interface{} // ColumnSpec or ValueExpr
+	Args     []interface{} // ColumnSpec or ValueExpr or Literal or BinaryExpr or AggFunc
 }
 
 // Func represents a function like UPPER or LOWER
