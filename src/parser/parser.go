@@ -21,6 +21,7 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -1745,6 +1746,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	case "<>", "!=":
 		compPred := &ComparisonPredicate{
@@ -2371,89 +2374,102 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 
 // parseLogicalExpr parses the logical expression of a WHERE clause
 func (p *Parser) parseLogicalExpr(where *WhereClause) error {
+	logical := &LogicalCondition{}
+
+	logical.LeftCond = where.Cond
+
+	switch p.peek(0).value {
+	case "AND":
+		logical.Operator = And
+	case "OR":
+		logical.Operator = Or
+	default:
+		return nil
+	}
+
+	p.consume() // Consume AND or OR
+
+	// Parse condition
+	switch p.peek(0).tokenT {
+	case IDENT_TOK:
+		ve := &ValueExpr{}
+		var err error
+		// Check if we need to parse binary expression or column spec
+		if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
+			// Parse binary expression
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return err
+			}
+
+			ve.Value = expr
+		} else {
+
+			// Parse column spec
+			ve.Value, err = p.parseColumnSpec()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Check for predicate
+		if p.peek(0).tokenT == COMPARISON_TOK {
+			err = p.parseComparisonPredicate(logical, ve)
+			if err != nil {
+				return err
+			}
+
+		} else if p.peek(0).tokenT == KEYWORD_TOK {
+			switch p.peek(0).value {
+			case "IN":
+				err = p.parseInPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			case "BETWEEN":
+				err = p.parseBetweenPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+
+			case "LIKE":
+				err = p.parseLikePredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			case "IS":
+				err = p.parseIsPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			case "EXISTS":
+				err = p.parseExistsPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			case "ANY":
+				err = p.parseAnyPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			case "ALL":
+				err = p.parseAllPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	where.Cond = logical
+
 	if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-
-		logical := &LogicalCondition{}
-
-		switch p.peek(0).value {
-		case "AND":
-			logical.Operator = And
-		case "OR":
-			logical.Operator = Or
+		log.Println("DD")
+		err := p.parseLogicalExpr(where)
+		if err != nil {
+			return err
 		}
 
-		p.consume() // Consume AND or OR
-
-		// Parse condition
-		switch p.peek(0).tokenT {
-		case IDENT_TOK:
-			ve := &ValueExpr{}
-			var err error
-			// Check if we need to parse binary expression or column spec
-			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
-				// Parse binary expression
-				expr, err := p.parseBinaryExpr(0)
-				if err != nil {
-					return err
-				}
-
-				ve.Value = expr
-			} else {
-				// Parse column spec
-				ve.Value, err = p.parseColumnSpec()
-				if err != nil {
-					return err
-				}
-			}
-
-			// Check for predicate
-			if p.peek(0).tokenT == COMPARISON_TOK {
-				err = p.parseComparisonPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-
-			} else if p.peek(0).tokenT == KEYWORD_TOK {
-				switch p.peek(0).value {
-				case "IN":
-					err = p.parseInPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				case "BETWEEN":
-					err = p.parseBetweenPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-
-				case "LIKE":
-					err = p.parseLikePredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				case "IS":
-					err = p.parseIsPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				case "EXISTS":
-					err = p.parseExistsPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				case "ANY":
-					err = p.parseAnyPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				case "ALL":
-					err = p.parseAllPredicate(logical, ve)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
 	}
 
 	return nil
