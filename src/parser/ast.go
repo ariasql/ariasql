@@ -80,6 +80,7 @@ type SelectStmt struct {
 	Distinct  bool
 	ColumnSet *ColumnSet
 	From      *FromClause
+	Joins     []*Join
 	Where     *WhereClause
 	GroupBy   *GroupByClause
 	Having    *HavingClause

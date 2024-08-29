@@ -1764,3 +1764,222 @@ func TestNewParserSelect20(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect21(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT s1.t1.c1, s1.t2.c2 FROM s1.t1 INNER JOIN s1.t2 ON t1.c1 = t2.c2;")) // just for parser tests
+	t.Log("Testing: SELECT s1.t1.c1, s1.t2.c2 FROM s1.t1 INNER JOIN s1.t2 ON t1.c1 = t2.c2;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value != "c1" {
+		t.Fatalf("expected c1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).TableName.Value != "t2" {
+		t.Fatalf("expected t2, got %s", selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).ColumnName.Value != "c2" {
+		t.Fatalf("expected c2, got %s", selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.From.Tables[0].SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.From.Tables[0].SchemaName.Value)
+	}
+
+	if selectStmt.From.Tables[0].TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.From.Tables[0].TableName.Value)
+	}
+
+	if selectStmt.From.Tables[0].Alias != nil {
+		t.Fatalf("expected nil alias")
+
+	}
+
+	if selectStmt.Joins == nil {
+		t.Fatalf("expected non-nil joins")
+	}
+
+	if selectStmt.Joins[0].JoinType != InnerJoin {
+		t.Fatalf("expected INNER JOIN, got %d", selectStmt.Joins[0].JoinType)
+	}
+
+	if selectStmt.Joins[0].LeftTable.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.Joins[0].LeftTable.SchemaName.Value)
+	}
+
+	if selectStmt.Joins[0].LeftTable.TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.Joins[0].LeftTable.TableName.Value)
+	}
+
+	if selectStmt.Joins[0].RightTable.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.Joins[0].RightTable.SchemaName.Value)
+	}
+
+	if selectStmt.Joins[0].RightTable.TableName.Value != "t2" {
+		t.Fatalf("expected t2, got %s", selectStmt.Joins[0].RightTable.TableName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value != "c1" {
+		t.Fatalf("expected c1, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).TableName.Value != "t2" {
+		t.Fatalf("expected t2, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).ColumnName.Value != "c2" {
+		t.Fatalf("expected c2, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).ColumnName.Value)
+	}
+
+}
+
+func TestNewParserSelect22(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT a.c1, b.c2 FROM s1.t1 AS a INNER JOIN s1.t2 AS b ON a.c1 = b.c2;")) // just for parser tests
+	t.Log("Testing: SELECT a.c1, b.c2 FROM s1.t1 AS a INNER JOIN s1.t2 AS b ON a.c1 = b.c2;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value != "c1" {
+		t.Fatalf("expected c1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).TableName.Value != "b" {
+		t.Fatalf("expected b, got %s", selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).ColumnName.Value != "c2" {
+		t.Fatalf("expected c2, got %s", selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.From.Tables[0].SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.From.Tables[0].SchemaName.Value)
+	}
+
+	if selectStmt.From.Tables[0].TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.From.Tables[0].TableName.Value)
+	}
+
+	if selectStmt.From.Tables[0].Alias.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.From.Tables[0].Alias.Value)
+	}
+
+	if selectStmt.Joins[0].LeftTable.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.Joins[0].LeftTable.SchemaName.Value)
+	}
+
+	if selectStmt.Joins[0].LeftTable.TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.Joins[0].LeftTable.TableName.Value)
+	}
+
+	if selectStmt.Joins[0].LeftTable.Alias.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.Joins[0].LeftTable.Alias.Value)
+	}
+
+	if selectStmt.Joins[0].RightTable.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.Joins[0].RightTable.SchemaName.Value)
+	}
+
+	if selectStmt.Joins[0].RightTable.TableName.Value != "t2" {
+		t.Fatalf("expected t2, got %s", selectStmt.Joins[0].RightTable.TableName.Value)
+	}
+
+	if selectStmt.Joins[0].RightTable.Alias.Value != "b" {
+		t.Fatalf("expected b, got %s", selectStmt.Joins[0].RightTable.Alias.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value != "c1" {
+		t.Fatalf("expected c1, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).TableName.Value != "b" {
+		t.Fatalf("expected b, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).ColumnName.Value != "c2" {
+		t.Fatalf("expected c2, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).ColumnName.Value)
+	}
+
+}

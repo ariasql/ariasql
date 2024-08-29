@@ -21,7 +21,6 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -46,6 +45,7 @@ var (
 		"SQL", "SQLCODE", "SQLERROR", "SUM", "DATE", "DATETIME", "TIME", "TIMESTAMP", "BINARY",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE", "TEXT",
+		"INNER", "OUTER", "LEFT", "RIGHT", "JOIN", "CROSS", "NATURAL", "FULL",
 	}
 )
 
@@ -1161,6 +1161,7 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 }
 
 func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
+
 	// JOIN schema_name.table_name ON column_name1 = column_name2
 
 	join := &Join{}
@@ -1256,6 +1257,21 @@ func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
 
 	p.consume() // Consume schema_name.table_name
 
+	// Look for alias
+	if p.peek(0).value == "AS" {
+		p.consume() // Consume AS
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return errors.New("expected identifier")
+		}
+
+		alias := p.peek(0).value.(string)
+		rightTable.Alias = &Identifier{Value: alias}
+
+		p.consume() // Consume alias
+
+	}
+
 	if p.peek(0).value != "ON" {
 		return errors.New("expected ON")
 	}
@@ -1267,6 +1283,8 @@ func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
 	if err != nil {
 		return err
 	}
+
+	selectStmt.Joins = append(selectStmt.Joins, join)
 
 	return nil
 }
@@ -1280,8 +1298,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 			return errors.New("expected table_name.column_name")
 		}
 
-		tableNameL := strings.Split(colL, ".")[1]
-		columnNameL := strings.Split(colL, ".")[2]
+		tableNameL := strings.Split(colL, ".")[0]
+		columnNameL := strings.Split(colL, ".")[1]
 
 		columnSpecL := &ColumnSpec{
 			TableName:  &Identifier{Value: tableNameL},
@@ -1306,8 +1324,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 				return errors.New("expected table_name.column_name")
 			}
 
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
+			tableNameR := strings.Split(colR, ".")[0]
+			columnNameR := strings.Split(colR, ".")[1]
 
 			columnSpecR := &ColumnSpec{
 				TableName:  &Identifier{Value: tableNameR},
@@ -1618,7 +1636,6 @@ func (p *Parser) parseInPredicate(where interface{}, columnSpec *ColumnSpec) err
 
 	// Check for subquery
 	if p.peek(0).value == "SELECT" {
-		log.Println("djm")
 
 		subquery, err := p.parseSelectStmt()
 		if err != nil {
@@ -2111,14 +2128,14 @@ func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
 		Tables: make([]*Table, 0),
 	}
 
-	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" {
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
 		}
 
 		if p.peek(0).tokenT == KEYWORD_TOK {
-			if p.peek(0).value == "WHERE" {
+			if p.peek(0).value == "WHERE" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" {
 				break
 			}
 		}
