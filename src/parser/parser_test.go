@@ -16,7 +16,10 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package parser
 
-import "testing"
+import (
+	"ariasql/catalog"
+	"testing"
+)
 
 func TestNewLexer(t *testing.T) {
 	lexer := NewLexer([]byte("CREATE DATABASE test;"))
@@ -361,9 +364,9 @@ func TestNewParserCreateTable2(t *testing.T) {
 				col2 CHAR(5) UNIQUE DEFAULT 'hello',
 				col3 TEXT NOT NULL,
 				col4 DECIMAL(10, 2),
-				col5 BOOLEAN DEFAULT TRUE
-				--col6 UUID,
-				--col6 BIGINT FOREIGN KEY REFERENCES s1.test(col1) ON DELETE CASCADE ON UPDATE CASCADE
+				col5 BOOLEAN DEFAULT TRUE,
+				col6 UUID,
+				col7 BIGINT FOREIGN KEY REFERENCES s1.test2(colU) ON DELETE CASCADE ON UPDATE CASCADE
 	);`))
 	t.Log(`Test: CREATE TABLE s1.test (
 				col1 INT SEQUENCE PRIMARY KEY,
@@ -372,7 +375,7 @@ func TestNewParserCreateTable2(t *testing.T) {
 				col4 DECIMAL(10, 2),
 				col5 BOOLEAN DEFAULT TRUE,
 				col6 UUID,
-				col6 BIGINT FOREIGN KEY REFERENCES s1.test(col1) ON DELETE CASCADE ON UPDATE CASCADE
+				col7 BIGINT FOREIGN KEY REFERENCES s1.test2(colU) ON DELETE CASCADE ON UPDATE CASCADE
 	);`)
 
 	parser := NewParser(lexer)
@@ -402,4 +405,87 @@ func TestNewParserCreateTable2(t *testing.T) {
 		t.Fatalf("expected test, got %s", createTableStmt.TableName.Value)
 	}
 
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].Datatype != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].Datatype)
+	}
+
+	if !createTableStmt.TableSchema.ColumnDefinitions["col1"].Sequence {
+		t.Fatalf("expected sequence")
+	}
+
+	if !createTableStmt.TableSchema.ColumnDefinitions["col1"].PrimaryKey {
+		t.Fatalf("expected primary key")
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Datatype != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Length != 5 {
+		t.Fatalf("expected 5, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Length)
+	}
+
+	if !createTableStmt.TableSchema.ColumnDefinitions["col2"].Unique {
+		t.Fatalf("expected unique")
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Default != "'hello'" {
+		t.Fatalf("expected 'hello', got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].Default)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col3"].Datatype != "TEXT" {
+		t.Fatalf("expected TEXT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col3"].Datatype)
+	}
+
+	if !createTableStmt.TableSchema.ColumnDefinitions["col3"].NotNull {
+		t.Fatalf("expected not null")
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Datatype != "DECIMAL" {
+		t.Fatalf("expected DECIMAL, got %s", createTableStmt.TableSchema.ColumnDefinitions["col4"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Precision != 10 {
+		t.Fatalf("expected 10, got %d", createTableStmt.TableSchema.ColumnDefinitions["col4"].Precision)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Scale != 2 {
+		t.Fatalf("expected 2, got %d", createTableStmt.TableSchema.ColumnDefinitions["col4"].Scale)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col5"].Datatype != "BOOLEAN" {
+		t.Fatalf("expected BOOLEAN, got %s", createTableStmt.TableSchema.ColumnDefinitions["col5"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col5"].Default != true {
+		t.Fatalf("expected TRUE, got %s", createTableStmt.TableSchema.ColumnDefinitions["col5"].Default)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col6"].Datatype != "UUID" {
+		t.Fatalf("expected UUID, got %s", createTableStmt.TableSchema.ColumnDefinitions["col6"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].Datatype != "BIGINT" {
+		t.Fatalf("expected BIGINT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col7"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].IsForeign == false {
+		t.Fatalf("expected foreign key")
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignTable != "test2" {
+		t.Fatalf("expected test2, got %s", createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignTable)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignColumn != "colU" {
+		t.Fatalf("expected colU, got %s", createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignColumn)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignSchema != "s1" {
+		t.Fatalf("expected s1, got %s", createTableStmt.TableSchema.ColumnDefinitions["col7"].ForeignSchema)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col7"].OnDelete != catalog.CascadeActionCascade {
+		t.Fatalf("expected CASCADE, got %d", createTableStmt.TableSchema.ColumnDefinitions["col7"].OnDelete)
+	}
 }

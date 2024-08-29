@@ -20,8 +20,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
-	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -324,6 +322,35 @@ func (l *Lexer) nextToken() Token {
 		default:
 			if isLetter(rune(l.input[l.pos])) {
 				if !insideLiteral {
+					switch l.input[l.pos] {
+					case 'T', 't':
+						if !insideLiteral {
+							// check for TRUE
+							if l.input[l.pos+1] == 'R' || l.input[l.pos+1] == 'r' {
+								if l.input[l.pos+2] == 'U' || l.input[l.pos+2] == 'u' {
+									if l.input[l.pos+3] == 'E' || l.input[l.pos+3] == 'e' {
+										l.pos += 4
+										return Token{tokenT: LITERAL_TOK, value: true}
+									}
+								}
+							}
+						}
+					case 'F', 'f':
+						if !insideLiteral {
+							// check for FALSE
+							if l.input[l.pos+1] == 'A' || l.input[l.pos+1] == 'a' {
+								if l.input[l.pos+2] == 'L' || l.input[l.pos+2] == 'l' {
+									if l.input[l.pos+3] == 'S' || l.input[l.pos+3] == 's' {
+										if l.input[l.pos+4] == 'E' || l.input[l.pos+4] == 'e' {
+											l.pos += 5
+											return Token{tokenT: LITERAL_TOK, value: false}
+										}
+									}
+								}
+							}
+						}
+					}
+
 					startPos := l.pos
 
 					for isDigit(rune(l.input[l.pos])) || isLetter(rune(l.input[l.pos])) {
@@ -384,35 +411,6 @@ func (l *Lexer) nextToken() Token {
 					stringLiteral += string(l.input[l.pos])
 					l.pos++
 					continue
-				}
-			} else {
-				switch l.input[l.pos] {
-				case 'T', 't':
-					if !insideLiteral {
-						// check for TRUE
-						if l.input[l.pos+1] == 'R' || l.input[l.pos+1] == 'r' {
-							if l.input[l.pos+2] == 'U' || l.input[l.pos+2] == 'u' {
-								if l.input[l.pos+3] == 'E' || l.input[l.pos+3] == 'e' {
-									l.pos += 4
-									return Token{tokenT: LITERAL_TOK, value: true}
-								}
-							}
-						}
-					}
-				case 'F', 'f':
-					if !insideLiteral {
-						// check for FALSE
-						if l.input[l.pos+1] == 'A' || l.input[l.pos+1] == 'a' {
-							if l.input[l.pos+2] == 'L' || l.input[l.pos+2] == 'l' {
-								if l.input[l.pos+3] == 'S' || l.input[l.pos+3] == 's' {
-									if l.input[l.pos+4] == 'E' || l.input[l.pos+4] == 'e' {
-										l.pos += 5
-										return Token{tokenT: LITERAL_TOK, value: false}
-									}
-								}
-							}
-						}
-					}
 				}
 			}
 
@@ -851,8 +849,6 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 
 	p.consume() // Consume (
 
-	fmt.Println("wtf")
-
 	for p.peek(0).tokenT != SEMICOLON_TOK {
 		if p.peek(0).tokenT != IDENT_TOK {
 			return nil, errors.New("expected identifier")
@@ -861,8 +857,6 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 		columnName := p.peek(0).value.(string)
 
 		p.consume() // Consume column name
-
-		log.Println("Column Name: ", columnName)
 
 		if p.peek(0).tokenT != DATATYPE_TOK {
 
@@ -941,17 +935,6 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 		if p.peek(0).tokenT == KEYWORD_TOK {
 			for p.peek(0).tokenT == KEYWORD_TOK {
 				switch p.peek(0).value {
-				case "PRIMARY":
-					p.consume() // Consume PRIMARY
-
-					if p.peek(0).value != "KEY" {
-						return nil, errors.New("expected KEY")
-					}
-
-					p.consume() // Consume KEY
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].PrimaryKey = true
-					continue
 				case "NOT":
 					p.consume() // Consume NOT
 
@@ -962,6 +945,17 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 					p.consume() // Consume NULL
 
 					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+					continue
+				case "PRIMARY":
+					p.consume() // Consume PRIMARY
+
+					if p.peek(0).value != "KEY" {
+						return nil, errors.New("expected KEY")
+					}
+
+					p.consume() // Consume KEY
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].PrimaryKey = true
 					continue
 				case "UNIQUE":
 					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
@@ -992,7 +986,7 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 					}
 
 					p.consume() // Consume KEY
-
+				case "REFERENCES":
 					if p.peek(0).value != "REFERENCES" {
 						return nil, errors.New("expected REFERENCES")
 					}
@@ -1040,78 +1034,69 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 					// Consume )
 					p.consume()
 
-					if p.peek(0).value == "ON" {
-						p.consume() // Consume ON
+				case "ON":
+					p.consume() // Consume ON
 
-						if p.peek(0).value == "DELETE" {
-							p.consume() // Consume DELETE
+					cascadeOpt := p.peek(0).value.(string)
 
-							if p.peek(0).value == "CASCADE" {
+					if p.peek(0).value == "DELETE" || p.peek(0).value == "UPDATE" {
+						p.consume() // Consume DELETE or UPDATE
+
+						if p.peek(0).value == "CASCADE" {
+							if cascadeOpt == "DELETE" {
 								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionCascade
-								p.consume() // Consume CASCADE
-							} else if p.peek(0).value == "SET" {
-								p.consume() // Consume SET
-
-								if p.peek(0).value == "NULL" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetNull
-									p.consume() // Consume NULL
-								} else if p.peek(0).value == "DEFAULT" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetDefault
-									p.consume() // Consume DEFAULT
-								} else {
-									return nil, errors.New("expected CASCADE, SET NULL or SET DEFAULT")
-								}
-							} else if p.peek(0).value == "NO" {
-								p.consume() // Consume NO
-
-								if p.peek(0).value == "ACTION" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionNone
-									p.consume() // Consume ACTION
-								} else {
-									return nil, errors.New("expected ACTION")
-								}
-							} else if p.peek(0).value == "RESTRICT" {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionRestrict
-								p.consume() // Consume RESTRICT
-							}
-						}
-
-						if p.peek(0).value == "UPDATE" {
-							p.consume() // Consume UPDATE
-
-							if p.peek(0).value == "CASCADE" {
+							} else {
 								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionCascade
-								p.consume() // Consume CASCADE
-							} else if p.peek(0).value == "SET" {
-								if p.peek(0).value == "NULL" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetNull
-									p.consume() // Consume NULL
-								} else if p.peek(0).value == "DEFAULT" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetDefault
-									p.consume() // Consume DEFAULT
-								} else {
-									return nil, errors.New("expected NULL or DEFAULT")
-								}
-							} else if p.peek(0).value == "NO" {
-								p.consume() // Consume NO
-
-								if p.peek(0).value == "ACTION" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionNone
-									p.consume() // Consume ACTION
-								} else {
-									return nil, errors.New("expected ACTION")
-								}
-							} else if p.peek(0).value == "RESTRICT" {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionRestrict
-								p.consume() // Consume RESTRICT
 							}
+							p.consume() // Consume CASCADE
+						} else if p.peek(0).value == "SET" {
+							p.consume() // Consume SET
+
+							if p.peek(0).value == "NULL" {
+								if cascadeOpt == "DELETE" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetNull
+								} else {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetNull
+								}
+								p.consume() // Consume NULL
+							} else if p.peek(0).value == "DEFAULT" {
+								if cascadeOpt == "DELETE" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetDefault
+								} else {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetDefault
+								}
+								p.consume() // Consume DEFAULT
+							} else {
+								return nil, errors.New("expected CASCADE, SET NULL or SET DEFAULT")
+							}
+						} else if p.peek(0).value == "NO" {
+							p.consume() // Consume NO
+
+							if p.peek(0).value == "ACTION" {
+								if cascadeOpt == "DELETE" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionNone
+								} else {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionNone
+								}
+								p.consume() // Consume ACTION
+							} else {
+								return nil, errors.New("expected ACTION")
+							}
+						} else if p.peek(0).value == "RESTRICT" {
+							if cascadeOpt == "DELETE" {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionRestrict
+							} else {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionRestrict
+							}
+							p.consume() // Consume RESTRICT
+						} else {
+							return nil, errors.New("expected CASCADE, SET NULL, SET DEFAULT, NO ACTION or RESTRICT")
 						}
+
 					}
 
-					continue
-
 				default:
-					break
+					return nil, errors.New("expected PRIMARY, NOT NULL, UNIQUE, DEFAULT, SEQUENCE or FOREIGN KEY")
 				}
 
 			}
