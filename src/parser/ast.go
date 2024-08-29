@@ -61,3 +61,16 @@ type CreateTableStmt struct {
 	TableName   *Identifier
 	TableSchema *catalog.TableSchema
 }
+
+// UseStmt represents a USE statement
+type UseStmt struct {
+	DatabaseName *Identifier
+}
+
+// InsertStmt represents an INSERT statement
+type InsertStmt struct {
+	SchemaName  *Identifier
+	TableName   *Identifier
+	ColumnNames []*Identifier
+	Values      [][]*Literal
+}

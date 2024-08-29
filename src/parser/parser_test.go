@@ -182,3 +182,87 @@ func TestNewParserCreateIndex2(t *testing.T) {
 	}
 }
 
+func TestNewParserUse(t *testing.T) {
+	lexer := NewLexer([]byte("USE test;"))
+	t.Log("Testing: USE test;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	useStmt, ok := stmt.(*UseStmt)
+	if !ok {
+		t.Fatalf("expected *UseStmt, got %T", stmt)
+	}
+
+	if useStmt.DatabaseName.Value != "test" {
+		t.Fatalf("expected test, got %s", useStmt.DatabaseName.Value)
+	}
+}
+
+func TestNewParserInsert(t *testing.T) {
+	lexer := NewLexer([]byte("INSERT INTO s1.test (col1, col2) VALUES (1, 'hello'), (2, 'world');"))
+	t.Log("Testing: INSERT INTO s1.test (col1, col2) VALUES (1, 'hello'), (2, 'world');")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	insertStmt, ok := stmt.(*InsertStmt)
+	if !ok {
+		t.Fatalf("expected *InsertStmt, got %T", stmt)
+	}
+
+	if insertStmt.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", insertStmt.SchemaName.Value)
+
+	}
+
+	if insertStmt.TableName.Value != "test" {
+		t.Fatalf("expected test, got %s", insertStmt.TableName.Value)
+	}
+
+	if insertStmt.ColumnNames[0].Value != "col1" {
+		t.Fatalf("expected col1, got %s", insertStmt.ColumnNames[0].Value)
+	}
+
+	if insertStmt.ColumnNames[1].Value != "col2" {
+		t.Fatalf("expected col2, got %s", insertStmt.ColumnNames[1].Value)
+	}
+
+	if insertStmt.Values[0][0].Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %v", insertStmt.Values[0][0].Value)
+	}
+
+	if insertStmt.Values[0][1].Value != "'hello'" {
+		t.Fatalf("expected hello, got %v", insertStmt.Values[0][1].Value)
+	}
+
+	if insertStmt.Values[1][0].Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %v", insertStmt.Values[1][0].Value)
+	}
+
+	if insertStmt.Values[1][1].Value != "'world'" {
+		t.Fatalf("expected world, got %v", insertStmt.Values[1][1].Value)
+	}
+}

@@ -42,7 +42,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SMALLINT", "SOME", "SEQUENCE",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE",
 	}
 )
 
@@ -470,6 +470,10 @@ func (p *Parser) Parse() (Node, error) {
 		switch p.peek(0).value {
 		case "CREATE":
 			return p.parseCreateStmt()
+		case "USE":
+			return p.parseUseStmt()
+		case "INSERT":
+			return p.parseInsertStmt()
 		case "SELECT":
 			return p.parseSelectStmt()
 		}
@@ -526,6 +530,23 @@ func (p *Parser) parseCreateDatabaseStmt() (Node, error) {
 	return &CreateDatabaseStmt{
 		Name: &Identifier{Value: name},
 	}, nil
+}
+
+// parseUseStmt parses a USE statement
+func (p *Parser) parseUseStmt() (Node, error) {
+	p.consume() // Consume USE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &UseStmt{
+		DatabaseName: &Identifier{Value: name},
+	}, nil
+
 }
 
 // parseCreateSchemaStmt parses a CREATE SCHEMA statement
@@ -624,6 +645,142 @@ func (p *Parser) parseCreateIndexStmt() (Node, error) {
 	p.consume() // Consume )
 
 	return createIndexStmt, nil
+}
+
+// parseInsertStmt parses an INSERT statement
+func (p *Parser) parseInsertStmt() (Node, error) {
+	// INSERT INTO schema_name.table_name (column_name1, column_name2, ...) VALUES (value1, value2, ...), (value1, value2, ...), ...
+
+	insertStmt := &InsertStmt{}
+
+	// Eat INSERT
+	p.consume()
+
+	if p.peek(0).value != "INTO" {
+		return nil, errors.New("expected INTO")
+	}
+
+	// Eat INTO
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+
+	if len(strings.Split(tableName, ".")) != 2 {
+		return nil, errors.New("expected schema_name.table_name")
+	}
+
+	schemaName := strings.Split(tableName, ".")[0]
+	tableName = strings.Split(tableName, ".")[1]
+
+	insertStmt.SchemaName = &Identifier{Value: schemaName}
+	insertStmt.TableName = &Identifier{Value: tableName}
+	insertStmt.ColumnNames = make([]*Identifier, 0)
+	insertStmt.Values = make([][]*Literal, 0)
+
+	p.consume() // Consume schema_name.table_name
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+	for {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+		insertStmt.ColumnNames = append(insertStmt.ColumnNames, &Identifier{Value: columnName})
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	if p.peek(0).tokenT != RPAREN_TOK {
+		return nil, errors.New("expected )")
+	}
+
+	p.consume() // Consume )
+
+	// Look for VALUES
+
+	if p.peek(0).value != "VALUES" {
+		return nil, errors.New("expected VALUES")
+	}
+
+	p.consume() // Consume VALUES
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	for {
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		values := make([]*Literal, 0)
+
+		for {
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			if p.peek(0).tokenT != LITERAL_TOK {
+				return nil, errors.New("expected literal")
+			}
+
+			values = append(values, &Literal{Value: p.peek(0).value})
+
+			p.consume() // Consume literal
+
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			if p.peek(0).tokenT != COMMA_TOK {
+				return nil, errors.New("expected ,")
+			}
+
+			p.consume() // Consume ,
+		}
+
+		insertStmt.Values = append(insertStmt.Values, values)
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+	}
+
+	return insertStmt, nil
 }
 
 // parseCreateTableStmt parses a CREATE TABLE statement

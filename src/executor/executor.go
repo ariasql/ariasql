@@ -21,12 +21,14 @@ import (
 	"ariasql/optimizer"
 )
 
+// Executor is an AriaSQL query executor
 type Executor struct {
-	aria           *core.AriaSQL
-	channel        *core.Channel
-	responseBuffer []byte
+	aria           *core.AriaSQL // AriaSQL instance pointer
+	channel        *core.Channel // Channel to execute the query on
+	responseBuffer []byte        // Response buffer
 }
 
+// NewExecutor creates a new Executor
 func NewExecutor(aria *core.AriaSQL, channel *core.Channel) *Executor {
 	return &Executor{
 		aria:    aria,
@@ -34,14 +36,17 @@ func NewExecutor(aria *core.AriaSQL, channel *core.Channel) *Executor {
 	}
 }
 
+// Execute executes the query plan
 func (e *Executor) Execute(plan *optimizer.PhysicalPlan) error {
 	return nil
 }
 
+// GetResponseBuff returns the response buffer
 func (e *Executor) GetResponseBuff() []byte {
 	return e.responseBuffer
 }
 
+// Clear clears the response buffer
 func (e *Executor) Clear() {
 	e.responseBuffer = []byte{}
 }
