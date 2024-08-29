@@ -110,8 +110,8 @@ type ColumnDefinition struct {
 	Precision     int           // Column precision
 	Default       interface{}   // Column default value
 	ForeignColumn string        // Foreign column name, if column is foreign key
-	ForeignSchema *string       // Foreign schema name, if column is foreign key
-	ForeignTable  *string       // Foreign table name, if column is foreign key
+	ForeignSchema string        // Foreign schema name, if column is foreign key
+	ForeignTable  string        // Foreign table name, if column is foreign key
 	IsForeign     bool          // Is foreign key
 	OnDelete      CascadeAction // On delete action
 	OnUpdate      CascadeAction // On update action

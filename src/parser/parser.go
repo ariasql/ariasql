@@ -17,8 +17,11 @@
 package parser
 
 import (
+	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -26,10 +29,10 @@ import (
 var (
 	keywords = []string{
 		"ALL", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "AVG",
-		"BEGIN", "BETWEEN", "BY", "BIGINT",
+		"BEGIN", "BETWEEN", "BY", "BIGINT", "BOOLEAN", "BOOL",
 		"CHAR", "CHARACTER", "CHECK", "CLOSE", "COBOL", "COMMIT",
 		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "CASCADE",
-		"DEC", "DECIMAL", "DECLARE", "DELETE", "DESC", "DISTINCT", "DOUBLE", "DATABASE",
+		"DEC", "DECIMAL", "DECLARE", "DELETE", "DESC", "DISTINCT", "DOUBLE", "DATABASE", "DEFAULT",
 		"END", "ESCAPE", "EXEC", "EXISTS",
 		"FETCH", "FLOAT", "FOR", "FORTRAN", "FOUND", "FROM",
 		"GO", "GOTO", "GRANT", "GROUP", "HAVING",
@@ -40,9 +43,9 @@ var (
 		"PASCAL", "PLI", "PRECISION", "PRIVILEGES", "PROCEDURE", "PUBLIC", "PRIMARY",
 		"REAL", "ROLLBACK", "KEY", "REFERENCES", "RESTRICT",
 		"SCHEMA", "SECTION", "SELECT", "SET", "SMALLINT", "SOME", "SEQUENCE",
-		"SQL", "SQLCODE", "SQLERROR", "SUM",
+		"SQL", "SQLCODE", "SQLERROR", "SUM", "DATE", "DATETIME", "TIME", "TIMESTAMP", "BINARY",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE", "TEXT",
 	}
 )
 
@@ -129,10 +132,10 @@ func (l *Lexer) nextToken() Token {
 		case '-':
 			if !insideLiteral {
 
-				if l.input[l.pos+1] == '-' {
+				if l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
 					l.pos += 2
 					comment := ""
-					for l.input[l.pos] != '\n' {
+					for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 						comment += string(l.input[l.pos])
 						l.pos++
 					}
@@ -381,6 +384,35 @@ func (l *Lexer) nextToken() Token {
 					stringLiteral += string(l.input[l.pos])
 					l.pos++
 					continue
+				}
+			} else {
+				switch l.input[l.pos] {
+				case 'T', 't':
+					if !insideLiteral {
+						// check for TRUE
+						if l.input[l.pos+1] == 'R' || l.input[l.pos+1] == 'r' {
+							if l.input[l.pos+2] == 'U' || l.input[l.pos+2] == 'u' {
+								if l.input[l.pos+3] == 'E' || l.input[l.pos+3] == 'e' {
+									l.pos += 4
+									return Token{tokenT: LITERAL_TOK, value: true}
+								}
+							}
+						}
+					}
+				case 'F', 'f':
+					if !insideLiteral {
+						// check for FALSE
+						if l.input[l.pos+1] == 'A' || l.input[l.pos+1] == 'a' {
+							if l.input[l.pos+2] == 'L' || l.input[l.pos+2] == 'l' {
+								if l.input[l.pos+3] == 'S' || l.input[l.pos+3] == 's' {
+									if l.input[l.pos+4] == 'E' || l.input[l.pos+4] == 'e' {
+										l.pos += 5
+										return Token{tokenT: LITERAL_TOK, value: false}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 
@@ -785,8 +817,312 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 
 // parseCreateTableStmt parses a CREATE TABLE statement
 func (p *Parser) parseCreateTableStmt() (Node, error) {
+	// CREATE TABLE schema_name.table_name (column_name1 data_type constraints, column_name2 data_type constraints, ...)
+	createTableStmt := &CreateTableStmt{}
 
-	return nil, nil
+	// Eat TABLE
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+
+	if len(strings.Split(tableName, ".")) != 2 {
+		return nil, errors.New("expected schema_name.table_name")
+	}
+
+	schemaName := strings.Split(tableName, ".")[0]
+	tableName = strings.Split(tableName, ".")[1]
+
+	createTableStmt.SchemaName = &Identifier{Value: schemaName}
+	createTableStmt.TableName = &Identifier{Value: tableName}
+
+	p.consume() // Consume schema_name.table_name
+
+	createTableStmt.TableSchema = &catalog.TableSchema{
+		ColumnDefinitions: make(map[string]*catalog.ColumnDefinition),
+	}
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	fmt.Println("wtf")
+
+	for p.peek(0).tokenT != SEMICOLON_TOK {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		p.consume() // Consume column name
+
+		log.Println("Column Name: ", columnName)
+
+		if p.peek(0).tokenT != DATATYPE_TOK {
+
+			return nil, errors.New("expected data type")
+		}
+
+		dataType := p.peek(0).value.(string)
+
+		createTableStmt.TableSchema.ColumnDefinitions[columnName] = &catalog.ColumnDefinition{
+			Datatype: dataType,
+		}
+
+		p.consume() // Consume data type
+
+		// check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
+		if p.peek(0).tokenT == LPAREN_TOK {
+			switch dataType {
+			case "CHAR", "CHARACTER":
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+
+					return nil, errors.New("expected literal")
+				}
+
+				length := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Length = int(length)
+			case "DEC", "DECIMAL", "NUMERIC":
+
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				precision := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != COMMA_TOK {
+					return nil, errors.New("expected ,")
+				}
+
+				p.consume() // Consume ,
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				scale := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Precision = int(precision)
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Scale = int(scale)
+
+			}
+		}
+
+		// Check for constraints
+		if p.peek(0).tokenT == KEYWORD_TOK {
+			for p.peek(0).tokenT == KEYWORD_TOK {
+				switch p.peek(0).value {
+				case "PRIMARY":
+					p.consume() // Consume PRIMARY
+
+					if p.peek(0).value != "KEY" {
+						return nil, errors.New("expected KEY")
+					}
+
+					p.consume() // Consume KEY
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].PrimaryKey = true
+					continue
+				case "NOT":
+					p.consume() // Consume NOT
+
+					if p.peek(0).value != "NULL" {
+						return nil, errors.New("expected NULL")
+					}
+
+					p.consume() // Consume NULL
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+					continue
+				case "UNIQUE":
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
+
+					p.consume() // Consume UNIQUE
+					continue
+				case "DEFAULT":
+					p.consume() // Consume DEFAULT
+
+					if p.peek(0).tokenT != LITERAL_TOK {
+						return nil, errors.New("expected literal")
+					}
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = p.peek(0).value
+
+					p.consume() // Consume literal
+					continue
+				case "SEQUENCE":
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
+
+					p.consume() // Consume SEQUENCE
+					continue
+				case "FOREIGN":
+					p.consume() // Consume FOREIGN
+
+					if p.peek(0).value != "KEY" {
+						return nil, errors.New("expected KEY")
+					}
+
+					p.consume() // Consume KEY
+
+					if p.peek(0).value != "REFERENCES" {
+						return nil, errors.New("expected REFERENCES")
+					}
+
+					p.consume() // Consume REFERENCES
+
+					if p.peek(0).tokenT != IDENT_TOK {
+						return nil, errors.New("expected identifier")
+					}
+
+					// check if schema_name.table_name is valid
+					if len(strings.Split(p.peek(0).value.(string), ".")) != 2 {
+						return nil, errors.New("expected schema_name.table_name")
+					}
+
+					rSchemaName := strings.Split(p.peek(0).value.(string), ".")[0]
+					rTableName := strings.Split(p.peek(0).value.(string), ".")[1]
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignTable = rTableName
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignSchema = rSchemaName
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].IsForeign = true
+
+					p.consume() // Consume schema_name.table_name
+
+					if p.peek(0).tokenT != LPAREN_TOK {
+						return nil, errors.New("expected (")
+					}
+
+					p.consume() // Consume (
+
+					if p.peek(0).tokenT != IDENT_TOK {
+						return nil, errors.New("expected identifier")
+					}
+
+					rColumnName := p.peek(0).value.(string)
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignColumn = rColumnName
+
+					p.consume() // Consume column name
+
+					if p.peek(0).tokenT != RPAREN_TOK {
+						return nil, errors.New("expected )")
+					}
+
+					// Consume )
+					p.consume()
+
+					if p.peek(0).value == "ON" {
+						p.consume() // Consume ON
+
+						if p.peek(0).value == "DELETE" {
+							p.consume() // Consume DELETE
+
+							if p.peek(0).value == "CASCADE" {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionCascade
+								p.consume() // Consume CASCADE
+							} else if p.peek(0).value == "SET" {
+								p.consume() // Consume SET
+
+								if p.peek(0).value == "NULL" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetNull
+									p.consume() // Consume NULL
+								} else if p.peek(0).value == "DEFAULT" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetDefault
+									p.consume() // Consume DEFAULT
+								} else {
+									return nil, errors.New("expected CASCADE, SET NULL or SET DEFAULT")
+								}
+							} else if p.peek(0).value == "NO" {
+								p.consume() // Consume NO
+
+								if p.peek(0).value == "ACTION" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionNone
+									p.consume() // Consume ACTION
+								} else {
+									return nil, errors.New("expected ACTION")
+								}
+							} else if p.peek(0).value == "RESTRICT" {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionRestrict
+								p.consume() // Consume RESTRICT
+							}
+						}
+
+						if p.peek(0).value == "UPDATE" {
+							p.consume() // Consume UPDATE
+
+							if p.peek(0).value == "CASCADE" {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionCascade
+								p.consume() // Consume CASCADE
+							} else if p.peek(0).value == "SET" {
+								if p.peek(0).value == "NULL" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetNull
+									p.consume() // Consume NULL
+								} else if p.peek(0).value == "DEFAULT" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetDefault
+									p.consume() // Consume DEFAULT
+								} else {
+									return nil, errors.New("expected NULL or DEFAULT")
+								}
+							} else if p.peek(0).value == "NO" {
+								p.consume() // Consume NO
+
+								if p.peek(0).value == "ACTION" {
+									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionNone
+									p.consume() // Consume ACTION
+								} else {
+									return nil, errors.New("expected ACTION")
+								}
+							} else if p.peek(0).value == "RESTRICT" {
+								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionRestrict
+								p.consume() // Consume RESTRICT
+							}
+						}
+					}
+
+					continue
+
+				default:
+					break
+				}
+
+			}
+
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	return createTableStmt, nil
 }
 
 // parseSelectStmt parses a SELECT statement

@@ -266,3 +266,140 @@ func TestNewParserInsert(t *testing.T) {
 		t.Fatalf("expected world, got %v", insertStmt.Values[1][1].Value)
 	}
 }
+
+func TestNewParserCreateTable(t *testing.T) {
+
+	lexer := NewLexer([]byte(`CREATE TABLE s1.test (
+    			col1 INT,
+    			col2 CHAR(5),
+    			col3 TEXT,
+    			col4 DECIMAL(10, 2),
+    			col5 BOOLEAN,
+    			col6 UUID,
+    			col7 BIGINT
+    );`))
+	t.Log(`Test: CREATE TABLE s1.test (
+    			col1 INT,
+    			col2 CHAR(5),
+    			col3 TEXT,
+    			col4 DECIMAL(10, 2),
+    			col5 BOOLEAN,
+    			col6 UUID,
+    			col7 BIGINT
+    );`)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if createTableStmt.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", createTableStmt.SchemaName.Value)
+	}
+
+	if createTableStmt.TableName.Value != "test" {
+		t.Fatalf("expected test, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].Datatype != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Datatype != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Length != 5 {
+		t.Fatalf("expected 5, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Length)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col3"].Datatype != "TEXT" {
+		t.Fatalf("expected TEXT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col3"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Datatype != "DECIMAL" {
+		t.Fatalf("expected DECIMAL, got %s", createTableStmt.TableSchema.ColumnDefinitions["col4"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Precision != 10 {
+		t.Fatalf("expected 10, got %d", createTableStmt.TableSchema.ColumnDefinitions["col4"].Precision)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col4"].Scale != 2 {
+		t.Fatalf("expected 2, got %d", createTableStmt.TableSchema.ColumnDefinitions["col4"].Scale)
+
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col5"].Datatype != "BOOLEAN" {
+		t.Fatalf("expected BOOLEAN, got %s", createTableStmt.TableSchema.ColumnDefinitions["col5"].Datatype)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col6"].Datatype != "UUID" {
+		t.Fatalf("expected UUID, got %s", createTableStmt.TableSchema.ColumnDefinitions["col6"].Datatype)
+
+	}
+
+}
+
+func TestNewParserCreateTable2(t *testing.T) {
+	lexer := NewLexer([]byte(`CREATE TABLE s1.test (
+				col1 INT SEQUENCE PRIMARY KEY,
+				col2 CHAR(5) UNIQUE DEFAULT 'hello',
+				col3 TEXT NOT NULL,
+				col4 DECIMAL(10, 2),
+				col5 BOOLEAN DEFAULT TRUE
+				--col6 UUID,
+				--col6 BIGINT FOREIGN KEY REFERENCES s1.test(col1) ON DELETE CASCADE ON UPDATE CASCADE
+	);`))
+	t.Log(`Test: CREATE TABLE s1.test (
+				col1 INT SEQUENCE PRIMARY KEY,
+				col2 CHAR(5) UNIQUE DEFAULT 'hello',
+				col3 TEXT NOT NULL,
+				col4 DECIMAL(10, 2),
+				col5 BOOLEAN DEFAULT TRUE,
+				col6 UUID,
+				col6 BIGINT FOREIGN KEY REFERENCES s1.test(col1) ON DELETE CASCADE ON UPDATE CASCADE
+	);`)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if createTableStmt.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", createTableStmt.SchemaName.Value)
+	}
+
+	if createTableStmt.TableName.Value != "test" {
+		t.Fatalf("expected test, got %s", createTableStmt.TableName.Value)
+	}
+
+}
