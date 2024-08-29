@@ -1139,7 +1139,191 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 		}
 	}
 
+	// Check for WHERE
+	if p.peek(0).value == "WHERE" {
+		err = p.parseWhere(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	return selectStmt, nil
+}
+
+// parseWhere parses the WHERE clause of a SELECT statement
+func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
+	p.consume() // Consume WHERE
+
+	where := &WhereClause{
+		Cond: nil,
+	}
+
+	// Parse condition
+	switch p.peek(0).tokenT {
+	case IDENT_TOK:
+		// Check if we need to parse binary expression or column spec
+		if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
+			// Parse binary expression
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return err
+			}
+
+			where.Cond = expr
+		} else {
+			// Parse column spec
+			columnSpec, err := p.parseColumnSpec()
+			if err != nil {
+				return err
+			}
+
+			// Check for predicate
+			if p.peek(0).tokenT == COMPARISON_TOK {
+				switch p.peek(0).value {
+				case "=":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Eq,
+					}
+
+					p.consume() // Consume =
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				case "<>":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Ne,
+					}
+
+					p.consume() // Consume <>, !=
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				case "<":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Lt,
+					}
+
+					p.consume() // Consume <
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				case "<=":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Le,
+					}
+
+					p.consume() // Consume <=
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				case ">":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Gt,
+					}
+
+					p.consume() // Consume >
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				case ">=":
+					compPred := &ComparisonPredicate{
+						LeftExpr:  columnSpec,
+						RightExpr: nil,
+						Operator:  Ge,
+					}
+
+					p.consume() // Consume =
+
+					if p.peek(0).tokenT == LITERAL_TOK {
+						compPred.RightExpr = &ValueExpr{
+							Value: p.peek(0).value,
+						}
+					}
+
+					where.Cond = compPred
+				default:
+					return errors.New("expected comparison operator")
+				}
+
+				p.consume() // Consume value
+
+			} else if p.peek(0).tokenT == KEYWORD_TOK {
+				switch p.peek(0).value {
+				case "IN":
+				case "BETWEEN":
+				case "LIKE":
+				case "IS":
+				case "EXISTS":
+				case "ANY":
+				case "ALL":
+				case "SOME":
+				case "NOT":
+				}
+			}
+		}
+
+	case LITERAL_TOK:
+		return errors.New("expected identifier")
+	case LPAREN_TOK:
+		// Parse binary expression or subquery
+		if p.peek(1).value == "SELECT" {
+			subquery, err := p.parseSelectStmt()
+			if err != nil {
+				return err
+			}
+
+			where.Cond = subquery
+		} else {
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return err
+			}
+
+			where.Cond = expr
+
+		}
+	}
+
+	selectStmt.Where = where
+
+	return nil
+
 }
 
 // parseFrom parses the FROM clause of a SELECT statement
@@ -1154,6 +1338,12 @@ func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
+		}
+
+		if p.peek(0).tokenT == KEYWORD_TOK {
+			if p.peek(0).value == "WHERE" {
+				break
+			}
 		}
 
 		if p.peek(0).tokenT != IDENT_TOK {

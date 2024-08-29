@@ -267,7 +267,7 @@ type Table struct {
 
 // WhereClause represents a WHERE clause
 type WhereClause struct {
-	Conditions []interface{}
+	Cond interface{} // Predicate or LogicalCondition or BinaryExpr
 }
 
 type UnaryExpr struct {

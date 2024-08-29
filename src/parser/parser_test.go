@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -751,8 +752,8 @@ func TestNewParserSelect4(t *testing.T) {
 }
 
 func TestNewParserSelect6(t *testing.T) {
-	lexer := NewLexer([]byte("SELECT DISTINCT a.col1, b.col2 from s1.tbl1 as a, s2.tbl2 as b;")) // just for parser tests
-	t.Log("Testing: SELECT DISTINCT a.col1, b.col2 from s1.tbl1 as a, s2.tbl2 as b;")
+	lexer := NewLexer([]byte("SELECT DISTINCT a.col1, b.col2 FROM s1.tbl1 AS a, s2.tbl2 as b;")) // just for parser tests
+	t.Log("Testing: SELECT DISTINCT a.col1, b.col2 FROM s1.tbl1 AS a, s2.tbl2 as b;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -837,4 +838,68 @@ func TestNewParserSelect6(t *testing.T) {
 		t.Fatalf("expected b, got %s", selectStmt.From.Tables[1].Alias.Value)
 	}
 
+}
+
+func TestNewParserSelect7(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM x.t as y WHERE y.c1 = 55;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM x.t as y WHERE y.c1 = 55;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Where == nil {
+		t.Fatalf("expected non-nil where clause")
+	}
+
+	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value != "y" {
+		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value != "c1" {
+		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Where.Cond.(*ComparisonPredicate).RightExpr.(*ValueExpr).Value.(uint64) != uint64(55) {
+		t.Fatalf("expected 55, got %v", selectStmt.Where.Cond.(*ComparisonPredicate).RightExpr.(*ValueExpr).Value)
+	}
+
+	if selectStmt.Where.Cond.(*ComparisonPredicate).Operator != Eq {
+		t.Fatalf("expected =, got %d", selectStmt.Where.Cond.(*ComparisonPredicate).Operator)
+	}
 }
