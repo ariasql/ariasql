@@ -1204,6 +1204,55 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 			if p.peek(0).tokenT == SEMICOLON_TOK {
 				break
 			}
+		} else if p.peek(0).tokenT == LITERAL_TOK {
+			var ve *ValueExpr
+			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
+				// Parse binary expression
+				expr, err := p.parseBinaryExpr(0)
+				if err != nil {
+					return err
+				}
+
+				ve = &ValueExpr{
+					Value: expr,
+					Alias: nil,
+				}
+			} else {
+				// Parse literal
+				literal, err := p.parseLiteral()
+				if err != nil {
+					return err
+				}
+
+				ve = &ValueExpr{
+					Value: literal,
+					Alias: nil,
+				}
+			}
+			// Check for alias
+			if p.peek(0).tokenT == KEYWORD_TOK {
+				if p.peek(0).value == "AS" {
+					p.consume()
+
+					if p.peek(0).tokenT != IDENT_TOK {
+						return errors.New("expected identifier")
+					}
+
+					alias := p.peek(0).value.(string)
+					ve.Alias = &Identifier{Value: alias}
+
+					p.consume()
+				}
+			}
+
+			columnSet.Exprs = append(columnSet.Exprs, ve)
+
+			if p.peek(0).tokenT == SEMICOLON_TOK {
+				break
+			}
+		} else {
+			return errors.New("expected identifier or literal")
+
 		}
 
 	}
