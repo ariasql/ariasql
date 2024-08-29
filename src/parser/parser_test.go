@@ -18,7 +18,6 @@ package parser
 
 import (
 	"ariasql/catalog"
-	"log"
 	"testing"
 )
 
@@ -779,11 +778,63 @@ func TestNewParserSelect6(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.Distinct == false {
+		t.Fatalf("expected distinct")
 	}
 
-	log.Println(sel)
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[1].(*ColumnSpec).TableName.Value != "b" {
+		t.Fatalf("expected b, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.From.Tables[0].SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.From.Tables[0].SchemaName.Value)
+	}
+
+	if selectStmt.From.Tables[0].TableName.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.From.Tables[0].TableName.Value)
+	}
+
+	if selectStmt.From.Tables[0].Alias.Value != "a" {
+		t.Fatalf("expected a, got %s", selectStmt.From.Tables[0].Alias.Value)
+	}
+
+	if selectStmt.From.Tables[1].SchemaName.Value != "s2" {
+		t.Fatalf("expected s2, got %s", selectStmt.From.Tables[1].SchemaName.Value)
+	}
+
+	if selectStmt.From.Tables[1].TableName.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", selectStmt.From.Tables[1].TableName.Value)
+	}
+
+	if selectStmt.From.Tables[1].Alias.Value != "b" {
+		t.Fatalf("expected b, got %s", selectStmt.From.Tables[1].Alias.Value)
+	}
 
 }

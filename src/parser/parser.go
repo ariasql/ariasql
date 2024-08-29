@@ -1131,7 +1131,78 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 		return nil, err
 	}
 
+	// Check for FROM
+	if p.peek(0).value == "FROM" {
+		err = p.parseFrom(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return selectStmt, nil
+}
+
+// parseFrom parses the FROM clause of a SELECT statement
+func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
+	p.consume() // Consume FROM
+
+	from := &FromClause{
+		Tables: make([]*Table, 0),
+	}
+
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" {
+		if p.peek(0).tokenT == COMMA_TOK {
+			p.consume()
+			continue
+		}
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return errors.New("expected identifier")
+		}
+
+		tableName := p.peek(0).value.(string)
+
+		if len(strings.Split(tableName, ".")) != 2 {
+			return errors.New("expected schema_name.table_name")
+		}
+
+		schemaName := strings.Split(tableName, ".")[0]
+		tableName = strings.Split(tableName, ".")[1]
+
+		table := &Table{
+			SchemaName: &Identifier{Value: schemaName},
+			TableName:  &Identifier{Value: tableName},
+		}
+
+		p.consume() // Consume schema_name.table_name
+
+		if p.peek(0).tokenT == KEYWORD_TOK {
+			if p.peek(0).value == "AS" {
+				p.consume()
+
+				if p.peek(0).tokenT != IDENT_TOK {
+					return errors.New("expected identifier")
+				}
+
+				alias := p.peek(0).value.(string)
+				table.Alias = &Identifier{Value: alias}
+
+				p.consume()
+			}
+		}
+
+		from.Tables = append(from.Tables, table)
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		}
+
+	}
+
+	selectStmt.From = from
+
+	return nil
+
 }
 
 // parseColumnSet parses the column set of a SELECT statement

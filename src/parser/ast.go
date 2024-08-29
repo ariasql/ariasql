@@ -262,6 +262,7 @@ type FromClause struct {
 type Table struct {
 	SchemaName *Identifier
 	TableName  *Identifier
+	Alias      *Identifier
 }
 
 // WhereClause represents a WHERE clause
