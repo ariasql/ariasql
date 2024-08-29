@@ -21,7 +21,6 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -1776,6 +1775,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	case "<":
 		compPred := &ComparisonPredicate{
@@ -1797,6 +1798,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	case "<=":
 		compPred := &ComparisonPredicate{
@@ -1818,6 +1821,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	case ">":
 		compPred := &ComparisonPredicate{
@@ -1839,6 +1844,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	case ">=":
 		compPred := &ComparisonPredicate{
@@ -1860,6 +1867,8 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 			where.(*WhereClause).Cond = compPred
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = compPred
 		}
 	default:
 		return errors.New("expected comparison operator")
@@ -1900,6 +1909,8 @@ func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error
 			where.(*WhereClause).Cond = in
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = in
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = in
 		}
 
 	} else {
@@ -1938,6 +1949,8 @@ func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error
 			where.(*WhereClause).Cond = in
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = in
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = in
 		}
 	}
 
@@ -1985,6 +1998,8 @@ func (p *Parser) parseBetweenPredicate(where interface{}, valueExpr *ValueExpr) 
 		where.(*WhereClause).Cond = between
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = between
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = between
 	}
 
 	return nil
@@ -2009,6 +2024,8 @@ func (p *Parser) parseLikePredicate(where interface{}, valueExpr *ValueExpr) err
 		where.(*WhereClause).Cond = likeExpr
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = likeExpr
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = likeExpr
 	}
 
 	p.consume() // consume literal
@@ -2031,6 +2048,8 @@ func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error
 			where.(*WhereClause).Cond = isExpr
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = isExpr
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = isExpr
 		}
 
 		p.consume() // consume NULL
@@ -2051,6 +2070,8 @@ func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error
 			where.(*WhereClause).Cond = isExpr
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = isExpr
+		case *LogicalCondition:
+			where.(*LogicalCondition).RightCond = isExpr
 		}
 
 		p.consume() // consume NULL
@@ -2089,6 +2110,8 @@ func (p *Parser) parseExistsPredicate(where interface{}, valueExpr *ValueExpr) e
 		where.(*WhereClause).Cond = existsExpr
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = existsExpr
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = existsExpr
 	}
 
 	return nil
@@ -2124,6 +2147,8 @@ func (p *Parser) parseAnyPredicate(where interface{}, valueExpr *ValueExpr) erro
 		where.(*WhereClause).Cond = anyExpr
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = anyExpr
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = anyExpr
 	}
 
 	return nil
@@ -2159,6 +2184,8 @@ func (p *Parser) parseAllPredicate(where interface{}, valueExpr *ValueExpr) erro
 		where.(*WhereClause).Cond = allExpr
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = allExpr
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = allExpr
 	}
 
 	return nil
@@ -2194,6 +2221,8 @@ func (p *Parser) parseSomePredicate(where interface{}, valueExpr *ValueExpr) err
 		where.(*WhereClause).Cond = someExpr
 	case *NotPredicate:
 		where.(*NotPredicate).Expr = someExpr
+	case *LogicalCondition:
+		where.(*LogicalCondition).RightCond = someExpr
 	}
 
 	return nil
@@ -2366,7 +2395,6 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 				}
 
 				if currLogiCond != nil {
-					log.Println("im here..")
 
 					where.Cond.(*LogicalCondition).LeftCond = currLogiCond
 					currLogiCond = where.Cond
