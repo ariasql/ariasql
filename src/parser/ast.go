@@ -270,8 +270,18 @@ type LimitClause struct {
 
 // UnionStmt represents a UNION statement
 type UnionStmt struct {
-	SelectStmts []*SelectStmt
-	All         bool
+	SelectStmt *SelectStmt
+	All        bool
+}
+
+type IntersectStmt struct {
+	SelectStmt *SelectStmt
+	All        bool
+}
+
+type ExceptStmt struct {
+	SelectStmt *SelectStmt
+	All        bool
 }
 
 // FromClause represents a FROM clause

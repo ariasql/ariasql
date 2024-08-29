@@ -45,7 +45,7 @@ var (
 		"SQL", "SQLCODE", "SQLERROR", "SUM", "DATE", "DATETIME", "TIME", "TIMESTAMP", "BINARY",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE", "TEXT",
-		"INNER", "OUTER", "LEFT", "RIGHT", "JOIN", "CROSS", "NATURAL", "FULL",
+		"INNER", "OUTER", "LEFT", "RIGHT", "JOIN", "CROSS", "NATURAL", "FULL", "EXCEPT", "INTERSECT",
 	}
 )
 
@@ -1157,7 +1157,220 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	// Check for GROUP BY
+	if p.peek(0).value == "GROUP" {
+		err = p.parseGroupBy(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	// Check for ORDER BY
+	if p.peek(0).value == "ORDER" {
+		err = p.parseOrderBy(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	// Check for LIMIT-OFFSET
+	if p.peek(0).value == "LIMIT" {
+		err = p.parseLimit(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Check for Union, Intersect, Except
+	if p.peek(0).value == "UNION" || p.peek(0).value == "INTERSECT" || p.peek(0).value == "EXCEPT" {
+		err = p.parseSetOperation(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	return selectStmt, nil
+}
+
+func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
+	if p.peek(0).value == "UNION" {
+		union := &UnionStmt{}
+		p.consume()
+		if p.peek(0).value == "ALL" {
+			union.All = true
+			p.consume()
+
+			if p.peek(0).value == "SELECT" {
+				sel, err := p.parseSelectStmt()
+				if err != nil {
+					return err
+				}
+
+				union.SelectStmt = sel.(*SelectStmt)
+			}
+		}
+	} else if p.peek(0).value == "INTERSECT" {
+		intersect := &IntersectStmt{}
+		p.consume()
+
+		if p.peek(0).value == "SELECT" {
+			sel, err := p.parseSelectStmt()
+			if err != nil {
+				return err
+			}
+
+			intersect.SelectStmt = sel.(*SelectStmt)
+		}
+
+	} else if p.peek(0).value == "EXCEPT" {
+		except := &ExceptStmt{}
+		p.consume()
+
+		if p.peek(0).value == "SELECT" {
+			sel, err := p.parseSelectStmt()
+			if err != nil {
+				return err
+			}
+
+			except.SelectStmt = sel.(*SelectStmt)
+
+		}
+	}
+
+	return nil
+}
+
+func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
+	p.consume() // Consume LIMIT
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return errors.New("expected literal")
+	}
+
+	limit := p.peek(0).value.(uint64)
+
+	selectStmt.Limit = &LimitClause{
+		Offset: 0,
+		Count:  int(limit),
+	}
+
+	p.consume() // Consume literal
+
+	if p.peek(0).value == "OFFSET" {
+		p.consume() // Consume OFFSET
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return errors.New("expected literal")
+		}
+
+		offset := p.peek(0).value.(uint64)
+
+		selectStmt.Limit.Offset = int(offset)
+	}
+
+	return nil
+}
+
+func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
+	p.consume() // Consume ORDER
+
+	if p.peek(0).value != "BY" {
+		return errors.New("expected BY")
+	}
+
+	p.consume() // Consume BY
+
+	for {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		if len(strings.Split(columnName, ".")) != 2 {
+			return errors.New("expected table_name.column_name, or alias.column_name")
+		}
+
+		tableName := strings.Split(columnName, ".")[0]
+		columnName = strings.Split(columnName, ".")[1]
+
+		orderBy := []interface{}{}
+
+		orderBy = append(orderBy, ColumnSpec{
+			TableName:  &Identifier{Value: tableName},
+			ColumnName: &Identifier{Value: tableName},
+		})
+
+		selectStmt.OrderBy.Columns = orderBy
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	return nil
+}
+
+func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
+
+	p.consume() // Consume GROUP
+
+	if p.peek(0).value != "BY" {
+		return errors.New("expected BY")
+	}
+
+	p.consume() // Consume BY
+
+	for {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		if len(strings.Split(columnName, ".")) != 2 {
+			return errors.New("expected table_name.column_name, or alias.column_name")
+		}
+
+		tableName := strings.Split(columnName, ".")[0]
+		columnName = strings.Split(columnName, ".")[1]
+
+		groupBy := []interface{}{}
+
+		groupBy = append(groupBy, ColumnSpec{
+			TableName:  &Identifier{Value: tableName},
+			ColumnName: &Identifier{Value: tableName},
+		})
+
+		selectStmt.GroupBy.Columns = groupBy
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	return nil
 }
 
 func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
