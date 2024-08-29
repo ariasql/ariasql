@@ -19,6 +19,7 @@ package parser
 import (
 	"ariasql/catalog"
 	"ariasql/shared"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -1112,5 +1113,240 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 
 // parseSelectStmt parses a SELECT statement
 func (p *Parser) parseSelectStmt() (Node, error) {
-	return nil, nil
+	selectStmt := &SelectStmt{}
+
+	// Eat SELECT
+	p.consume()
+
+	// Check for DISTINCT
+	if p.peek(0).value == "DISTINCT" {
+		selectStmt.Distinct = true
+		p.consume()
+	}
+
+	// Parse column set
+	err := p.parseColumnSet(selectStmt)
+	if err != nil {
+		return nil, err
+	}
+
+	return selectStmt, nil
+}
+
+// parseColumnSet parses the column set of a SELECT statement
+func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
+	columnSet := &ColumnSet{
+		Exprs: make([]interface{}, 0),
+	}
+
+	for {
+		// can be binary expression, column spec, or aggregate function
+		if p.peek(0).tokenT == ASTERISK_TOK {
+			// if we encounter an asterisk, we add all columns and no more columns nor expressions can be added
+			columnSet.Exprs = append(columnSet.Exprs, &ColumnSpec{
+				SchemaName: nil,
+				TableName:  nil,
+				ColumnName: &Identifier{
+					Value: "*",
+				},
+			})
+
+			p.consume()
+
+			selectStmt.ColumnSet = columnSet
+
+			return nil
+
+		}
+
+		if p.peek(0).tokenT == IDENT_TOK {
+			// Check if we need to parse binary expression or column spec
+			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
+				// Parse binary expression
+				expr, err := p.parseBinaryExpr(0)
+				if err != nil {
+					return err
+				}
+
+				ve := &ValueExpr{
+					Value: expr,
+					Alias: nil,
+				}
+
+				// Check for alias
+				if p.peek(0).tokenT == KEYWORD_TOK {
+					if p.peek(0).value == "AS" {
+						p.consume()
+
+						if p.peek(0).tokenT != IDENT_TOK {
+							return errors.New("expected identifier")
+						}
+
+						alias := p.peek(0).value.(string)
+						ve.Alias = &Identifier{Value: alias}
+
+						p.consume()
+					}
+				}
+
+				columnSet.Exprs = append(columnSet.Exprs, ve)
+			} else {
+				// Parse column spec
+				columnSpec, err := p.parseColumnSpec()
+				if err != nil {
+					return err
+				}
+
+				columnSet.Exprs = append(columnSet.Exprs, columnSpec)
+			}
+		}
+
+	}
+}
+
+func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
+	left, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		nextPrecedence := p.getPrecedence(p.peek(0).tokenT)
+
+		if nextPrecedence <= precedence {
+			return left, nil
+		}
+
+		op := p.peek(0).value
+
+		p.consume()
+
+		right, err := p.parseBinaryExpr(nextPrecedence)
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpr{Left: left, Op: op.(string), Right: right}
+	}
+}
+
+func (p *Parser) parsePrimaryExpr() (interface{}, error) {
+	if p.peek(0).tokenT == LPAREN_TOK {
+		p.consume()
+
+		expr, err := p.parseBinaryExpr(0)
+		if err != nil {
+			return nil, err
+		}
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume()
+
+		return expr, nil
+	}
+
+	return p.parseUnaryExpr()
+}
+
+func (p *Parser) parseUnaryExpr() (interface{}, error) {
+	if p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == DIVIDE_TOK {
+		op := p.peek(0).value.(string)
+
+		p.consume()
+
+		expr, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		return &UnaryExpr{Op: op, Expr: expr}, nil
+	}
+
+	switch p.peek(0).tokenT {
+	case LITERAL_TOK:
+		return p.parseLiteral()
+	case IDENT_TOK:
+		return p.parseColumnSpec()
+	default:
+		return nil, errors.New("expected literal or column spec")
+	}
+}
+
+func (p *Parser) parseLiteral() (*Literal, error) {
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return nil, errors.New("expected literal")
+	}
+
+	literal := &Literal{Value: p.peek(0).value}
+	p.consume()
+
+	return literal, nil
+}
+
+func (p *Parser) getPrecedence(tokenT TokenType) int {
+	switch tokenT {
+	case ASTERISK_TOK, DIVIDE_TOK:
+		return 2
+	case PLUS_TOK, MINUS_TOK:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// parseColumnSpec parses a column spec
+func (p *Parser) parseColumnSpec() (*ColumnSpec, error) {
+	columnSpec := &ColumnSpec{}
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	// schema_name.table_name.column_name
+	// Check for alias
+
+	if len(strings.Split(p.peek(0).value.(string), ".")) == 3 {
+		schemaName := strings.Split(p.peek(0).value.(string), ".")[0]
+		tableName := strings.Split(p.peek(0).value.(string), ".")[1]
+		columnName := strings.Split(p.peek(0).value.(string), ".")[2]
+
+		columnSpec.SchemaName = &Identifier{Value: schemaName}
+		columnSpec.TableName = &Identifier{Value: tableName}
+		columnSpec.ColumnName = &Identifier{Value: columnName}
+	} else {
+		return nil, errors.New("expected schema_name.table_name.column_name")
+	}
+
+	p.consume()
+
+	// Check for alias
+	if p.peek(0).tokenT == KEYWORD_TOK {
+		if p.peek(0).value == "AS" {
+			p.consume()
+
+			if p.peek(0).tokenT != IDENT_TOK {
+				return nil, errors.New("expected identifier")
+			}
+
+			alias := p.peek(0).value.(string)
+			columnSpec.Alias = &Identifier{Value: alias}
+
+			p.consume()
+		}
+	}
+
+	return columnSpec, nil
+}
+
+func PrintAST(node Node) (string, error) {
+	marshalled, err := json.MarshalIndent(node, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(marshalled), nil
+
 }

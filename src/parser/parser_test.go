@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -488,4 +489,37 @@ func TestNewParserCreateTable2(t *testing.T) {
 	if createTableStmt.TableSchema.ColumnDefinitions["col7"].OnDelete != catalog.CascadeActionCascade {
 		t.Fatalf("expected CASCADE, got %d", createTableStmt.TableSchema.ColumnDefinitions["col7"].OnDelete)
 	}
+}
+
+func TestNewParserSelect(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT s1.t1.col1;"))
+	t.Log("Testing: SELECT * FROM s1.test WHERE col1 = 1;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	sel, err := PrintAST(selectStmt)
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	log.Println(sel)
 }

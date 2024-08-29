@@ -74,3 +74,202 @@ type InsertStmt struct {
 	ColumnNames []*Identifier
 	Values      [][]*Literal
 }
+
+// SelectStmt represents a SELECT statement
+type SelectStmt struct {
+	Distinct  bool
+	ColumnSet *ColumnSet
+	From      *FromClause
+	Where     *WhereClause
+	GroupBy   *GroupByClause
+	Having    *HavingClause
+	OrderBy   *OrderByClause
+	Limit     *LimitClause
+	Union     *UnionStmt
+}
+
+// BinaryExpr represents a binary expression
+type BinaryExpr struct {
+	Left  interface{} // ColumnSpec or ValueExpr
+	Op    string      // +, -, *, /
+	Right interface{} // ColumnSpec or ValueExpr
+}
+
+// ValueExpr represents a value expression
+type ValueExpr struct {
+	Value interface{}
+	Alias *Identifier
+}
+
+// ColumnSpec represents a column specification
+type ColumnSpec struct {
+	SchemaName *Identifier
+	TableName  *Identifier
+	ColumnName *Identifier
+	Alias      *Identifier
+}
+
+// ColumnSet represents a set of columns or expressions
+type ColumnSet struct {
+	Exprs []interface{} // ColumnSpec or ValueExpr
+}
+
+// AggFunc represents an aggregate function
+type AggFunc struct {
+	FuncName string
+	Expr     interface{} // ColumnSpec or ValueExpr
+}
+
+// Func represents a function like UPPER or LOWER
+type Func struct {
+	FuncName string
+	Expr     interface{} // ColumnSpec or ValueExpr
+}
+
+type JoinType int
+
+const (
+	// InnerJoin represents an inner join
+	InnerJoin JoinType = iota
+	// LeftJoin represents a left join
+	LeftJoin
+	// RightJoin represents a right join
+	RightJoin
+	// FullJoin represents a full join
+	FullJoin
+)
+
+// Join represents a join
+type Join struct {
+	LeftTable  *Table
+	RightTable *Table
+	JoinType   JoinType
+	JoinExpr   interface{} // ComparisonPredicate
+}
+
+type ComparisonOperator int
+
+const (
+	// Eq represents the = operator
+	Eq ComparisonOperator = iota
+	// Ne represents the !=/<> operator
+	Ne
+	// Lt represents the < operator
+	Lt
+	// Le represents the <= operator
+	Le
+	// Gt represents the > operator
+	Gt
+	// Ge represents the >= operator
+	Ge
+)
+
+// ComparisonPredicate represents a comparison predicate
+type ComparisonPredicate struct {
+	LeftExpr  interface{} // ColumnSpec or Literal
+	RightExpr interface{} // ColumnSpec or Literal
+	Operator  ComparisonOperator
+}
+
+// LogicalOperator represents a logical operator
+type LogicalOperator int
+
+const (
+	// And represents the AND operator
+	And LogicalOperator = iota
+	// Or represents the OR operator
+	Or
+	// Not represents the NOT operator
+	Not
+)
+
+// LogicalCondition represents a logical condition
+type LogicalCondition struct {
+	LeftCond  interface{} // Predicate or LogicalCondition
+	RightCond interface{} // Predicate or LogicalCondition
+	Operator  LogicalOperator
+}
+
+// BetweenPredicate represents a BETWEEN predicate
+type BetweenPredicate struct {
+	Expr  interface{} // ColumnSpec or Literal
+	Lower interface{} // ColumnSpec or Literal
+	Upper interface{} // ColumnSpec or Literal
+}
+
+// InPredicate represents an IN predicate
+type InPredicate struct {
+	Expr     interface{}   // ColumnSpec or Literal
+	Values   []interface{} // ColumnSpec or Literal
+	Subquery *SelectStmt
+}
+
+// LikePredicate represents a LIKE predicate
+type LikePredicate struct {
+	Expr    interface{} // ColumnSpec or Literal
+	Pattern interface{} // ColumnSpec or Literal
+}
+
+// IsNullPredicate represents an IS NULL predicate
+type IsNullPredicate struct {
+	Expr interface{} // ColumnSpec or Literal
+}
+
+// ExistsPredicate represents an EXISTS predicate
+type ExistsPredicate struct {
+	SelectStmt *SelectStmt
+}
+
+// IsNotNullPredicate represents an IS NOT NULL predicate
+type IsNotNullPredicate struct {
+	Expr interface{} // ColumnSpec or Literal
+}
+
+// HavingClause represents a HAVING clause
+type HavingClause struct {
+	Conditions []interface{} // Predicate or LogicalCondition
+}
+
+// GroupByClause represents a GROUP BY clause
+type GroupByClause struct {
+	Columns []interface{} // ColumnSpec or ValueExpr
+}
+
+// OrderByClause represents an ORDER BY clause
+type OrderByClause struct {
+	Columns []interface{} // ColumnSpec or ValueExpr
+	O       string        // ASC or DESC
+}
+
+// LimitClause represents a LIMIT clause
+type LimitClause struct {
+	Offset int
+	Count  int
+}
+
+// UnionStmt represents a UNION statement
+type UnionStmt struct {
+	SelectStmts []*SelectStmt
+	All         bool
+}
+
+// FromClause represents a FROM clause
+type FromClause struct {
+	Tables []*Table
+}
+
+// Table represents a table
+type Table struct {
+	SchemaName *Identifier
+	TableName  *Identifier
+}
+
+// WhereClause represents a WHERE clause
+type WhereClause struct {
+	Conditions []interface{}
+}
+
+type UnaryExpr struct {
+	Op   string
+	Expr interface{}
+}
