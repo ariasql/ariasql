@@ -1529,7 +1529,7 @@ func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
 	return nil
 }
 
-func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExpr) error {
 	_, ok := where.(*Join)
 	if ok {
 		colL := p.peek(0).value.(string)
@@ -1727,7 +1727,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 	switch p.peek(0).value {
 	case "=":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Eq,
 		}
@@ -1748,7 +1748,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		}
 	case "<>", "!=":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Ne,
 		}
@@ -1769,7 +1769,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		}
 	case "<":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Lt,
 		}
@@ -1790,7 +1790,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		}
 	case "<=":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Le,
 		}
@@ -1811,7 +1811,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		}
 	case ">":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Gt,
 		}
@@ -1832,7 +1832,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		}
 	case ">=":
 		compPred := &ComparisonPredicate{
-			LeftExpr:  columnSpec,
+			LeftExpr:  valueExpr,
 			RightExpr: nil,
 			Operator:  Ge,
 		}
@@ -1860,7 +1860,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 	return nil
 }
 
-func (p *Parser) parseInPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // Consume IN
 
 	if p.peek(0).tokenT != LPAREN_TOK {
@@ -1870,7 +1870,7 @@ func (p *Parser) parseInPredicate(where interface{}, columnSpec *ColumnSpec) err
 	p.consume() // Consume (
 
 	in := &InPredicate{
-		Expr:   columnSpec,
+		Expr:   valueExpr,
 		Values: make([]interface{}, 0),
 	}
 
@@ -1933,7 +1933,7 @@ func (p *Parser) parseInPredicate(where interface{}, columnSpec *ColumnSpec) err
 	return nil
 }
 
-func (p *Parser) parseBetweenPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseBetweenPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // Consume BETWEEN
 
 	if p.peek(0).tokenT != LITERAL_TOK {
@@ -1959,7 +1959,7 @@ func (p *Parser) parseBetweenPredicate(where interface{}, columnSpec *ColumnSpec
 	p.consume() // Consume literal
 
 	between := &BetweenPredicate{
-		Expr: columnSpec,
+		Expr: valueExpr,
 		Lower: &ValueExpr{
 			Value: &Literal{Value: lower},
 		},
@@ -1978,14 +1978,14 @@ func (p *Parser) parseBetweenPredicate(where interface{}, columnSpec *ColumnSpec
 	return nil
 }
 
-func (p *Parser) parseLikePredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseLikePredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // consume LIKE
 	if p.peek(0).tokenT != LITERAL_TOK {
 		return errors.New("expected literal")
 	}
 
 	likeExpr := &LikePredicate{
-		Expr: columnSpec,
+		Expr: valueExpr,
 		Pattern: &Literal{
 			Value: p.peek(0).value,
 		},
@@ -2003,13 +2003,13 @@ func (p *Parser) parseLikePredicate(where interface{}, columnSpec *ColumnSpec) e
 	return nil
 }
 
-func (p *Parser) parseIsPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // consume IS
 
 	// IS NULL or IS NOT NULL
 	if p.peek(0).value == "NULL" {
 		isExpr := &IsNullPredicate{
-			Expr: columnSpec,
+			Expr: valueExpr,
 		}
 
 		switch where.(type) {
@@ -2029,7 +2029,7 @@ func (p *Parser) parseIsPredicate(where interface{}, columnSpec *ColumnSpec) err
 		}
 
 		isExpr := &IsNotNullPredicate{
-			Expr: columnSpec,
+			Expr: valueExpr,
 		}
 
 		switch where.(type) {
@@ -2045,7 +2045,7 @@ func (p *Parser) parseIsPredicate(where interface{}, columnSpec *ColumnSpec) err
 	return nil
 }
 
-func (p *Parser) parseExistsPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseExistsPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE EXISTS (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume EXISTS
 
@@ -2079,7 +2079,7 @@ func (p *Parser) parseExistsPredicate(where interface{}, columnSpec *ColumnSpec)
 	return nil
 }
 
-func (p *Parser) parseAnyPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseAnyPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator ANY (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ANY
 
@@ -2113,7 +2113,7 @@ func (p *Parser) parseAnyPredicate(where interface{}, columnSpec *ColumnSpec) er
 	return nil
 }
 
-func (p *Parser) parseAllPredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseAllPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator ALL (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
 
@@ -2147,7 +2147,7 @@ func (p *Parser) parseAllPredicate(where interface{}, columnSpec *ColumnSpec) er
 	return nil
 }
 
-func (p *Parser) parseSomePredicate(where interface{}, columnSpec *ColumnSpec) error {
+func (p *Parser) parseSomePredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator SOME (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
 
@@ -2181,60 +2181,60 @@ func (p *Parser) parseSomePredicate(where interface{}, columnSpec *ColumnSpec) e
 	return nil
 }
 
-func (p *Parser) parseNotPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseNotPredicate(where *WhereClause, valueExpr *ValueExpr) error {
 	not := &NotPredicate{}
 
 	p.consume() // consume NOT
 
 	switch p.peek(0).value {
 	case "IN":
-		err := p.parseInPredicate(not, columnSpec)
+		err := p.parseInPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 	case "BETWEEN":
-		err := p.parseBetweenPredicate(not, columnSpec)
+		err := p.parseBetweenPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	case "LIKE":
-		err := p.parseLikePredicate(not, columnSpec)
+		err := p.parseLikePredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	case "IS":
-		err := p.parseIsPredicate(not, columnSpec)
+		err := p.parseIsPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	case "EXISTS":
-		err := p.parseExistsPredicate(not, columnSpec)
+		err := p.parseExistsPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	case "ANY":
-		err := p.parseAnyPredicate(not, columnSpec)
+		err := p.parseAnyPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 	case "ALL":
-		err := p.parseAllPredicate(not, columnSpec)
+		err := p.parseAllPredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	case "SOME":
-		err := p.parseSomePredicate(not, columnSpec)
+		err := p.parseSomePredicate(not, valueExpr)
 		if err != nil {
 			return err
 		}
 
 	default:
-		err := p.parseComparisonPredicate(not, columnSpec)
+		err := p.parseComparisonPredicate(not, valueExpr)
 		if err != nil {
 			return err
 
@@ -2257,6 +2257,8 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 	// Parse condition
 	switch p.peek(0).tokenT {
 	case IDENT_TOK:
+		ve := &ValueExpr{}
+		var err error
 		// Check if we need to parse binary expression or column spec
 		if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
 			// Parse binary expression
@@ -2265,71 +2267,78 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 				return err
 			}
 
-			where.Cond = expr
+			ve.Value = expr
 		} else {
 			// Parse column spec
-			columnSpec, err := p.parseColumnSpec()
+			ve.Value, err = p.parseColumnSpec()
+			if err != nil {
+				return err
+			}
+		}
+
+		// Check for predicate
+		if p.peek(0).tokenT == COMPARISON_TOK {
+			err = p.parseComparisonPredicate(where, ve)
 			if err != nil {
 				return err
 			}
 
-			// Check for predicate
-			if p.peek(0).tokenT == COMPARISON_TOK {
-				err = p.parseComparisonPredicate(where, columnSpec)
+		} else if p.peek(0).tokenT == KEYWORD_TOK {
+			switch p.peek(0).value {
+			case "IN":
+				err = p.parseInPredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "BETWEEN":
+				err = p.parseBetweenPredicate(where, ve)
 				if err != nil {
 					return err
 				}
 
-			} else if p.peek(0).tokenT == KEYWORD_TOK {
-				switch p.peek(0).value {
-				case "IN":
-					err = p.parseInPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "BETWEEN":
-					err = p.parseBetweenPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-
-				case "LIKE":
-					err = p.parseLikePredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "IS":
-					err = p.parseIsPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "EXISTS":
-					err = p.parseExistsPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "ANY":
-					err = p.parseAnyPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "ALL":
-					err = p.parseAllPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "SOME":
-					err = p.parseSomePredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
-				case "NOT":
-					err = p.parseNotPredicate(where, columnSpec)
-					if err != nil {
-						return err
-					}
+			case "LIKE":
+				err = p.parseLikePredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "IS":
+				err = p.parseIsPredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "EXISTS":
+				err = p.parseExistsPredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "ANY":
+				err = p.parseAnyPredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "ALL":
+				err = p.parseAllPredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "SOME":
+				err = p.parseSomePredicate(where, ve)
+				if err != nil {
+					return err
+				}
+			case "NOT":
+				err = p.parseNotPredicate(where, ve)
+				if err != nil {
+					return err
 				}
 			}
+
+		}
+
+		// Look for AND or OR
+		if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
+			// Parse logical expression
+			err = p.parseLogicalExpr(where)
 		}
 
 	case LITERAL_TOK:
@@ -2355,6 +2364,97 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 	}
 
 	selectStmt.Where = where
+
+	return nil
+
+}
+
+// parseLogicalExpr parses the logical expression of a WHERE clause
+func (p *Parser) parseLogicalExpr(where *WhereClause) error {
+	if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
+
+		logical := &LogicalCondition{}
+
+		switch p.peek(0).value {
+		case "AND":
+			logical.Operator = And
+		case "OR":
+			logical.Operator = Or
+		}
+
+		p.consume() // Consume AND or OR
+
+		// Parse condition
+		switch p.peek(0).tokenT {
+		case IDENT_TOK:
+			ve := &ValueExpr{}
+			var err error
+			// Check if we need to parse binary expression or column spec
+			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
+				// Parse binary expression
+				expr, err := p.parseBinaryExpr(0)
+				if err != nil {
+					return err
+				}
+
+				ve.Value = expr
+			} else {
+				// Parse column spec
+				ve.Value, err = p.parseColumnSpec()
+				if err != nil {
+					return err
+				}
+			}
+
+			// Check for predicate
+			if p.peek(0).tokenT == COMPARISON_TOK {
+				err = p.parseComparisonPredicate(logical, ve)
+				if err != nil {
+					return err
+				}
+
+			} else if p.peek(0).tokenT == KEYWORD_TOK {
+				switch p.peek(0).value {
+				case "IN":
+					err = p.parseInPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				case "BETWEEN":
+					err = p.parseBetweenPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+
+				case "LIKE":
+					err = p.parseLikePredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				case "IS":
+					err = p.parseIsPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				case "EXISTS":
+					err = p.parseExistsPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				case "ANY":
+					err = p.parseAnyPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				case "ALL":
+					err = p.parseAllPredicate(logical, ve)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 
 	return nil
 

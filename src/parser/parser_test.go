@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -886,11 +887,11 @@ func TestNewParserSelect7(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*ComparisonPredicate).LeftExpr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -950,11 +951,11 @@ func TestNewParserSelect8(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*LikePredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*LikePredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*LikePredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*LikePredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*LikePredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*LikePredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1011,11 +1012,11 @@ func TestNewParserSelect9(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1080,11 +1081,11 @@ func TestNewParserSelect10(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1161,7 +1162,7 @@ func TestNewParserSelect11(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*IsNotNullPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*IsNotNullPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*IsNotNullPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 }
@@ -1213,7 +1214,7 @@ func TestNewParserSelect12(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*IsNullPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*IsNullPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*IsNullPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 }
@@ -1557,11 +1558,11 @@ func TestNewParserSelect17(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*LikePredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1618,11 +1619,11 @@ func TestNewParserSelect18(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*BetweenPredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1675,11 +1676,11 @@ func TestNewParserSelect19(t *testing.T) {
 		t.Fatalf("expected non-nil where clause")
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).TableName.Value != "y" {
 		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ColumnSpec).TableName.Value)
 	}
 
-	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value != "c1" {
+	if selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ValueExpr).Value.(*ColumnSpec).ColumnName.Value != "c1" {
 		t.Fatalf("expected c1, got %s", selectStmt.Where.Cond.(*NotPredicate).Expr.(*InPredicate).Expr.(*ColumnSpec).ColumnName.Value)
 	}
 
@@ -1982,4 +1983,40 @@ func TestNewParserSelect22(t *testing.T) {
 		t.Fatalf("expected c2, got %s", selectStmt.Joins[0].Cond.(*ComparisonPredicate).RightExpr.(*ColumnSpec).ColumnName.Value)
 	}
 
+}
+
+func TestNewParserSelect23(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM sch1.tbl1 where sch1.tbl1.c1 = 1 AND sch1.tbl1.c2 = 2;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM sch1.tbl1 where c1 = 1 AND c2 = 2;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
 }
