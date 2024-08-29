@@ -16,10 +16,32 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package executor
 
-import "ariasql/core"
+import (
+	"ariasql/core"
+	"ariasql/optimizer"
+)
 
 type Executor struct {
 	aria           *core.AriaSQL
 	channel        *core.Channel
 	responseBuffer []byte
+}
+
+func NewExecutor(aria *core.AriaSQL, channel *core.Channel) *Executor {
+	return &Executor{
+		aria:    aria,
+		channel: channel,
+	}
+}
+
+func (e *Executor) Execute(plan *optimizer.PhysicalPlan) error {
+	return nil
+}
+
+func (e *Executor) GetResponseBuff() []byte {
+	return e.responseBuffer
+}
+
+func (e *Executor) Clear() {
+	e.responseBuffer = []byte{}
 }

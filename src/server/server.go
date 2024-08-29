@@ -18,6 +18,9 @@ package server
 
 import (
 	"ariasql/core"
+	"ariasql/executor"
+	"ariasql/optimizer"
+	"ariasql/parser"
 	"bytes"
 	"fmt"
 	"gopkg.in/yaml.v3"
@@ -168,24 +171,19 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			return
 		default:
 
-			lexer := core.NewLexer([]byte(q))
+			lexer := parser.NewLexer(q)
 
-			p := core.NewParser(lexer)
+			p := parser.NewParser(lexer)
 			ast, err := p.Parse()
 			if err != nil {
 				conn.Write(append([]byte(fmt.Sprintf("ERR: %s", err.Error())), []byte("\n")...))
 				continue
 			}
 
-			optimizer := &core.Optimizer{}
-			err = ast.Accept(optimizer)
-			if err != nil {
-				conn.Write(append([]byte(fmt.Sprintf("ERR: %s", err.Error())), []byte("\n")...))
-				continue
-			}
+			plan := optimizer.Optimize(&ast, s.aria.Catalog)
 
-			executor := &core.Executor{Aria: s.aria, Channel: channel, ResponseBuffer: make([]byte, 0)}
-			err = ast.Accept(executor)
+			exe := executor.NewExecutor(s.aria, channel)
+			err = exe.Execute(plan)
 			if err != nil {
 				// Write the error to the connection
 				conn.Write(append([]byte(fmt.Sprintf("ERR: %s", err.Error())), []byte("\n")...))
@@ -193,10 +191,11 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			}
 
 			// Write the response to the connection
-			conn.Write(executor.ResponseBuffer)
+			conn.Write(exe.GetResponseBuff())
 
 			// Clear the response buffer
-			executor.ResponseBuffer = make([]byte, 0)
+			exe.Clear()
+
 			continue
 
 		}

@@ -16,10 +16,17 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package optimizer
 
+import (
+	"ariasql/catalog"
+	"ariasql/parser"
+)
+
 // PhysicalPlan is the final plan that will be executed by the executor
 type PhysicalPlan struct {
+	Plan interface{}
 }
 
-// Optimizer is the query optimizer
-type Optimizer struct {
+// Optimize optimizes the AST and returns a PhysicalPlan
+func Optimize(ast *parser.Node, cat *catalog.Catalog) *PhysicalPlan {
+	return &PhysicalPlan{}
 }
