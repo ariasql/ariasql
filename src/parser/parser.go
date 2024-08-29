@@ -1139,7 +1139,7 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 		Exprs: make([]interface{}, 0),
 	}
 
-	for {
+	for p.peek(0).value != "FROM" || p.peek(0).tokenT != SEMICOLON_TOK {
 		// can be binary expression, column spec, or aggregate function
 		if p.peek(0).tokenT == ASTERISK_TOK {
 			// if we encounter an asterisk, we add all columns and no more columns nor expressions can be added
@@ -1198,10 +1198,19 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 				}
 
 				columnSet.Exprs = append(columnSet.Exprs, columnSpec)
+
+			}
+
+			if p.peek(0).tokenT == SEMICOLON_TOK {
+				break
 			}
 		}
 
 	}
+
+	selectStmt.ColumnSet = columnSet
+
+	return nil
 }
 
 func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
@@ -1320,8 +1329,7 @@ func (p *Parser) parseColumnSpec() (*ColumnSpec, error) {
 		return nil, errors.New("expected schema_name.table_name.column_name")
 	}
 
-	p.consume()
-
+	p.consume() // Consume column name
 	// Check for alias
 	if p.peek(0).tokenT == KEYWORD_TOK {
 		if p.peek(0).value == "AS" {

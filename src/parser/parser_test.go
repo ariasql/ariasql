@@ -492,8 +492,8 @@ func TestNewParserCreateTable2(t *testing.T) {
 }
 
 func TestNewParserSelect(t *testing.T) {
-	lexer := NewLexer([]byte("SELECT s1.t1.col1;"))
-	t.Log("Testing: SELECT * FROM s1.test WHERE col1 = 1;")
+	lexer := NewLexer([]byte("SELECT s1.t1.col1 AS banana;"))
+	t.Log("Testing: SELECT s1.t1.col1 AS banana;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -514,12 +514,102 @@ func TestNewParserSelect(t *testing.T) {
 		t.Fatalf("expected *SelectStmt, got %T", stmt)
 	}
 
-	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).SchemaName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value != "t1" {
+		t.Fatalf("expected t1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).Alias.Value != "banana" {
+		t.Fatalf("expected banana, got %s", selectStmt.ColumnSet.Exprs[0].(*ColumnSpec).Alias.Value)
+	}
+
+}
+
+func TestNewParserSelect2(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT s1.t1.col1+1*(21+1) AS banana;"))
+	t.Log("Testing: SELECT s1.t1.col1 AS banana;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
 
 	if err != nil {
 		t.Fatal(err)
 
 	}
 
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Alias.Value != "banana" {
+		t.Fatalf("expected banana, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Alias.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Op != "+" {
+		t.Fatalf("expected +, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Left.(*ColumnSpec).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Left.(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Op != "*" {
+		t.Fatalf("expected *, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Op != "+" {
+		t.Fatalf("expected +, got %s", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Op)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value.(uint64) != uint64(21) {
+		t.Fatalf("expected 21, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Left.(*Literal).Value)
+	}
+
+	if selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Right.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %v", selectStmt.ColumnSet.Exprs[0].(*ValueExpr).Value.(*BinaryExpr).Right.(*BinaryExpr).Right.(*BinaryExpr).Right.(*Literal).Value)
+	}
+
 }
