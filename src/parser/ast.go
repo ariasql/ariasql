@@ -137,6 +137,10 @@ const (
 	RightJoin
 	// FullJoin represents a full join
 	FullJoin
+	// CrossJoin represents a cross join
+	CrossJoin
+	// NaturalJoin represents a natural join
+	NaturalJoin
 )
 
 // Join represents a join
@@ -144,7 +148,7 @@ type Join struct {
 	LeftTable  *Table
 	RightTable *Table
 	JoinType   JoinType
-	JoinExpr   interface{} // ComparisonPredicate
+	Cond       interface{} // ComparisonPredicate
 }
 
 type ComparisonOperator int

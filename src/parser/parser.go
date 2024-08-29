@@ -1139,6 +1139,15 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 		}
 	}
 
+	// Check for joins
+	if p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" {
+		err = p.parseJoin(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	// Check for WHERE
 	if p.peek(0).value == "WHERE" {
 		err = p.parseWhere(selectStmt)
@@ -1151,7 +1160,312 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 	return selectStmt, nil
 }
 
+func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
+	// JOIN schema_name.table_name ON column_name1 = column_name2
+
+	join := &Join{}
+
+	var joinType JoinType
+
+	if p.peek(0).value == "JOIN" {
+		joinType = InnerJoin
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "INNER" {
+		joinType = InnerJoin
+		p.consume() // Consume INNER
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "LEFT" {
+		joinType = LeftJoin
+		p.consume() // Consume LEFT
+
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "RIGHT" {
+		joinType = RightJoin
+		p.consume() // Consume RIGHT
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "FULL" {
+		joinType = FullJoin
+		p.consume() // Consume FULL
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "CROSS" {
+		joinType = CrossJoin
+		p.consume() // Consume CROSS
+
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+	} else if p.peek(0).value == "NATURAL" {
+		joinType = NaturalJoin
+		p.consume() // Consume NATURAL
+
+		// look for outer
+		if p.peek(0).value == "OUTER" {
+			p.consume() // Consume OUTER
+		}
+
+		p.consume() // Consume JOIN
+
+	}
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+
+	if len(strings.Split(tableName, ".")) != 2 {
+		return errors.New("expected schema_name.table_name")
+	}
+
+	schemaName := strings.Split(tableName, ".")[0]
+	tableName = strings.Split(tableName, ".")[1]
+
+	rightTable := &Table{
+		SchemaName: &Identifier{Value: schemaName},
+		TableName:  &Identifier{Value: tableName},
+	}
+
+	join.RightTable = rightTable
+
+	join.LeftTable = selectStmt.From.Tables[0]
+
+	join.JoinType = joinType
+
+	p.consume() // Consume schema_name.table_name
+
+	if p.peek(0).value != "ON" {
+		return errors.New("expected ON")
+	}
+
+	p.consume() // Consume ON
+
+	// Parse join comparison
+	err := p.parseComparisonPredicate(join, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnSpec) error {
+	_, ok := where.(*Join)
+	if ok {
+		colL := p.peek(0).value.(string)
+
+		if len(strings.Split(colL, ".")) != 2 {
+			return errors.New("expected table_name.column_name")
+		}
+
+		tableNameL := strings.Split(colL, ".")[1]
+		columnNameL := strings.Split(colL, ".")[2]
+
+		columnSpecL := &ColumnSpec{
+			TableName:  &Identifier{Value: tableNameL},
+			ColumnName: &Identifier{Value: columnNameL},
+		}
+
+		p.consume() // Consume schema_name.table_name.column_name
+
+		switch p.peek(0).value {
+		case "=":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Eq,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		case "<>", "!=":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Ne,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		case "<":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Lt,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		case "<=":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Le,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		case ">":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Gt,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		case ">=":
+			compPred := &ComparisonPredicate{
+				LeftExpr:  columnSpecL,
+				RightExpr: nil,
+				Operator:  Ge,
+			}
+
+			p.consume() // Consume =
+
+			colR := p.peek(0).value.(string)
+
+			if len(strings.Split(colR, ".")) != 2 {
+				return errors.New("expected table_name.column_name")
+			}
+
+			tableNameR := strings.Split(colR, ".")[1]
+			columnNameR := strings.Split(colR, ".")[2]
+
+			columnSpecR := &ColumnSpec{
+				TableName:  &Identifier{Value: tableNameR},
+				ColumnName: &Identifier{Value: columnNameR},
+			}
+
+			compPred.RightExpr = columnSpecR
+
+			where.(*Join).Cond = compPred
+
+			return nil
+		default:
+			return errors.New("expected comparison operator")
+
+		}
+
+	}
+
 	switch p.peek(0).value {
 	case "=":
 		compPred := &ComparisonPredicate{
@@ -1174,7 +1488,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnS
 		case *NotPredicate:
 			where.(*NotPredicate).Expr = compPred
 		}
-	case "<>":
+	case "<>", "!=":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
 			RightExpr: nil,
