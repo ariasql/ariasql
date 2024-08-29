@@ -1288,6 +1288,21 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 				case "IN":
 				case "BETWEEN":
 				case "LIKE":
+					p.consume() // consume LIKE
+					if p.peek(0).tokenT != LITERAL_TOK {
+						return errors.New("expected literal")
+					}
+
+					likeExpr := &LikePredicate{
+						Expr: columnSpec,
+						Pattern: &Literal{
+							Value: p.peek(0).value,
+						},
+					}
+
+					where.Cond = likeExpr
+
+					p.consume() // consume literal
 				case "IS":
 				case "EXISTS":
 				case "ANY":
