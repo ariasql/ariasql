@@ -23,7 +23,17 @@ import (
 
 // PhysicalPlan is the final plan that will be executed by the executor
 type PhysicalPlan struct {
-	Plan interface{}
+	Plan     interface{}
+	PlanCost *PlanCost
+}
+
+// OptimizedPlans is a list of optimized plans
+type OptimizedPlans []*PhysicalPlan
+
+// PlanCost is the cost of a plan
+type PlanCost struct {
+	// The cost of the plan
+	Cost float64 // lower is better
 }
 
 // Optimize optimizes the AST and returns a PhysicalPlan

@@ -21,7 +21,6 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -2338,10 +2337,29 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 
 		}
 
+		currLogiCond := where.Cond
 		// Look for AND or OR
 		if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-			// Parse logical expression
-			err = p.parseLogicalExpr(where)
+			for p.peek(0).value == "AND" || p.peek(0).value == "OR" {
+				// Parse logical expression
+				err = p.parseLogicalExpr(where)
+				if err != nil {
+					return err
+				}
+
+				if currLogiCond != nil {
+
+					where.Cond.(*LogicalCondition).LeftCond = currLogiCond
+					currLogiCond = where.Cond
+				} else {
+					currLogiCond = where.Cond
+				}
+
+				if p.peek(0).value == ";" {
+					break
+				}
+			}
+
 		}
 
 	case LITERAL_TOK:
@@ -2374,6 +2392,7 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 
 // parseLogicalExpr parses the logical expression of a WHERE clause
 func (p *Parser) parseLogicalExpr(where *WhereClause) error {
+
 	logical := &LogicalCondition{}
 
 	logical.LeftCond = where.Cond
@@ -2462,15 +2481,6 @@ func (p *Parser) parseLogicalExpr(where *WhereClause) error {
 	}
 
 	where.Cond = logical
-
-	if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-		log.Println("DD")
-		err := p.parseLogicalExpr(where)
-		if err != nil {
-			return err
-		}
-
-	}
 
 	return nil
 
