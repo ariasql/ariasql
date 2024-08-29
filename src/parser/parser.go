@@ -1205,6 +1205,7 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 	return selectStmt, nil
 }
 
+// parseHaving parses a HAVING clause
 func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 	p.consume() // Consume HAVING
 
@@ -1217,6 +1218,7 @@ func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseSetOperation parses a UNION, INTERSECT or EXCEPT
 func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 	if p.peek(0).value == "UNION" {
 		union := &UnionStmt{}
@@ -1271,6 +1273,7 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseLimit parses a LIMIT-OFFSET
 func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
 	p.consume() // Consume LIMIT
 
@@ -1302,6 +1305,7 @@ func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseOrderBy parses an ORDER BY
 func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 	p.consume() // Consume ORDER
 
@@ -1351,6 +1355,7 @@ func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseGroupBy parses a GROUP BY
 func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
 
 	p.consume() // Consume GROUP
@@ -1401,6 +1406,7 @@ func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseJoin parses a JOIN
 func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
 
 	// JOIN schema_name.table_name ON column_name1 = column_name2
@@ -1530,6 +1536,7 @@ func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseComparisonPredicate parses a comparison predicate
 func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExpr) error {
 	_, ok := where.(*Join)
 	if ok {
@@ -1863,6 +1870,7 @@ func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExp
 	return nil
 }
 
+// parseInPredicate parses an IN predicate
 func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // Consume IN
 
@@ -1936,6 +1944,7 @@ func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error
 	return nil
 }
 
+// parseBetweenPredicate parses a BETWEEN predicate
 func (p *Parser) parseBetweenPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // Consume BETWEEN
 
@@ -1981,6 +1990,7 @@ func (p *Parser) parseBetweenPredicate(where interface{}, valueExpr *ValueExpr) 
 	return nil
 }
 
+// parseLikePredicate parses a LIKE predicate
 func (p *Parser) parseLikePredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // consume LIKE
 	if p.peek(0).tokenT != LITERAL_TOK {
@@ -2006,6 +2016,7 @@ func (p *Parser) parseLikePredicate(where interface{}, valueExpr *ValueExpr) err
 	return nil
 }
 
+// parseIsPredicate parses an IS predicate
 func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error {
 	p.consume() // consume IS
 
@@ -2048,6 +2059,7 @@ func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error
 	return nil
 }
 
+// parseExistsPredicate parses an EXISTS predicate
 func (p *Parser) parseExistsPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE EXISTS (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume EXISTS
@@ -2082,6 +2094,7 @@ func (p *Parser) parseExistsPredicate(where interface{}, valueExpr *ValueExpr) e
 	return nil
 }
 
+// parseAnyPredicate parses a ANY predicate
 func (p *Parser) parseAnyPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator ANY (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ANY
@@ -2116,6 +2129,7 @@ func (p *Parser) parseAnyPredicate(where interface{}, valueExpr *ValueExpr) erro
 	return nil
 }
 
+// parseAllPredicate parses an ALL predicate
 func (p *Parser) parseAllPredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator ALL (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
@@ -2150,6 +2164,7 @@ func (p *Parser) parseAllPredicate(where interface{}, valueExpr *ValueExpr) erro
 	return nil
 }
 
+// parseSomePredicate parses a SOME predicate
 func (p *Parser) parseSomePredicate(where interface{}, valueExpr *ValueExpr) error {
 	// SELECT * FROM table_name WHERE column_name operator SOME (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
@@ -2184,6 +2199,7 @@ func (p *Parser) parseSomePredicate(where interface{}, valueExpr *ValueExpr) err
 	return nil
 }
 
+// parseNotPredicate parses a NOT predicate
 func (p *Parser) parseNotPredicate(where *WhereClause, valueExpr *ValueExpr) error {
 	not := &NotPredicate{}
 
@@ -2699,6 +2715,7 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 	return nil
 }
 
+// parseBinaryExpr parses a binary expression
 func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
 	left, err := p.parsePrimaryExpr()
 	if err != nil {
@@ -2725,6 +2742,7 @@ func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
 	}
 }
 
+// parsePrimaryExpr parses a primary expression
 func (p *Parser) parsePrimaryExpr() (interface{}, error) {
 	if p.peek(0).tokenT == LPAREN_TOK {
 		p.consume()
@@ -2746,6 +2764,7 @@ func (p *Parser) parsePrimaryExpr() (interface{}, error) {
 	return p.parseUnaryExpr()
 }
 
+// parseUnaryExpr parses a unary expression
 func (p *Parser) parseUnaryExpr() (interface{}, error) {
 	if p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == DIVIDE_TOK {
 		op := p.peek(0).value.(string)
@@ -2778,6 +2797,7 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 	}
 }
 
+// parseAggregateFunc parses an aggregate function
 func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
 	// Eat aggregate function
 	aggFunc := &AggFunc{FuncName: p.peek(0).value.(string)}
@@ -2847,6 +2867,7 @@ func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
 	return aggFunc, nil
 }
 
+// parseLiteral parses a literal
 func (p *Parser) parseLiteral() (*Literal, error) {
 	if p.peek(0).tokenT != LITERAL_TOK {
 		return nil, errors.New("expected literal")
@@ -2858,6 +2879,7 @@ func (p *Parser) parseLiteral() (*Literal, error) {
 	return literal, nil
 }
 
+// getPrecendence returns the precedence of an arithmetic operator
 func (p *Parser) getPrecedence(tokenT TokenType) int {
 	switch tokenT {
 	case ASTERISK_TOK, DIVIDE_TOK:
@@ -2919,6 +2941,7 @@ func (p *Parser) parseColumnSpec() (*ColumnSpec, error) {
 	return columnSpec, nil
 }
 
+// PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
 	if err != nil {

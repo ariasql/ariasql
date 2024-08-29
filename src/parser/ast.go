@@ -227,18 +227,22 @@ type ExistsPredicate struct {
 	SelectStmt *SelectStmt
 }
 
+// AnyPredicate represents an ANY predicate
 type AnyPredicate struct {
 	SelectStmt *SelectStmt
 }
 
+// AllPredicate represents an ALL predicate
 type AllPredicate struct {
 	SelectStmt *SelectStmt
 }
 
+// SomePredicate represents a SOME predicate
 type SomePredicate struct {
 	SelectStmt *SelectStmt
 }
 
+// NotPredicate represents a NOT predicate
 type NotPredicate struct {
 	Expr interface{} // Predicate
 }
@@ -276,11 +280,13 @@ type UnionStmt struct {
 	All        bool
 }
 
+// IntersectStmt represents an INTERSECT statement
 type IntersectStmt struct {
 	SelectStmt *SelectStmt
 	All        bool
 }
 
+// ExceptStmt represents an EXCEPT statement
 type ExceptStmt struct {
 	SelectStmt *SelectStmt
 	All        bool
@@ -303,6 +309,7 @@ type WhereClause struct {
 	Cond interface{} // Predicate or LogicalCondition or BinaryExpr
 }
 
+// UnaryExpr represents a unary expression
 type UnaryExpr struct {
 	Op   string
 	Expr interface{}
