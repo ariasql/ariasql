@@ -32,49 +32,49 @@ func Optimize(ast parser.Node, cat *catalog.Catalog) *PhysicalPlan {
 
 	switch ast.(type) {
 	case *parser.CreateDatabaseStmt:
-		return OptimizeCreateDatabaseStmt(ast.(*parser.CreateDatabaseStmt), cat)
+		return OpCreateDatabaseStmt(ast.(*parser.CreateDatabaseStmt), cat)
 	case *parser.CreateSchemaStmt:
-		return OptimizeCreateSchemaStmt(ast.(*parser.CreateSchemaStmt), cat)
+		return OpCreateSchemaStmt(ast.(*parser.CreateSchemaStmt), cat)
 	case *parser.CreateTableStmt:
-		return OptimizeCreateTableStmt(ast.(*parser.CreateTableStmt), cat)
+		return OpCreateTableStmt(ast.(*parser.CreateTableStmt), cat)
 	case *parser.CreateIndexStmt:
-		return OptimizeCreateIndexStmt(ast.(*parser.CreateIndexStmt), cat)
+		return OpCreateIndexStmt(ast.(*parser.CreateIndexStmt), cat)
 	case *parser.UseStmt:
-		return OptimizeUseStmt(ast.(*parser.UseStmt), cat)
+		return OpUseStmt(ast.(*parser.UseStmt), cat)
 	case *parser.InsertStmt:
-		return OptimizeInsertStmt(ast.(*parser.InsertStmt), cat)
+		return OpInsertStmt(ast.(*parser.InsertStmt), cat)
 
 	}
 
 	return &PhysicalPlan{}
 }
 
-// OptimizeCreateDatabaseStmt optimizes the CreateDatabaseStmt
-func OptimizeCreateDatabaseStmt(stmt *parser.CreateDatabaseStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpCreateDatabaseStmt optimizes the CreateDatabaseStmt
+func OpCreateDatabaseStmt(stmt *parser.CreateDatabaseStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for create database
 }
 
-// OptimizeCreateSchemaStmt optimizes the CreateSchemaStmt
-func OptimizeCreateSchemaStmt(stmt *parser.CreateSchemaStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpCreateSchemaStmt optimizes the CreateSchemaStmt
+func OpCreateSchemaStmt(stmt *parser.CreateSchemaStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for create schema
 }
 
-// OptimizeCreateIndexStmt optimizes the CreateIndexStmt
-func OptimizeCreateIndexStmt(stmt *parser.CreateIndexStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpCreateIndexStmt optimizes the CreateIndexStmt
+func OpCreateIndexStmt(stmt *parser.CreateIndexStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for create index
 }
 
-// OptimizeCreateTableStmt optimizes the CreateTableStmt
-func OptimizeCreateTableStmt(stmt *parser.CreateTableStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpCreateTableStmt optimizes the CreateTableStmt
+func OpCreateTableStmt(stmt *parser.CreateTableStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for create table
 }
 
-// OptimizeUseStmt optimizes the UseStmt
-func OptimizeUseStmt(stmt *parser.UseStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpUseStmt optimizes the UseStmt
+func OpUseStmt(stmt *parser.UseStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for use
 }
 
-// OptimizeInsertStmt optimizes the InsertStmt
-func OptimizeInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog) *PhysicalPlan {
+// OpInsertStmt optimizes the InsertStmt
+func OpInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for insert
 }
