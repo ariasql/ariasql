@@ -232,6 +232,10 @@ type SomePredicate struct {
 	SelectStmt *SelectStmt
 }
 
+type NotPredicate struct {
+	Expr interface{} // Predicate
+}
+
 // IsNotNullPredicate represents an IS NOT NULL predicate
 type IsNotNullPredicate struct {
 	Expr interface{} // ColumnSpec or Literal

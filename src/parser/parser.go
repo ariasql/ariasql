@@ -1151,7 +1151,7 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 	return selectStmt, nil
 }
 
-func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseComparisonPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	switch p.peek(0).value {
 	case "=":
 		compPred := &ComparisonPredicate{
@@ -1168,7 +1168,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	case "<>":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
@@ -1184,7 +1189,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	case "<":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
@@ -1200,7 +1210,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	case "<=":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
@@ -1216,7 +1231,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	case ">":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
@@ -1232,7 +1252,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	case ">=":
 		compPred := &ComparisonPredicate{
 			LeftExpr:  columnSpec,
@@ -1248,7 +1273,12 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 			}
 		}
 
-		where.Cond = compPred
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = compPred
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = compPred
+		}
 	default:
 		return errors.New("expected comparison operator")
 	}
@@ -1258,7 +1288,7 @@ func (p *Parser) parseComparisonPredicate(where *WhereClause, columnSpec *Column
 	return nil
 }
 
-func (p *Parser) parseInPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseInPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	p.consume() // Consume IN
 
 	if p.peek(0).tokenT != LPAREN_TOK {
@@ -1283,7 +1313,12 @@ func (p *Parser) parseInPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 
 		in.Subquery = subquery.(*SelectStmt)
 
-		where.Cond = in
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = in
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = in
+		}
 
 	} else {
 
@@ -1316,13 +1351,18 @@ func (p *Parser) parseInPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 
 		p.consume() // Consume )
 
-		where.Cond = in
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = in
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = in
+		}
 	}
 
 	return nil
 }
 
-func (p *Parser) parseBetweenPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseBetweenPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	p.consume() // Consume BETWEEN
 
 	if p.peek(0).tokenT != LITERAL_TOK {
@@ -1357,12 +1397,17 @@ func (p *Parser) parseBetweenPredicate(where *WhereClause, columnSpec *ColumnSpe
 		},
 	}
 
-	where.Cond = between
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = between
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = between
+	}
 
 	return nil
 }
 
-func (p *Parser) parseLikePredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseLikePredicate(where interface{}, columnSpec *ColumnSpec) error {
 	p.consume() // consume LIKE
 	if p.peek(0).tokenT != LITERAL_TOK {
 		return errors.New("expected literal")
@@ -1375,14 +1420,19 @@ func (p *Parser) parseLikePredicate(where *WhereClause, columnSpec *ColumnSpec) 
 		},
 	}
 
-	where.Cond = likeExpr
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = likeExpr
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = likeExpr
+	}
 
 	p.consume() // consume literal
 
 	return nil
 }
 
-func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseIsPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	p.consume() // consume IS
 
 	// IS NULL or IS NOT NULL
@@ -1391,7 +1441,12 @@ func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 			Expr: columnSpec,
 		}
 
-		where.Cond = isExpr
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = isExpr
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = isExpr
+		}
 
 		p.consume() // consume NULL
 
@@ -1406,7 +1461,12 @@ func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 			Expr: columnSpec,
 		}
 
-		where.Cond = isExpr
+		switch where.(type) {
+		case *WhereClause:
+			where.(*WhereClause).Cond = isExpr
+		case *NotPredicate:
+			where.(*NotPredicate).Expr = isExpr
+		}
 
 		p.consume() // consume NULL
 	}
@@ -1414,7 +1474,7 @@ func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 	return nil
 }
 
-func (p *Parser) parseExistsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseExistsPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	// SELECT * FROM table_name WHERE EXISTS (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume EXISTS
 
@@ -1438,12 +1498,17 @@ func (p *Parser) parseExistsPredicate(where *WhereClause, columnSpec *ColumnSpec
 		SelectStmt: subquery.(*SelectStmt),
 	}
 
-	where.Cond = existsExpr
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = existsExpr
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = existsExpr
+	}
 
 	return nil
 }
 
-func (p *Parser) parseAnyPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseAnyPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	// SELECT * FROM table_name WHERE column_name operator ANY (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ANY
 
@@ -1467,12 +1532,17 @@ func (p *Parser) parseAnyPredicate(where *WhereClause, columnSpec *ColumnSpec) e
 		SelectStmt: subquery.(*SelectStmt),
 	}
 
-	where.Cond = anyExpr
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = anyExpr
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = anyExpr
+	}
 
 	return nil
 }
 
-func (p *Parser) parseAllPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseAllPredicate(where interface{}, columnSpec *ColumnSpec) error {
 	// SELECT * FROM table_name WHERE column_name operator ALL (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
 
@@ -1496,12 +1566,17 @@ func (p *Parser) parseAllPredicate(where *WhereClause, columnSpec *ColumnSpec) e
 		SelectStmt: subquery.(*SelectStmt),
 	}
 
-	where.Cond = allExpr
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = allExpr
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = allExpr
+	}
 
 	return nil
 }
 
-func (p *Parser) parseSomePredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+func (p *Parser) parseSomePredicate(where interface{}, columnSpec *ColumnSpec) error {
 	// SELECT * FROM table_name WHERE column_name operator SOME (SELECT * FROM table_name WHERE condition)
 	p.consume() // consume ALL
 
@@ -1525,12 +1600,77 @@ func (p *Parser) parseSomePredicate(where *WhereClause, columnSpec *ColumnSpec) 
 		SelectStmt: subquery.(*SelectStmt),
 	}
 
-	where.Cond = someExpr
+	switch where.(type) {
+	case *WhereClause:
+		where.(*WhereClause).Cond = someExpr
+	case *NotPredicate:
+		where.(*NotPredicate).Expr = someExpr
+	}
 
 	return nil
 }
 
 func (p *Parser) parseNotPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	not := &NotPredicate{}
+
+	p.consume() // consume NOT
+
+	switch p.peek(0).value {
+	case "IN":
+		err := p.parseInPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+	case "BETWEEN":
+		err := p.parseBetweenPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	case "LIKE":
+		err := p.parseLikePredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	case "IS":
+		err := p.parseIsPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	case "EXISTS":
+		err := p.parseExistsPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	case "ANY":
+		err := p.parseAnyPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+	case "ALL":
+		err := p.parseAllPredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	case "SOME":
+		err := p.parseSomePredicate(not, columnSpec)
+		if err != nil {
+			return err
+		}
+
+	default:
+		err := p.parseComparisonPredicate(not, columnSpec)
+		if err != nil {
+			return err
+
+		}
+	}
+
+	where.Cond = not
 
 	return nil
 }
@@ -1928,7 +2068,6 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 	case KEYWORD_TOK:
 		switch p.peek(0).value {
 		case "AVG", "COUNT", "MAX", "MIN", "SUM":
-			log.Println("YO")
 			return p.parseAggregateFunc()
 
 		default:
