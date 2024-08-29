@@ -1166,6 +1166,15 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	// Check for HAVING
+	if p.peek(0).value == "HAVING" {
+		err = p.parseHaving(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	// Check for ORDER BY
 	if p.peek(0).value == "ORDER" {
 		err = p.parseOrderBy(selectStmt)
@@ -1193,6 +1202,18 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 	}
 
 	return selectStmt, nil
+}
+
+func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
+	p.consume() // Consume HAVING
+
+	// Having is usually a predicate with an aggregate function
+	// SELECT CustomerID, COUNT(OrderID)
+	// FROM Orders
+	// GROUP BY CustomerID
+	// HAVING COUNT(OrderID) BETWEEN 5 AND 10;
+
+	return nil
 }
 
 func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
