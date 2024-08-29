@@ -1286,6 +1286,65 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 			} else if p.peek(0).tokenT == KEYWORD_TOK {
 				switch p.peek(0).value {
 				case "IN":
+					p.consume() // Consume IN
+
+					if p.peek(0).tokenT != LPAREN_TOK {
+						return errors.New("expected (")
+					}
+
+					p.consume() // Consume (
+
+					in := &InPredicate{
+						Expr:   columnSpec,
+						Values: make([]interface{}, 0),
+					}
+
+					// Check for subquery
+					if p.peek(0).value == "SELECT" {
+						log.Println("djm")
+
+						subquery, err := p.parseSelectStmt()
+						if err != nil {
+							return err
+						}
+
+						in.Subquery = subquery.(*SelectStmt)
+
+						where.Cond = in
+
+					} else {
+
+						for p.peek(0).tokenT != RPAREN_TOK {
+							if p.peek(0).tokenT != LITERAL_TOK {
+								return errors.New("expected literal")
+							}
+
+							in.Values = append(in.Values, &ValueExpr{
+								Value: &Literal{Value: p.peek(0).value},
+							})
+
+							p.consume() // Consume literal
+
+							if p.peek(0).tokenT == RPAREN_TOK {
+								break
+							}
+
+							if p.peek(0).tokenT != COMMA_TOK {
+								return errors.New("expected ,")
+							}
+
+							p.consume() // Consume ,
+
+						}
+
+						if p.peek(0).tokenT != RPAREN_TOK {
+							return errors.New("expected )")
+						}
+
+						p.consume() // Consume )
+
+						where.Cond = in
+					}
 				case "BETWEEN":
 				case "LIKE":
 					p.consume() // consume LIKE
@@ -1362,6 +1421,9 @@ func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
 		}
 
 		if p.peek(0).tokenT != IDENT_TOK {
+			if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
 			return errors.New("expected identifier")
 		}
 
