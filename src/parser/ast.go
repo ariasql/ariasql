@@ -220,6 +220,18 @@ type ExistsPredicate struct {
 	SelectStmt *SelectStmt
 }
 
+type AnyPredicate struct {
+	SelectStmt *SelectStmt
+}
+
+type AllPredicate struct {
+	SelectStmt *SelectStmt
+}
+
+type SomePredicate struct {
+	SelectStmt *SelectStmt
+}
+
 // IsNotNullPredicate represents an IS NOT NULL predicate
 type IsNotNullPredicate struct {
 	Expr interface{} // ColumnSpec or Literal

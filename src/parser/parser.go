@@ -1415,21 +1415,117 @@ func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) er
 }
 
 func (p *Parser) parseExistsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	// SELECT * FROM table_name WHERE EXISTS (SELECT * FROM table_name WHERE condition)
+	p.consume() // consume EXISTS
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return errors.New("expected (")
+	}
+
+	p.consume() // consume (
+
+	if p.peek(0).value != "SELECT" {
+		return errors.New("expected SELECT")
+	}
+
+	subquery, err := p.parseSelectStmt()
+
+	if err != nil {
+		return err
+	}
+
+	existsExpr := &ExistsPredicate{
+		SelectStmt: subquery.(*SelectStmt),
+	}
+
+	where.Cond = existsExpr
 
 	return nil
 }
 
 func (p *Parser) parseAnyPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	// SELECT * FROM table_name WHERE column_name operator ANY (SELECT * FROM table_name WHERE condition)
+	p.consume() // consume ANY
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return errors.New("expected (")
+	}
+
+	p.consume() // consume (
+
+	if p.peek(0).value != "SELECT" {
+		return errors.New("expected SELECT")
+	}
+
+	subquery, err := p.parseSelectStmt()
+
+	if err != nil {
+		return err
+	}
+
+	anyExpr := &AnyPredicate{
+		SelectStmt: subquery.(*SelectStmt),
+	}
+
+	where.Cond = anyExpr
 
 	return nil
 }
 
 func (p *Parser) parseAllPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	// SELECT * FROM table_name WHERE column_name operator ALL (SELECT * FROM table_name WHERE condition)
+	p.consume() // consume ALL
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return errors.New("expected (")
+	}
+
+	p.consume() // consume (
+
+	if p.peek(0).value != "SELECT" {
+		return errors.New("expected SELECT")
+	}
+
+	subquery, err := p.parseSelectStmt()
+
+	if err != nil {
+		return err
+	}
+
+	allExpr := &AllPredicate{
+		SelectStmt: subquery.(*SelectStmt),
+	}
+
+	where.Cond = allExpr
 
 	return nil
 }
 
 func (p *Parser) parseSomePredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	// SELECT * FROM table_name WHERE column_name operator SOME (SELECT * FROM table_name WHERE condition)
+	p.consume() // consume ALL
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return errors.New("expected (")
+	}
+
+	p.consume() // consume (
+
+	if p.peek(0).value != "SELECT" {
+		return errors.New("expected SELECT")
+	}
+
+	subquery, err := p.parseSelectStmt()
+
+	if err != nil {
+		return err
+	}
+
+	someExpr := &SomePredicate{
+		SelectStmt: subquery.(*SelectStmt),
+	}
+
+	where.Cond = someExpr
 
 	return nil
 }
