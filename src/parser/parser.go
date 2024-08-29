@@ -1231,6 +1231,8 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 				}
 
 				union.SelectStmt = sel.(*SelectStmt)
+
+				selectStmt.Union = union
 			}
 		}
 	} else if p.peek(0).value == "INTERSECT" {
@@ -1244,6 +1246,8 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 			}
 
 			intersect.SelectStmt = sel.(*SelectStmt)
+
+			selectStmt.Intersect = intersect
 		}
 
 	} else if p.peek(0).value == "EXCEPT" {
@@ -1257,6 +1261,8 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 			}
 
 			except.SelectStmt = sel.(*SelectStmt)
+
+			selectStmt.Except = except
 
 		}
 	}

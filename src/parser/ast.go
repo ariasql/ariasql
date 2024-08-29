@@ -87,6 +87,8 @@ type SelectStmt struct {
 	OrderBy   *OrderByClause
 	Limit     *LimitClause
 	Union     *UnionStmt
+	Intersect *IntersectStmt
+	Except    *ExceptStmt
 }
 
 // BinaryExpr represents a binary expression
