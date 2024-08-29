@@ -18,7 +18,6 @@ package parser
 
 import (
 	"ariasql/catalog"
-	"log"
 	"testing"
 )
 
@@ -1116,8 +1115,8 @@ func TestNewParserSelect10(t *testing.T) {
 }
 
 func TestNewParserSelect11(t *testing.T) {
-	lexer := NewLexer([]byte("SELECT * FROM x.t as y WHERE y.c1 IN (SELECT * FROM x.h2);")) // just for parser tests
-	t.Log("Testing: SELECT * FROM x.t as y WHERE y.c1 IN (SELECT * FROM x.t2);")
+	lexer := NewLexer([]byte("SELECT * FROM x.t as y WHERE y.c1 IS NOT NULL;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM x.t as y WHERE y.c1 IS NOT NULL;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -1143,10 +1142,78 @@ func TestNewParserSelect11(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Where == nil {
+		t.Fatalf("expected non-nil where clause")
+	}
+
+	if selectStmt.Where.Cond.(*IsNotNullPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*IsNotNullPredicate).Expr.(*ColumnSpec).TableName.Value)
+	}
+}
+
+func TestNewParserSelect12(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM x.t as y WHERE y.c1 IS NULL;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM x.t as y WHERE y.c1 IS NOT NULL;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	log.Println(sel)
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Where == nil {
+		t.Fatalf("expected non-nil where clause")
+	}
+
+	if selectStmt.Where.Cond.(*IsNullPredicate).Expr.(*ColumnSpec).TableName.Value != "y" {
+		t.Fatalf("expected y, got %s", selectStmt.Where.Cond.(*IsNullPredicate).Expr.(*ColumnSpec).TableName.Value)
+	}
 }

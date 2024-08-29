@@ -1383,6 +1383,33 @@ func (p *Parser) parseLikePredicate(where *WhereClause, columnSpec *ColumnSpec) 
 }
 
 func (p *Parser) parseIsPredicate(where *WhereClause, columnSpec *ColumnSpec) error {
+	p.consume() // consume IS
+
+	// IS NULL or IS NOT NULL
+	if p.peek(0).value == "NULL" {
+		isExpr := &IsNullPredicate{
+			Expr: columnSpec,
+		}
+
+		where.Cond = isExpr
+
+		p.consume() // consume NULL
+
+	} else if p.peek(0).value == "NOT" {
+		p.consume() // consume NOT
+
+		if p.peek(0).value != "NULL" {
+			return errors.New("expected NULL")
+		}
+
+		isExpr := &IsNotNullPredicate{
+			Expr: columnSpec,
+		}
+
+		where.Cond = isExpr
+
+		p.consume() // consume NULL
+	}
 
 	return nil
 }
@@ -1465,11 +1492,35 @@ func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
 						return err
 					}
 				case "IS":
+					err = p.parseIsPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				case "EXISTS":
+					err = p.parseExistsPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				case "ANY":
+					err = p.parseAnyPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				case "ALL":
+					err = p.parseAllPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				case "SOME":
+					err = p.parseSomePredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				case "NOT":
+					err = p.parseNotPredicate(where, columnSpec)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
