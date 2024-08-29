@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -2337,5 +2338,172 @@ func TestNewParserSelect26(t *testing.T) {
 	if selectStmt.GroupBy.Columns[0].(*ColumnSpec).ColumnName.Value != "column1" {
 		t.Fatalf("expected column1, got %s", selectStmt.GroupBy.Columns[0].(*ColumnSpec).ColumnName.Value)
 	}
+
+}
+
+func TestNewParserSelect27(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t ORDER BY t.c DESC;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t ORDER BY t.c DESC;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.OrderBy == nil {
+		t.Fatalf("expected non-nil order by clause")
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.OrderBy.Columns[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).ColumnName.Value != "c" {
+		t.Fatalf("expected c, got %s", selectStmt.OrderBy.Columns[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).Alias != nil {
+		t.Fatalf("expected nil alias")
+	}
+
+	if selectStmt.OrderBy.Dir != Desc {
+		t.Fatalf("expected DESC, got %d", selectStmt.OrderBy.Dir)
+	}
+
+}
+
+func TestNewParserSelect28(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t ORDER BY t.c ASC;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t ORDER BY t.c ASC;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.OrderBy == nil {
+		t.Fatalf("expected non-nil order by clause")
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.OrderBy.Columns[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).ColumnName.Value != "c" {
+		t.Fatalf("expected c, got %s", selectStmt.OrderBy.Columns[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.OrderBy.Columns[0].(*ColumnSpec).Alias != nil {
+		t.Fatalf("expected nil alias")
+	}
+
+	if selectStmt.OrderBy.Dir != Asc {
+		t.Fatalf("expected ASC, got %d", selectStmt.OrderBy.Dir)
+	}
+
+}
+
+func TestNewParserSelect29(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t ORDER BY t.c ASC;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t ORDER BY t.c ASC;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
 
 }

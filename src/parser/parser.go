@@ -1307,6 +1307,10 @@ func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
 
 // parseOrderBy parses an ORDER BY
 func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
+	orderByClause := &OrderByClause{}
+
+	selectStmt.OrderBy = orderByClause
+
 	p.consume() // Consume ORDER
 
 	if p.peek(0).value != "BY" {
@@ -1314,6 +1318,8 @@ func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 	}
 
 	p.consume() // Consume BY
+
+	orderByColumns := []interface{}{}
 
 	for {
 		if p.peek(0).tokenT != IDENT_TOK {
@@ -1329,14 +1335,10 @@ func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 		tableName := strings.Split(columnName, ".")[0]
 		columnName = strings.Split(columnName, ".")[1]
 
-		orderBy := []interface{}{}
-
-		orderBy = append(orderBy, ColumnSpec{
+		orderByColumns = append(orderByColumns, &ColumnSpec{
 			TableName:  &Identifier{Value: tableName},
-			ColumnName: &Identifier{Value: tableName},
+			ColumnName: &Identifier{Value: columnName},
 		})
-
-		selectStmt.OrderBy.Columns = orderBy
 
 		p.consume() // Consume column name
 
@@ -1345,10 +1347,22 @@ func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
 		}
 
 		if p.peek(0).tokenT != COMMA_TOK {
-			return errors.New("expected ,")
+			break
 		}
 
 		p.consume() // Consume ,
+
+	}
+
+	orderByClause.Columns = orderByColumns
+
+	if p.peek(0).value == "ASC" {
+		orderByClause.Dir = Asc
+		p.consume() // Consume ASC
+
+	} else {
+		orderByClause.Dir = Desc
+		p.consume() // Consume DESC
 
 	}
 

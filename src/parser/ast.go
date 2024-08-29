@@ -264,9 +264,18 @@ type GroupByClause struct {
 
 // OrderByClause represents an ORDER BY clause
 type OrderByClause struct {
-	Columns []interface{} // ColumnSpec or ValueExpr
-	O       string        // ASC or DESC
+	Columns []interface{}    // ColumnSpec or ValueExpr
+	Dir     OrderByDirection // ASC or DESC
 }
+
+type OrderByDirection int
+
+const (
+	// Asc represents the ASC direction
+	Asc OrderByDirection = iota
+	// Desc represents the DESC direction
+	Desc
+)
 
 // LimitClause represents a LIMIT clause
 type LimitClause struct {
