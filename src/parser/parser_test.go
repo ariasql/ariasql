@@ -18,7 +18,6 @@ package parser
 
 import (
 	"ariasql/catalog"
-	"log"
 	"testing"
 )
 
@@ -2654,8 +2653,8 @@ func TestNewParserSelect29(t *testing.T) {
 }
 
 func TestNewParserSelect30(t *testing.T) {
-	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(s.t) = 5;")) // just for parser tests
-	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(s.t);")
+	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(t.c) = 5;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(t.c) = 5;")
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -2681,11 +2680,184 @@ func TestNewParserSelect30(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Having == nil {
+		t.Fatalf("expected non-nil having clause")
+	}
+
+	if selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c" {
+		t.Fatalf("expected c, got %s", selectStmt.Having.Cond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+
+	}
+
+	if selectStmt.Having.Cond.(*ComparisonPredicate).Operator != Eq {
+		t.Fatalf("expected =, got %d", selectStmt.Having.Cond.(*ComparisonPredicate).Operator)
+	}
+
+	if selectStmt.Having.Cond.(*ComparisonPredicate).RightExpr.(*Literal).Value.(uint64) != 5 {
+		t.Fatalf("expected 5, got %v", selectStmt.Having.Cond.(*ComparisonPredicate).RightExpr.(*Literal).Value.(uint64))
+	}
+
+}
+
+func TestNewParserSelect31(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(t.c) IN (1,2);")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(t.c) IN (1,2);")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	log.Println(sel)
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Having == nil {
+		t.Fatalf("expected non-nil having clause")
+	}
+
+	if selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c" {
+
+		t.Fatalf("expected c, got %s", selectStmt.Having.Cond.(*InPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*InPredicate).Values[0].(*Literal).Value.(uint64) != 1 {
+		t.Fatalf("expected 1, got %v", selectStmt.Having.Cond.(*InPredicate).Values[0].(*Literal).Value.(uint64))
+	}
+
+	if selectStmt.Having.Cond.(*InPredicate).Values[1].(*Literal).Value.(uint64) != 2 {
+		t.Fatalf("expected 2, got %v", selectStmt.Having.Cond.(*InPredicate).Values[1].(*Literal).Value.(uint64))
+	}
+
+}
+
+func TestNewParserSelect32(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(t.c) BETWEEN 1 AND 5;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(t.c) BETWEEN 1 AND 5;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Having == nil {
+		t.Fatalf("expected non-nil having clause")
+	}
+
+	if selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c" {
+		t.Fatalf("expected c, got %s", selectStmt.Having.Cond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*BetweenPredicate).Lower.(*Literal).Value.(uint64) != 1 {
+		t.Fatalf("expected 1, got %v", selectStmt.Having.Cond.(*BetweenPredicate).Lower.(*Literal).Value.(uint64))
+	}
+
+	if selectStmt.Having.Cond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64) != 5 {
+		t.Fatalf("expected 5, got %v", selectStmt.Having.Cond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64))
+	}
 
 }

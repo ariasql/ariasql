@@ -1474,26 +1474,44 @@ func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 
 					inList := []interface{}{}
 
-					for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != SEMICOLON_TOK {
-						if p.peek(0).tokenT != LITERAL_TOK {
-							return errors.New("expected literal")
+					// Look for subquery
+					if p.peek(0).value == "SELECT" {
+						subQuery, err := p.parseSelectStmt()
+						if err != nil {
+							return err
 						}
 
-						inList = append(inList, &Literal{Value: p.peek(0).value})
+						inList = append(inList, subQuery)
 
-						p.consume() // Consume literal
-
-						if p.peek(0).tokenT == RPAREN_TOK {
-							break
+						if p.peek(0).tokenT != RPAREN_TOK {
+							return errors.New("expected )")
 						}
 
-						if p.peek(0).tokenT != COMMA_TOK {
-							return errors.New("expected ,")
+						p.consume() // Consume )
+					} else {
+
+						for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != SEMICOLON_TOK {
+							if p.peek(0).tokenT != LITERAL_TOK {
+								return errors.New("expected literal")
+							}
+
+							inList = append(inList, &Literal{Value: p.peek(0).value})
+
+							p.consume() // Consume literal
+
+							if p.peek(0).tokenT == RPAREN_TOK {
+								break
+							}
+
+							if p.peek(0).tokenT != COMMA_TOK {
+								return errors.New("expected ,")
+							}
+
+							p.consume() // Consume ,
 						}
 
-						p.consume() // Consume ,
+						p.consume() // Consume )
 					}
-
 					havingClause.Cond = &InPredicate{
 						Expr:   aggFunc,
 						Values: inList,
@@ -1513,6 +1531,7 @@ func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 						Expr:    aggFunc,
 						Pattern: pattern,
 					}
+					// eh probably not really needed
 				case "IS":
 					p.consume() // Consume IS
 
