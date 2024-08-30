@@ -21,7 +21,6 @@ import (
 	"ariasql/shared"
 	"encoding/json"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -512,10 +511,26 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseInsertStmt()
 		case "SELECT":
 			return p.parseSelectStmt()
+		case "UPDATE":
+			return p.parseUpdateStmt()
+		case "DELETE":
+			return p.parseDeleteStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+}
+
+// parseUpdateStmt parses an UPDATE statement
+func (p *Parser) parseUpdateStmt() (Node, error) {
+	// @todo
+	return nil, nil
+}
+
+// parseDeleteStmt parses a DELETE statement
+func (p *Parser) parseDeleteStmt() (Node, error) {
+	// @todo
+	return nil, nil
 }
 
 // parseDropStmt parses a DROP statement
@@ -1397,7 +1412,6 @@ func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
 
 // parseLimit parses a LIMIT-OFFSET
 func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
-	log.Println("hello")
 	p.consume() // Consume LIMIT
 
 	if p.peek(0).tokenT != LITERAL_TOK {
@@ -1504,8 +1518,6 @@ func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
 	}
 
 	p.consume() // Consume BY
-
-	log.Println("parseGroupBy", p.peek(0).value)
 
 	for {
 		if p.peek(0).tokenT != IDENT_TOK {
