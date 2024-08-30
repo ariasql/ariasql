@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -2858,6 +2859,115 @@ func TestNewParserSelect32(t *testing.T) {
 
 	if selectStmt.Having.Cond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64) != 5 {
 		t.Fatalf("expected 5, got %v", selectStmt.Having.Cond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64))
+	}
+
+}
+
+func TestNewParserSelect33(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(t.c) BETWEEN 1 AND 5 OR COUNT(t.c2) = 2 OR AVG(t.c7) > 99;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(t.c) BETWEEN 1 AND 5 OR COUNT(t.c2) = 2 OR AVG(t.c7) > 99;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.ColumnSet == nil {
+		t.Fatalf("expected non-nil column set")
+	}
+
+	if selectStmt.From == nil {
+		t.Fatalf("expected non-nil from clause")
+	}
+
+	if selectStmt.Having == nil {
+		t.Fatalf("expected non-nil having clause")
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c" {
+		t.Fatalf("expected c, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Expr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Lower.(*Literal).Value.(uint64) != 1 {
+		t.Fatalf("expected 1, got %v", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Lower.(*Literal).Value.(uint64))
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64) != 5 {
+		t.Fatalf("expected 5, got %v", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).LeftCond.(*BetweenPredicate).Upper.(*Literal).Value.(uint64))
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).Operator != Or {
+		t.Fatalf("expected OR, got %d", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).Operator)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c2" {
+		t.Fatalf("expected c2, got %s", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).Operator != Eq {
+		t.Fatalf("expected =, got %d", selectStmt.Having.Cond.(*LogicalCondition).LeftCond.(*LogicalCondition).RightCond.(*ComparisonPredicate).Operator)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName != "AVG" {
+		t.Fatalf("expected AVG, got %s", selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).FuncName)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).TableName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value != "c7" {
+		t.Fatalf("expected c7, got %s", selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).LeftExpr.(*AggFunc).Args[0].(*ColumnSpec).ColumnName.Value)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).Operator != Gt {
+		t.Fatalf("expected >, got %d", selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).Operator)
+	}
+
+	if selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).RightExpr.(*Literal).Value.(uint64) != 99 {
+		t.Fatalf("expected 99, got %v", selectStmt.Having.Cond.(*LogicalCondition).RightCond.(*ComparisonPredicate).RightExpr.(*Literal).Value.(uint64))
 	}
 
 }

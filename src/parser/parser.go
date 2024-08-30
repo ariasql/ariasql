@@ -1350,32 +1350,102 @@ func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 
 	// HAVING COUNT(OrderID) BETWEEN 5 AND 10 OR COUNT(OrderID) > 10
 
-	for p.peek(0).tokenT != SEMICOLON_TOK {
-		if p.peek(0).tokenT != KEYWORD_TOK {
-			return errors.New("expected keyword")
-		}
+	err := p.parseHavingExpr(havingClause)
+	if err != nil {
+		return err
+	}
 
-		switch p.peek(0).value {
-		case "COUNT", "SUM", "AVG", "MIN", "MAX":
-			aggFunc, err := p.parseAggregateFunc()
+	// check for AND or OR
+	if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
+		for p.peek(0).value == "AND" || p.peek(0).value == "OR" {
+			logical := &LogicalCondition{}
+
+			switch p.peek(0).value {
+			case "AND":
+				logical.Operator = And
+			case "OR":
+				logical.Operator = Or
+
+			}
+
+			p.consume() // Consume AND or OR
+
+			logical.LeftCond = havingClause.Cond
+
+			havingClause.Cond = logical
+
+			havingClauseRight := &HavingClause{}
+
+			err = p.parseHavingExpr(havingClauseRight)
 			if err != nil {
 				return err
 			}
 
-			// Check for predicate
-			switch p.peek(0).tokenT {
-			case COMPARISON_TOK:
-				op := p.peek(0).value.(string)
-				p.consume() // Consume comparison operator
+			logical.RightCond = havingClauseRight.Cond
+		}
 
-				switch p.peek(0).tokenT {
-				case LITERAL_TOK:
-					literal := p.peek(0).value
-					p.consume() // Consume literal
+	}
+
+	selectStmt.Having = havingClause
+
+	return nil
+}
+
+func (p *Parser) parseHavingExpr(havingClause *HavingClause) error {
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "COUNT", "SUM", "AVG", "MIN", "MAX":
+		aggFunc, err := p.parseAggregateFunc()
+		if err != nil {
+			return err
+		}
+
+		// Check for predicate
+		switch p.peek(0).tokenT {
+		case COMPARISON_TOK:
+			op := p.peek(0).value.(string)
+			p.consume() // Consume comparison operator
+
+			switch p.peek(0).tokenT {
+			case LITERAL_TOK:
+				literal := p.peek(0).value
+				p.consume() // Consume literal
+
+				havingClause.Cond = &ComparisonPredicate{
+					LeftExpr:  aggFunc,
+					RightExpr: &Literal{Value: literal},
+				}
+
+				switch op {
+				case "=":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Eq
+				case "!=", "<>":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Ne
+				case ">":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Gt
+				case "<":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Lt
+				case ">=":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Ge
+				case "<=":
+					havingClause.Cond.(*ComparisonPredicate).Operator = Le
+				default:
+					return errors.New("invalid operator")
+				}
+			case KEYWORD_TOK:
+				switch p.peek(0).value {
+				case "COUNT", "SUM", "AVG", "MIN", "MAX":
+					aggFunc2, err := p.parseAggregateFunc()
+					if err != nil {
+						return err
+					}
 
 					havingClause.Cond = &ComparisonPredicate{
 						LeftExpr:  aggFunc,
-						RightExpr: &Literal{Value: literal},
+						RightExpr: aggFunc2,
 					}
 
 					switch op {
@@ -1394,171 +1464,139 @@ func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
 					default:
 						return errors.New("invalid operator")
 					}
-				case KEYWORD_TOK:
-					switch p.peek(0).value {
-					case "COUNT", "SUM", "AVG", "MIN", "MAX":
-						aggFunc2, err := p.parseAggregateFunc()
-						if err != nil {
-							return err
-						}
-
-						havingClause.Cond = &ComparisonPredicate{
-							LeftExpr:  aggFunc,
-							RightExpr: aggFunc2,
-						}
-
-						switch op {
-						case "=":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Eq
-						case "!=", "<>":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Ne
-						case ">":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Gt
-						case "<":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Lt
-						case ">=":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Ge
-						case "<=":
-							havingClause.Cond.(*ComparisonPredicate).Operator = Le
-						default:
-							return errors.New("invalid operator")
-						}
-					default:
-						return errors.New("expected aggregate function")
-					}
-
 				default:
 					return errors.New("expected aggregate function")
-
 				}
-			case KEYWORD_TOK:
+
+			default:
+				return errors.New("expected aggregate function")
+
+			}
+		case KEYWORD_TOK:
+			switch p.peek(0).value {
+			case "BETWEEN":
+				p.consume() // Consume BETWEEN
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return errors.New("expected literal")
+				}
+
+				lower := p.peek(0).value
+
+				p.consume() // Consume literal
+
+				if p.peek(0).value != "AND" {
+					return errors.New("expected AND")
+				}
+
+				p.consume() // Consume AND
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return errors.New("expected literal")
+				}
+
+				upper := p.peek(0).value
+
+				p.consume() // Consume literal
+
+				havingClause.Cond = &BetweenPredicate{
+					Expr:  aggFunc,
+					Lower: &Literal{Value: lower},
+					Upper: &Literal{Value: upper},
+				}
+			case "IN":
+				p.consume() // Consume IN
+
+				if p.peek(0).tokenT != LPAREN_TOK {
+					return errors.New("expected (")
+				}
+
+				p.consume() // Consume (
+
+				inList := []interface{}{}
+
+				// Look for subquery
+				if p.peek(0).value == "SELECT" {
+					subQuery, err := p.parseSelectStmt()
+					if err != nil {
+						return err
+					}
+
+					inList = append(inList, subQuery)
+
+					if p.peek(0).tokenT != RPAREN_TOK {
+						return errors.New("expected )")
+					}
+
+					p.consume() // Consume )
+				} else {
+
+					for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != SEMICOLON_TOK {
+						if p.peek(0).tokenT != LITERAL_TOK {
+							return errors.New("expected literal")
+						}
+
+						inList = append(inList, &Literal{Value: p.peek(0).value})
+
+						p.consume() // Consume literal
+
+						if p.peek(0).tokenT == RPAREN_TOK {
+							break
+						}
+
+						if p.peek(0).tokenT != COMMA_TOK {
+							return errors.New("expected ,")
+						}
+
+						p.consume() // Consume ,
+					}
+
+					p.consume() // Consume )
+				}
+				havingClause.Cond = &InPredicate{
+					Expr:   aggFunc,
+					Values: inList,
+				}
+			case "LIKE":
+				p.consume() // Consume LIKE
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return errors.New("expected literal")
+				}
+
+				pattern := p.peek(0).value
+
+				p.consume() // Consume literal
+
+				havingClause.Cond = &LikePredicate{
+					Expr:    aggFunc,
+					Pattern: pattern,
+				}
+				// eh probably not really needed
+			case "IS":
+				p.consume() // Consume IS
+
 				switch p.peek(0).value {
-				case "BETWEEN":
-					p.consume() // Consume BETWEEN
+				case "NULL":
+					p.consume() // Consume NULL
 
-					if p.peek(0).tokenT != LITERAL_TOK {
-						return errors.New("expected literal")
+					havingClause.Cond = &IsNullPredicate{
+						Expr: aggFunc,
 					}
+				case "NOT":
+					p.consume() // Consume NOT
 
-					lower := p.peek(0).value
-
-					p.consume() // Consume literal
-
-					if p.peek(0).value != "AND" {
-						return errors.New("expected AND")
+					if p.peek(0).value != "NULL" {
+						return errors.New("expected NULL")
 					}
-
-					p.consume() // Consume AND
-
-					if p.peek(0).tokenT != LITERAL_TOK {
-						return errors.New("expected literal")
-					}
-
-					upper := p.peek(0).value
-
-					p.consume() // Consume literal
-
-					havingClause.Cond = &BetweenPredicate{
-						Expr:  aggFunc,
-						Lower: &Literal{Value: lower},
-						Upper: &Literal{Value: upper},
-					}
-				case "IN":
-					p.consume() // Consume IN
-
-					if p.peek(0).tokenT != LPAREN_TOK {
-						return errors.New("expected (")
-					}
-
-					p.consume() // Consume (
-
-					inList := []interface{}{}
-
-					// Look for subquery
-					if p.peek(0).value == "SELECT" {
-						subQuery, err := p.parseSelectStmt()
-						if err != nil {
-							return err
-						}
-
-						inList = append(inList, subQuery)
-
-						if p.peek(0).tokenT != RPAREN_TOK {
-							return errors.New("expected )")
-						}
-
-						p.consume() // Consume )
-					} else {
-
-						for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != SEMICOLON_TOK {
-							if p.peek(0).tokenT != LITERAL_TOK {
-								return errors.New("expected literal")
-							}
-
-							inList = append(inList, &Literal{Value: p.peek(0).value})
-
-							p.consume() // Consume literal
-
-							if p.peek(0).tokenT == RPAREN_TOK {
-								break
-							}
-
-							if p.peek(0).tokenT != COMMA_TOK {
-								return errors.New("expected ,")
-							}
-
-							p.consume() // Consume ,
-						}
-
-						p.consume() // Consume )
-					}
-					havingClause.Cond = &InPredicate{
-						Expr:   aggFunc,
-						Values: inList,
-					}
-				case "LIKE":
-					p.consume() // Consume LIKE
-
-					if p.peek(0).tokenT != LITERAL_TOK {
-						return errors.New("expected literal")
-					}
-
-					pattern := p.peek(0).value
-
-					p.consume() // Consume literal
-
-					havingClause.Cond = &LikePredicate{
-						Expr:    aggFunc,
-						Pattern: pattern,
-					}
-					// eh probably not really needed
-				case "IS":
-					p.consume() // Consume IS
-
-					switch p.peek(0).value {
-					case "NULL":
-						p.consume() // Consume NULL
-
-						havingClause.Cond = &IsNullPredicate{
-							Expr: aggFunc,
-						}
-					case "NOT":
-						p.consume() // Consume NOT
-
-						if p.peek(0).value != "NULL" {
-							return errors.New("expected NULL")
-						}
-					}
-				default:
-					return errors.New("expected predicate")
 				}
 			default:
 				return errors.New("expected predicate")
 			}
+		default:
+			return errors.New("expected predicate")
 		}
 	}
-
-	selectStmt.Having = havingClause
 
 	return nil
 }
