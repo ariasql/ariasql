@@ -164,6 +164,53 @@ func OpSelectStmt(stmt *parser.SelectStmt, cat *catalog.Catalog) *PhysicalPlan {
 			return nil
 		}
 		log.Println(ast)
+
+		// can be schema.table AS alias, schema.table, table AS alias, ...
+		// if we have above we don't parse the stmt.Join
+
+		if len(stmt.From.Tables) > 1 {
+			// This is a classic join
+			// i.e SELECT * FROM s.table1, s.table2 WHERE s.table1.id = s.table2.id
+			// OR SELECT * FROM s.table1 AS a, s.table2 AS b WHERE a.id = b.id
+		} else if len(stmt.From.Tables) == 1 {
+			// Look for joins
+			// i.e SELECT * FROM s.table1 JOIN s.table2 ON s.table1.id = s.table2.id
+
+			// We have a single table in the FROM clause
+			// We can have JOIN clauses
+
+			if stmt.Joins != nil {
+				// We have JOIN clauses
+				// We can have multiple JOIN clauses
+
+				// We can have INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS JOIN, NATURAL JOIN
+				// We can have multiple JOIN clauses
+				// We can have a combination of JOIN clauses
+				// We can have a combination of JOIN clauses and WHERE clauses
+
+			} else {
+				// We have a single table in the FROM clause, no JOIN clauses
+				// We can have WHERE clauses
+				// We can have GROUP BY clauses
+				// We can have ORDER BY clauses
+				// We can have LIMIT clauses
+				// We can have OFFSET clauses
+				// We can have HAVING clauses
+				// We can have UNION clauses
+				// We can have INTERSECT clauses
+				// We can have EXCEPT clauses
+
+				// We can have subqueries
+
+				// Depending on the columns and tables in the SELECT clause, we can have different plans
+				// For example we can look if the left table is smaller than the right table, if so we can use a nested loops join
+				// If the tables are of similar size, we can use a hash join
+				// If there is lots of data, we can use a sort merge join, we batch sort in memory and process the data in chunks
+				// If we have an index on the join column, we can use an index scan
+
+				// We can have a table scan if there is no index on the join column
+			}
+		}
 	}
 
 	//best := getBestPlan(plans)
