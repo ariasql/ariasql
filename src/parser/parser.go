@@ -1344,13 +1344,68 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 // parseHaving parses a HAVING clause
 func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
+	havingClause := &HavingClause{}
+
 	p.consume() // Consume HAVING
 
-	// Having is usually a predicate with an aggregate function
-	// SELECT CustomerID, COUNT(OrderID)
-	// FROM Orders
-	// GROUP BY CustomerID
-	// HAVING COUNT(OrderID) BETWEEN 5 AND 10;
+	// HAVING COUNT(OrderID) BETWEEN 5 AND 10 OR COUNT(OrderID) > 10
+
+	for p.peek(0).tokenT != SEMICOLON_TOK {
+		if p.peek(0).tokenT != KEYWORD_TOK {
+			return errors.New("expected keyword")
+		}
+
+		switch p.peek(0).value {
+		case "COUNT", "SUM", "AVG", "MIN", "MAX":
+			aggFunc, err := p.parseAggregateFunc()
+			if err != nil {
+				return err
+			}
+
+			// Check for predicate
+			switch p.peek(0).tokenT {
+			case COMPARISON_TOK:
+				op := p.peek(0).value.(string)
+				p.consume() // Consume comparison operator
+
+				switch p.peek(0).tokenT {
+				case LITERAL_TOK:
+					literal := p.peek(0).value
+					p.consume() // Consume literal
+
+					havingClause.Cond = &ComparisonPredicate{
+						LeftExpr:  aggFunc,
+						RightExpr: &Literal{Value: literal},
+					}
+
+					switch op {
+					case "=":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Eq
+					case "!=", "<>":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Ne
+					case ">":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Gt
+					case "<":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Lt
+					case ">=":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Ge
+					case "<=":
+						havingClause.Cond.(*ComparisonPredicate).Operator = Le
+					default:
+						return errors.New("invalid operator")
+					}
+
+				default:
+					return errors.New("expected  aggregate function")
+
+				}
+			default:
+				return errors.New("expected predicate")
+			}
+		}
+	}
+
+	selectStmt.Having = havingClause
 
 	return nil
 }

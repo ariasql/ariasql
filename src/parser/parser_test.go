@@ -18,6 +18,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"log"
 	"testing"
 )
 
@@ -2649,5 +2650,42 @@ func TestNewParserSelect29(t *testing.T) {
 	if selectStmt.Limit.Offset != 2 {
 		t.Fatalf("expected 2, got %d", selectStmt.Limit.Offset)
 	}
+
+}
+
+func TestNewParserSelect30(t *testing.T) {
+	lexer := NewLexer([]byte("SELECT * FROM s.t HAVING COUNT(s.t) = 5;")) // just for parser tests
+	t.Log("Testing: SELECT * FROM s.t HAVING COUNT(s.t);")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
 
 }

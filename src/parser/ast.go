@@ -276,7 +276,7 @@ type IsNotNullPredicate struct {
 
 // HavingClause represents a HAVING clause
 type HavingClause struct {
-	Conditions []interface{} // Predicate or LogicalCondition
+	Cond interface{} // Predicate or LogicalCondition or BinaryExpr
 }
 
 // GroupByClause represents a GROUP BY clause
