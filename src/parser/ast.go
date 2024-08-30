@@ -345,3 +345,48 @@ type UnaryExpr struct {
 	Op   string
 	Expr interface{}
 }
+
+// BELOW IS ROUGH
+
+// CreateUserStmt represents a CREATE USER statement
+type CreateUserStmt struct {
+	Username *Identifier
+	Password *Literal
+	Host     *Literal
+}
+
+// GrantStmt represents a GRANT statement
+type GrantStmt struct {
+	Privileges []string
+	Object     interface{} // Table or Database or Schema
+	To         *Identifier // Username, Role
+}
+
+// RevokeStmt represents a REVOKE statement
+type RevokeStmt struct {
+	Privileges []string
+	Username   *Identifier
+	Database   *Identifier
+}
+
+// CreateRoleStmt represents a CREATE ROLE statement
+type CreateRoleStmt struct {
+	Role *Identifier
+}
+
+// DropRoleStmt represents a DROP ROLE statement
+type DropRoleStmt struct {
+	Role *Identifier
+}
+
+// GrantRoleStmt represents a GRANT ROLE statement
+type GrantRoleStmt struct {
+	Role     *Identifier
+	Username *Identifier
+}
+
+// RevokeRoleStmt represents a REVOKE ROLE statement
+type RevokeRoleStmt struct {
+	Role     *Identifier
+	Username *Identifier
+}
