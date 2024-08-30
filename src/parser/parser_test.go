@@ -213,6 +213,130 @@ func TestNewParserUse(t *testing.T) {
 	}
 }
 
+func TestNewParserDropDatabase(t *testing.T) {
+	lexer := NewLexer([]byte("DROP DATABASE test;"))
+	t.Log("Testing: DROP DATABASE test;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropDbStmt, ok := stmt.(*DropDatabaseStmt)
+	if !ok {
+		t.Fatalf("expected *UseStmt, got %T", stmt)
+	}
+
+	if dropDbStmt.Name.Value != "test" {
+		t.Fatalf("expected test, got %s", dropDbStmt.Name.Value)
+	}
+}
+
+func TestNewParserDropSchema(t *testing.T) {
+	lexer := NewLexer([]byte("DROP SCHEMA test;"))
+	t.Log("Testing: DROP SCHEMA test;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropSchemaStmt, ok := stmt.(*DropSchemaStmt)
+	if !ok {
+		t.Fatalf("expected *DropSchemaStmt, got %T", stmt)
+	}
+
+	if dropSchemaStmt.Name.Value != "test" {
+		t.Fatalf("expected test, got %s", dropSchemaStmt.Name.Value)
+	}
+}
+
+func TestNewParserDropIndex(t *testing.T) {
+	lexer := NewLexer([]byte("DROP INDEX test_idx ON s1.test;"))
+	t.Log("Testing: DROP INDEX test_idx ON s1.test;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropIndexStmt, ok := stmt.(*DropIndexStmt)
+	if !ok {
+		t.Fatalf("expected *DropIndexStmt, got %T", stmt)
+	}
+
+	if dropIndexStmt.IndexName.Value != "test_idx" {
+		t.Fatalf("expected test, got %s", dropIndexStmt.IndexName.Value)
+	}
+
+	if dropIndexStmt.SchemaName.Value != "s1" {
+		t.Fatalf("expected schema, got %s", dropIndexStmt.SchemaName.Value)
+	}
+
+	if dropIndexStmt.TableName.Value != "test" {
+		t.Fatalf("expected test, got %s", dropIndexStmt.TableName.Value)
+	}
+}
+
+func TestNewParserDropTable(t *testing.T) {
+	lexer := NewLexer([]byte("DROP TABLE s1.test;"))
+	t.Log("Testing: DROP TABLE s1.test;")
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropTableStmt, ok := stmt.(*DropTableStmt)
+	if !ok {
+		t.Fatalf("expected *DropTableStmt, got %T", stmt)
+	}
+
+	if dropTableStmt.SchemaName.Value != "s1" {
+		t.Fatalf("expected s1, got %s", dropTableStmt.SchemaName.Value)
+	}
+
+	if dropTableStmt.TableName.Value != "test" {
+		t.Fatalf("expected test, got %s", dropTableStmt.TableName.Value)
+	}
+}
+
 func TestNewParserInsert(t *testing.T) {
 	lexer := NewLexer([]byte("INSERT INTO s1.test (col1, col2) VALUES (1, 'hello'), (2, 'world');"))
 	t.Log("Testing: INSERT INTO s1.test (col1, col2) VALUES (1, 'hello'), (2, 'world');")

@@ -32,7 +32,7 @@ var (
 		"BEGIN", "BETWEEN", "BY", "BIGINT", "BOOLEAN", "BOOL",
 		"CHAR", "CHARACTER", "CHECK", "CLOSE", "COBOL", "COMMIT",
 		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "CASCADE",
-		"DEC", "DECIMAL", "DECLARE", "DELETE", "DESC", "DISTINCT", "DOUBLE", "DATABASE", "DEFAULT",
+		"DEC", "DECIMAL", "DECLARE", "DELETE", "DESC", "DISTINCT", "DOUBLE", "DATABASE", "DEFAULT", "DROP",
 		"END", "ESCAPE", "EXEC", "EXISTS",
 		"FETCH", "FLOAT", "FOR", "FORTRAN", "FOUND", "FROM",
 		"GO", "GOTO", "GRANT", "GROUP", "HAVING",
@@ -504,6 +504,8 @@ func (p *Parser) Parse() (Node, error) {
 		switch p.peek(0).value {
 		case "CREATE":
 			return p.parseCreateStmt()
+		case "DROP":
+			return p.parseDropStmt()
 		case "USE":
 			return p.parseUseStmt()
 		case "INSERT":
@@ -514,6 +516,125 @@ func (p *Parser) Parse() (Node, error) {
 	}
 
 	return nil, errors.New("expected keyword")
+}
+
+// parseDropStmt parses a DROP statement
+func (p *Parser) parseDropStmt() (Node, error) {
+	p.consume() // Consume DROP
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "DATABASE":
+		return p.parseDropDatabaseStmt()
+	case "SCHEMA":
+		return p.parseDropSchemaStmt()
+	case "TABLE":
+		return p.parseDropTableStmt()
+	case "INDEX":
+		return p.parseDropIndexStmt()
+	}
+
+	return nil, errors.New("expected DATABASE or TABLE")
+
+}
+
+// parseDropDatabaseStmt parses a DROP DATABASE statement
+func (p *Parser) parseDropDatabaseStmt() (Node, error) {
+	p.consume() // Consume DATABASE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &DropDatabaseStmt{
+		Name: &Identifier{Value: name},
+	}, nil
+}
+
+// parseDropSchemaStmt parses a DROP SCHEMA statement
+func (p *Parser) parseDropSchemaStmt() (Node, error) {
+	p.consume() // Consume SCHEMA
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &DropSchemaStmt{
+		Name: &Identifier{Value: name},
+	}, nil
+}
+
+// parseDropTableStmt parses a DROP TABLE statement
+func (p *Parser) parseDropTableStmt() (Node, error) {
+	p.consume() // Consume TABLE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	if len(strings.Split(tableName, ".")) != 2 {
+		return nil, errors.New("expected schema_name.table_name")
+	}
+
+	schemaName := strings.Split(tableName, ".")[0]
+	tableName = strings.Split(tableName, ".")[1]
+
+	return &DropTableStmt{
+		SchemaName: &Identifier{Value: schemaName},
+		TableName:  &Identifier{Value: tableName},
+	}, nil
+
+}
+
+// parseDropIndexStmt parses a DROP INDEX statement
+func (p *Parser) parseDropIndexStmt() (Node, error) {
+	p.consume() // Consume INDEX
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	indexName := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	if p.peek(0).value != "ON" {
+		return nil, errors.New("expected ON")
+	}
+
+	p.consume() // Consume ON
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume table name
+
+	if len(strings.Split(tableName, ".")) != 2 {
+		return nil, errors.New("expected schema_name.table_name")
+	}
+
+	schemaName := strings.Split(tableName, ".")[0]
+	tableName = strings.Split(tableName, ".")[1]
+
+	return &DropIndexStmt{
+		SchemaName: &Identifier{Value: schemaName},
+		TableName:  &Identifier{Value: tableName},
+		IndexName:  &Identifier{Value: indexName},
+	}, nil
+
 }
 
 // parseCreateStmt parses a CREATE statement

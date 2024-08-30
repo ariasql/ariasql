@@ -41,8 +41,18 @@ type CreateDatabaseStmt struct {
 	Name *Identifier
 }
 
+// DropDatabaseStmt represents a DROP DATABASE statement
+type DropDatabaseStmt struct {
+	Name *Identifier
+}
+
 // CreateSchemaStmt represents a CREATE SCHEMA statement
 type CreateSchemaStmt struct {
+	Name *Identifier
+}
+
+// DropSchemaStmt represents a DROP SCHEMA statement
+type DropSchemaStmt struct {
 	Name *Identifier
 }
 
@@ -55,11 +65,23 @@ type CreateIndexStmt struct {
 	Unique      bool
 }
 
+// DropIndexStmt represents a DROP INDEX statement
+type DropIndexStmt struct {
+	SchemaName *Identifier
+	TableName  *Identifier
+	IndexName  *Identifier
+}
+
 // CreateTableStmt represents a CREATE TABLE statement
 type CreateTableStmt struct {
 	SchemaName  *Identifier
 	TableName   *Identifier
 	TableSchema *catalog.TableSchema
+}
+
+type DropTableStmt struct {
+	SchemaName *Identifier
+	TableName  *Identifier
 }
 
 // UseStmt represents a USE statement
