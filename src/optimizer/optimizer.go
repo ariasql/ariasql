@@ -19,6 +19,7 @@ package optimizer
 import (
 	"ariasql/catalog"
 	"ariasql/parser"
+	"log"
 )
 
 // PhysicalPlan is the final plan that will be executed by the executor
@@ -39,6 +40,7 @@ type PlanCost struct {
 // Optimize optimizes the AST and returns a PhysicalPlan
 // Not every statement needs optimization, so we return the AST as is, the executor will handle the execution of the statement
 func Optimize(ast parser.Node, cat *catalog.Catalog) *PhysicalPlan {
+	log.Printf("optimizing statement: %T", ast)
 
 	switch ast.(type) {
 	case *parser.CreateDatabaseStmt:
@@ -91,19 +93,28 @@ func OpInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog) *PhysicalPlan {
 	return &PhysicalPlan{Plan: stmt} // no optimization needed for insert
 }
 
+type SelectPlan struct {
+}
+
 func OpSelectStmt(stmt *parser.SelectStmt, cat *catalog.Catalog) *PhysicalPlan {
+	log.Println("optimizing select statement")
 	// Generate plans based on the query
 	// Once we have the plans, we can choose the best one based on the cost
-	plans := []*PhysicalPlan{}
+	//plans := []*PhysicalPlan{}
 
-	// We can have multiple plans for a query
+	// We create multiple plans based on the query
 
-	best := getBestPlan(plans)
-	if best == nil {
-		return nil
+	if stmt.From != nil {
+		// We have a FROM clause
+		// We can have multiple tables in the FROM clause
 	}
 
-	return &PhysicalPlan{Plan: best}
+	//best := getBestPlan(plans)
+	//if best == nil {
+	//	return nil
+	//}
+
+	return &PhysicalPlan{Plan: &SelectPlan{}}
 }
 
 // getBestPlan returns the best plan from a list of optimized plans for a given query

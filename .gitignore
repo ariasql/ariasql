@@ -3,3 +3,4 @@ src/ariaserver.yaml
 src/databases
 src/.ariaconfig
 .idea
+bin

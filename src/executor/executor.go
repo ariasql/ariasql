@@ -21,6 +21,7 @@ import (
 	"ariasql/optimizer"
 	"ariasql/parser"
 	"errors"
+	"log"
 )
 
 // Executor is an AriaSQL query executor
@@ -102,6 +103,12 @@ func (e *Executor) Execute(plan *optimizer.PhysicalPlan) error {
 		}
 
 		return tbl.Insert(rows)
+
+	case *optimizer.SelectPlan: // Select statement
+
+		log.Println("exec	 select statement")
+
+		return nil
 
 	}
 
