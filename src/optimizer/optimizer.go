@@ -38,8 +38,9 @@ type PlanCost struct {
 	Cost float64 // lower is better
 }
 
-// Optimize optimizes the AST and returns a PhysicalPlan
-// Not every statement needs optimization, so we return the AST as is, the executor will handle the execution of the statement
+// Optimize optimizes an AST and returns a PhysicalPlan
+// Some operations like CREATE DATABASE, CREATE SCHEMA, CREATE TABLE, CREATE INDEX, USE DATABASE, INSERT INTO don't require more than one plan
+// Other operations like SELECT, UPDATE, DELETE have more than one plan and associated cost with each plan
 func Optimize(ast parser.Node, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
 
 	switch ast.(type) {
