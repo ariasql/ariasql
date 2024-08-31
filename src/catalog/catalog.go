@@ -816,3 +816,8 @@ func (ri *RowIterator) Next() (map[string]interface{}, error) {
 
 	return decoded, nil
 }
+
+// RowCount returns the number of rows in the table
+func (tbl *Table) RowCount() int64 {
+	return tbl.Rows.Count()
+}

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -317,6 +318,15 @@ func (p *Pager) Close() error {
 // GetPage gets a page and returns the data
 // Will gather all the pages that are linked together
 func (p *Pager) GetPage(pageID int64) ([]byte, error) {
+
+	p.deletedPagesLock.Lock()
+	// Check if in deleted pages, if so return nil
+	if slices.Contains(p.deletedPages, pageID) {
+		p.deletedPagesLock.Unlock()
+		return nil, nil
+	}
+	p.deletedPagesLock.Unlock()
+
 	result := make([]byte, 0)
 
 	// get the page
@@ -406,7 +416,8 @@ func (p *Pager) DeletePage(pageID int64) error {
 	return nil
 }
 
+// Count returns the number of pages
 func (p *Pager) Count() int64 {
 	stat, _ := p.file.Stat()
-	return stat.Size() / (PAGE_SIZE + HEADER_SIZE)
+	return (stat.Size() / (PAGE_SIZE + HEADER_SIZE)) - int64(len(p.deletedPages)) // we need to subtract the deleted pages
 }

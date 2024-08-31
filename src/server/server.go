@@ -180,7 +180,11 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
-			plan := optimizer.Optimize(ast, s.aria.Catalog)
+			plan, err := optimizer.Optimize(ast, s.aria.Catalog, channel)
+			if err != nil {
+				conn.Write(append([]byte(fmt.Sprintf("ERR: %s", err.Error())), []byte("\n")...))
+				continue
+			}
 
 			exe := executor.NewExecutor(s.aria, channel)
 			err = exe.Execute(plan)

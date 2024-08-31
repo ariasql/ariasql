@@ -18,8 +18,9 @@ package optimizer
 
 import (
 	"ariasql/catalog"
+	"ariasql/core"
 	"ariasql/parser"
-	"log"
+	"errors"
 )
 
 // PhysicalPlan is the final plan that will be executed by the executor
@@ -39,199 +40,214 @@ type PlanCost struct {
 
 // Optimize optimizes the AST and returns a PhysicalPlan
 // Not every statement needs optimization, so we return the AST as is, the executor will handle the execution of the statement
-func Optimize(ast parser.Node, cat *catalog.Catalog) *PhysicalPlan {
+func Optimize(ast parser.Node, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
 
 	switch ast.(type) {
 	case *parser.CreateDatabaseStmt:
-		return OpCreateDatabaseStmt(ast.(*parser.CreateDatabaseStmt), cat)
+		return OpCreateDatabaseStmt(ast.(*parser.CreateDatabaseStmt), cat, ch)
 	case *parser.CreateSchemaStmt:
-		return OpCreateSchemaStmt(ast.(*parser.CreateSchemaStmt), cat)
+		return OpCreateSchemaStmt(ast.(*parser.CreateSchemaStmt), cat, ch)
 	case *parser.CreateTableStmt:
-		return OpCreateTableStmt(ast.(*parser.CreateTableStmt), cat)
+		return OpCreateTableStmt(ast.(*parser.CreateTableStmt), cat, ch)
 	case *parser.CreateIndexStmt:
-		return OpCreateIndexStmt(ast.(*parser.CreateIndexStmt), cat)
+		return OpCreateIndexStmt(ast.(*parser.CreateIndexStmt), cat, ch)
 	case *parser.UseStmt:
-		return OpUseStmt(ast.(*parser.UseStmt), cat)
+		return OpUseStmt(ast.(*parser.UseStmt), cat, ch)
 	case *parser.InsertStmt:
-		return OpInsertStmt(ast.(*parser.InsertStmt), cat)
-	case *parser.SelectStmt:
-		return OpSelectStmt(ast.(*parser.SelectStmt), cat)
+		return OpInsertStmt(ast.(*parser.InsertStmt), cat, ch)
 
 	}
 
-	return &PhysicalPlan{}
+	return &PhysicalPlan{}, errors.New("no plan found")
+}
+
+// CreateDatabasePlan is the plan for a create database statement
+type CreateDatabasePlan struct {
+	DatabaseName string
 }
 
 // OpCreateDatabaseStmt optimizes the CreateDatabaseStmt
-func OpCreateDatabaseStmt(stmt *parser.CreateDatabaseStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for create database
+func OpCreateDatabaseStmt(stmt *parser.CreateDatabaseStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	if stmt.Name.Value == "" {
+		return nil, errors.New("database name cannot be empty")
+	}
+
+	return &PhysicalPlan{Plan: &CreateDatabasePlan{
+		DatabaseName: stmt.Name.Value,
+	}}, nil
+}
+
+// CreateSchemaPlan is the plan for a create schema statement
+type CreateSchemaPlan struct {
+	Database   *catalog.Database
+	SchemaName string
 }
 
 // OpCreateSchemaStmt optimizes the CreateSchemaStmt
-func OpCreateSchemaStmt(stmt *parser.CreateSchemaStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for create schema
+func OpCreateSchemaStmt(stmt *parser.CreateSchemaStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	if stmt.Name.Value == "" {
+		return nil, errors.New("schema name cannot be empty")
+	}
+
+	if ch.Database == nil {
+		return nil, errors.New("no database selected")
+	}
+
+	return &PhysicalPlan{Plan: &CreateSchemaPlan{
+		Database:   ch.Database,
+		SchemaName: stmt.Name.Value,
+	}}, nil
+}
+
+// CreateIndexPlan is the plan for a create index statement
+type CreateIndexPlan struct {
+	Table       *catalog.Table
+	IndexName   string
+	ColumnNames []string
+	Unique      bool
 }
 
 // OpCreateIndexStmt optimizes the CreateIndexStmt
-func OpCreateIndexStmt(stmt *parser.CreateIndexStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for create index
+func OpCreateIndexStmt(stmt *parser.CreateIndexStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	if stmt.IndexName.Value == "" {
+		return nil, errors.New("index name cannot be empty")
+	}
+
+	if stmt.TableName.Value == "" {
+		return nil, errors.New("table name cannot be empty")
+	}
+
+	if len(stmt.ColumnNames) == 0 {
+		return nil, errors.New("no columns specified for index")
+	}
+
+	if ch.Database == nil {
+		return nil, errors.New("no database selected")
+	}
+
+	sch := ch.Database.GetSchema(stmt.SchemaName.Value)
+	if sch == nil {
+		return nil, errors.New("schema does not exist")
+	}
+
+	tbl := sch.GetTable(stmt.TableName.Value)
+	if tbl == nil {
+		return nil, errors.New("table does not exist")
+
+	}
+
+	plan := &CreateIndexPlan{
+		Table:       tbl,
+		IndexName:   stmt.IndexName.Value,
+		ColumnNames: []string{},
+		Unique:      false,
+	}
+
+	for _, col := range stmt.ColumnNames {
+		plan.ColumnNames = append(plan.ColumnNames, col.Value)
+	}
+
+	if stmt.Unique {
+		plan.Unique = true
+	}
+
+	return &PhysicalPlan{Plan: plan}, nil
+}
+
+// CreateTablePlan is the plan for a create table statement
+type CreateTablePlan struct {
+	Schema      *catalog.Schema
+	TableName   string
+	TableSchema *catalog.TableSchema
 }
 
 // OpCreateTableStmt optimizes the CreateTableStmt
-func OpCreateTableStmt(stmt *parser.CreateTableStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for create table
+func OpCreateTableStmt(stmt *parser.CreateTableStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	if stmt.TableName.Value == "" {
+		return nil, errors.New("table name cannot be empty")
+	}
+
+	if stmt.TableSchema == nil {
+		return nil, errors.New("table schema cannot be empty")
+	}
+
+	if ch.Database == nil {
+		return nil, errors.New("no database selected")
+	}
+
+	sch := ch.Database.GetSchema(stmt.SchemaName.Value)
+	if sch == nil {
+		return nil, errors.New("schema does not exist")
+
+	}
+
+	return &PhysicalPlan{Plan: &CreateTablePlan{
+		Schema:      sch,
+		TableName:   stmt.TableName.Value,
+		TableSchema: stmt.TableSchema,
+	}}, nil
+}
+
+// UsePlan is the plan for a use statement
+type UsePlan struct {
+	Database *catalog.Database
 }
 
 // OpUseStmt optimizes the UseStmt
-func OpUseStmt(stmt *parser.UseStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for use
+func OpUseStmt(stmt *parser.UseStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	db := cat.GetDatabase(stmt.DatabaseName.Value)
+
+	if db == nil {
+		return nil, errors.New("database does not exist")
+	}
+
+	return &PhysicalPlan{Plan: &UsePlan{
+		Database: db,
+	}}, nil
+}
+
+// InsertPlan is the plan for an insert statement
+type InsertPlan struct {
+	Table *catalog.Table
+	Rows  []map[string]interface{}
 }
 
 // OpInsertStmt optimizes the InsertStmt
-func OpInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog) *PhysicalPlan {
-	return &PhysicalPlan{Plan: stmt} // no optimization needed for insert
-}
+func OpInsertStmt(stmt *parser.InsertStmt, cat *catalog.Catalog, ch *core.Channel) (*PhysicalPlan, error) {
+	plan := &InsertPlan{}
 
-// SelectPlan is the plan for a select statement
-type SelectPlan struct {
-	IndexScan       *IndexScan       // uses an index to find the relevant rows more quickly than a table scan.
-	TableScan       *TableScan       //  reads the entire table to find the relevant rows.
-	NestedLoopsJoin *NestedLoopsJoin // For each row in the first table, the DBMS scans the entire second table. This is efficient when one of the tables is much smaller than the other.
-	HashJoin        *HashJoin        // builds a hash table of the smaller table, then scans the larger table and uses the hash table to find matching rows. This is efficient when the tables are of similar size.
-	SortMergeJoin   *SortMergeJoin   // sorts both tables on the join column, then merges them together.
-	Materialize     *Materialize     // creates a temporary table in memory to hold and quickly access the results of a subquery.
-}
-
-// UpdatePlan is the plan for an update statement
-type UpdatePlan struct {
-	IndexScan *IndexScan
-	TableScan *TableScan
-}
-
-// DeletePlan is the plan for a delete statement
-type DeletePlan struct {
-	IndexScan *IndexScan
-	TableScan *TableScan
-}
-
-// NestedLoopsJoin is the plan for a nested loops join
-type NestedLoopsJoin struct {
-	LeftPlan  *PhysicalPlan // the left plan
-	RightPlan *PhysicalPlan // the right plan
-}
-
-// HashJoin is the plan for a hash join
-type HashJoin struct {
-	LeftPlan  *PhysicalPlan // the left plan
-	RightPlan *PhysicalPlan // the right plan
-}
-
-// SortMergeJoin is the plan for a sort merge join
-type SortMergeJoin struct {
-	LeftPlan  *PhysicalPlan // the left plan
-	RightPlan *PhysicalPlan // the right plan
-}
-
-// Materialize is the plan for a materialize operation
-type Materialize struct {
-	SubqueryPlan *PhysicalPlan // the plan for the subquery
-}
-
-// TableScan is the plan for a table scan
-type TableScan struct {
-	TableName string
-}
-
-// IndexScan is the plan for an index scan
-type IndexScan struct {
-	IndexName string
-	TableName string
-}
-
-func OpSelectStmt(stmt *parser.SelectStmt, cat *catalog.Catalog) *PhysicalPlan {
-	log.Println("optimizing select statement")
-	// Generate plans based on the query
-	// Once we have the plans, we can choose the best one based on the cost
-	//plans := []*PhysicalPlan{}
-
-	// We create multiple plans based on the query
-
-	if stmt.From != nil {
-		// We have a FROM clause
-		// We can have multiple tables in the FROM clause
-		ast, err := parser.PrintAST(stmt.From)
-		if err != nil {
-			return nil
-		}
-		log.Println(ast)
-
-		// can be schema.table AS alias, schema.table, table AS alias, ...
-		// if we have above we don't parse the stmt.Join
-
-		if len(stmt.From.Tables) > 1 {
-			// This is a classic join
-			// i.e SELECT * FROM s.table1, s.table2 WHERE s.table1.id = s.table2.id
-			// OR SELECT * FROM s.table1 AS a, s.table2 AS b WHERE a.id = b.id
-		} else if len(stmt.From.Tables) == 1 {
-			// Look for joins
-			// i.e SELECT * FROM s.table1 JOIN s.table2 ON s.table1.id = s.table2.id
-
-			// We have a single table in the FROM clause
-			// We can have JOIN clauses
-
-			if stmt.Joins != nil {
-				// We have JOIN clauses
-				// We can have multiple JOIN clauses
-
-				// We can have INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, CROSS JOIN, NATURAL JOIN
-				// We can have multiple JOIN clauses
-				// We can have a combination of JOIN clauses
-				// We can have a combination of JOIN clauses and WHERE clauses
-
-			} else {
-				// We have a single table in the FROM clause, no JOIN clauses
-				// We can have WHERE clauses
-				// We can have GROUP BY clauses
-				// We can have ORDER BY clauses
-				// We can have LIMIT clauses
-				// We can have OFFSET clauses
-				// We can have HAVING clauses
-				// We can have UNION clauses
-				// We can have INTERSECT clauses
-				// We can have EXCEPT clauses
-
-				// We can have subqueries
-
-				// Depending on the columns and tables in the SELECT clause, we can have different plans
-				// For example we can look if the left table is smaller than the right table, if so we can use a nested loops join
-				// If the tables are of similar size, we can use a hash join
-				// If there is lots of data, we can use a sort merge join, we batch sort in memory and process the data in chunks
-				// If we have an index on the join column, we can use an index scan
-
-				// We can have a table scan if there is no index on the join column
-			}
-		}
+	sch := ch.Database.GetSchema(stmt.SchemaName.Value)
+	if sch == nil {
+		return nil, errors.New("schema does not exist")
 	}
 
-	//best := getBestPlan(plans)
-	//if best == nil {
-	//	return nil
-	//}
-
-	return &PhysicalPlan{Plan: &SelectPlan{}}
-}
-
-// getBestPlan returns the best plan from a list of optimized plans for a given query
-func getBestPlan(plans OptimizedPlans) *PhysicalPlan {
-	// We return the plan with the lowest cost
-
-	currPlan := plans[0]
-
-	for _, plan := range plans {
-		if plan.PlanCost.Cost < currPlan.PlanCost.Cost {
-			currPlan = plan
-		}
+	if stmt.TableName == nil {
+		return nil, errors.New("table name cannot be empty")
 	}
 
-	return currPlan
+	tbl := sch.GetTable(stmt.TableName.Value)
+
+	if tbl == nil {
+		return nil, errors.New("table does not exist")
+	}
+
+	plan.Table = tbl
+
+	rows := []map[string]interface{}{}
+
+	for _, row := range stmt.Values {
+		r := make(map[string]interface{})
+		for i, col := range stmt.ColumnNames {
+			r[col.Value] = row[i].Value
+		}
+		rows = append(rows, r)
+	}
+
+	if len(rows) == 0 {
+		return nil, errors.New("no rows to insert")
+	}
+
+	plan.Rows = rows
+
+	return &PhysicalPlan{Plan: plan}, nil
 }

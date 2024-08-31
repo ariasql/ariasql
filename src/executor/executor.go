@@ -19,9 +19,7 @@ package executor
 import (
 	"ariasql/core"
 	"ariasql/optimizer"
-	"ariasql/parser"
 	"errors"
-	"log"
 )
 
 // Executor is an AriaSQL query executor
@@ -42,74 +40,35 @@ func NewExecutor(aria *core.AriaSQL, channel *core.Channel) *Executor {
 // Execute executes the query plan
 func (e *Executor) Execute(plan *optimizer.PhysicalPlan) error {
 	switch plan.Plan.(type) {
-	case *parser.CreateDatabaseStmt: // Create database statement
-		return e.aria.Catalog.CreateDatabase(plan.Plan.(*parser.CreateDatabaseStmt).Name.Value)
-	case *parser.CreateSchemaStmt: // Create schema statement
-		return e.channel.Database.CreateSchema(plan.Plan.(*parser.CreateSchemaStmt).Name.Value)
-	case *parser.CreateTableStmt: // Create table statement
-		sch := e.channel.Database.GetSchema(plan.Plan.(*parser.CreateTableStmt).SchemaName.Value)
-		if sch == nil {
-			return errors.New("schema does not exist")
+	case *optimizer.CreateDatabasePlan:
+		return e.aria.Catalog.CreateDatabase(plan.Plan.(*optimizer.CreateDatabasePlan).DatabaseName)
+	case *optimizer.CreateSchemaPlan:
+		if e.channel.Database == nil {
+			return errors.New("no database selected")
 		}
 
-		return sch.CreateTable(plan.Plan.(*parser.CreateTableStmt).TableName.Value, plan.Plan.(*parser.CreateTableStmt).TableSchema)
-	case *parser.CreateIndexStmt: // Create index statement, unique or non-unique
-		sch := e.channel.Database.GetSchema(plan.Plan.(*parser.CreateIndexStmt).SchemaName.Value)
-		if sch == nil {
-			return errors.New("schema does not exist")
+		return e.channel.Database.CreateSchema(plan.Plan.(*optimizer.CreateSchemaPlan).SchemaName)
+	case *optimizer.CreateTablePlan:
+		if e.channel.Database == nil {
+			return errors.New("no database selected")
 		}
 
-		tbl := sch.GetTable(plan.Plan.(*parser.CreateIndexStmt).TableName.Value)
-		if tbl == nil {
-			return errors.New("table does not exist")
+		return plan.Plan.(*optimizer.CreateTablePlan).Schema.CreateTable(plan.Plan.(*optimizer.CreateTablePlan).TableName, plan.Plan.(*optimizer.CreateTablePlan).TableSchema)
+	case *optimizer.CreateIndexPlan:
+		if e.channel.Database == nil {
+			return errors.New("no database selected")
 		}
 
-		var columns []string
-
-		for _, col := range plan.Plan.(*parser.CreateIndexStmt).ColumnNames {
-			columns = append(columns, col.Value)
-		}
-
-		return tbl.CreateIndex(plan.Plan.(*parser.CreateIndexStmt).IndexName.Value, columns, plan.Plan.(*parser.CreateIndexStmt).Unique)
-	case *parser.UseStmt: // Use statement, sets the current database for the channel
-		db := e.aria.Catalog.GetDatabase(plan.Plan.(*parser.UseStmt).DatabaseName.Value)
-		if db == nil {
-			return errors.New("database does not exist")
-		}
-
-		e.channel.Database = db
-
+		return plan.Plan.(*optimizer.CreateIndexPlan).Table.CreateIndex(plan.Plan.(*optimizer.CreateIndexPlan).IndexName, plan.Plan.(*optimizer.CreateIndexPlan).ColumnNames, plan.Plan.(*optimizer.CreateIndexPlan).Unique)
+	case *optimizer.UsePlan:
+		e.channel.Database = plan.Plan.(*optimizer.UsePlan).Database
 		return nil
-
-	case *parser.InsertStmt: // Insert statement, handles multiple rows
-		sch := e.channel.Database.GetSchema(plan.Plan.(*parser.InsertStmt).SchemaName.Value)
-		if sch == nil {
-			return errors.New("schema does not exist")
+	case *optimizer.InsertPlan:
+		if e.channel.Database == nil {
+			return errors.New("no database selected")
 		}
 
-		tbl := sch.GetTable(plan.Plan.(*parser.InsertStmt).TableName.Value)
-		if tbl == nil {
-			return errors.New("table does not exist")
-		}
-
-		rows := []map[string]interface{}{}
-
-		for _, row := range plan.Plan.(*parser.InsertStmt).Values {
-			r := make(map[string]interface{})
-			for i, col := range plan.Plan.(*parser.InsertStmt).ColumnNames {
-				r[col.Value] = row[i].Value
-			}
-			rows = append(rows, r)
-		}
-
-		return tbl.Insert(rows)
-
-	case *optimizer.SelectPlan: // Select statement
-
-		log.Println("exec	 select statement")
-
-		return nil
-
+		return plan.Plan.(*optimizer.InsertPlan).Table.Insert(plan.Plan.(*optimizer.InsertPlan).Rows)
 	}
 
 	return errors.New("invalid plan")
