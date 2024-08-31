@@ -195,7 +195,12 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			}
 
 			// Write the response to the connection
-			conn.Write(exe.GetResponseBuff())
+			if len(exe.GetResponseBuff()) == 0 {
+				conn.Write([]byte("OK\n"))
+			} else {
+				conn.Write(append(exe.GetResponseBuff(), []byte("\n")...))
+
+			}
 
 			// Clear the response buffer
 			exe.Clear()
