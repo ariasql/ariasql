@@ -362,6 +362,38 @@ func TestStmt4(t *testing.T) {
 		return
 	}
 
+	stmt = []byte(`
+	SELECT * FROM test WHERE name = 'John Doe';
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+------------+----+
+| name       | id |
++------------+----+
+| 'John Doe' | 1  |
++------------+----+
+`
+
+	if string(ex.resultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
+		return
+
+	}
+
 }
 
 func TestStmt5(t *testing.T) {

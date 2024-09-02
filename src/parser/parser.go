@@ -1128,8 +1128,6 @@ func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
 		return nil, err
 	}
 
-	log.Println("WTF")
-
 	log.Println(p.peek(0).value)
 
 	// Parse comparison operator

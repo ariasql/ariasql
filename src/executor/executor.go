@@ -301,6 +301,7 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 func evaluatePredicate(cond interface{}, row map[string]interface{}) bool {
 	switch cond := cond.(type) {
 	case *parser.ComparisonPredicate:
+
 		var left, right interface{}
 		var ok bool
 
@@ -309,6 +310,10 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}) bool {
 			if !ok {
 				return false
 			}
+		}
+
+		if _, ok = cond.Right.Value.(*parser.Literal); ok {
+			right = cond.Right.Value.(*parser.Literal).Value
 		}
 
 		// The right type should be the same as the left type in the end
