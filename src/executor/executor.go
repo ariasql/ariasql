@@ -7,6 +7,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 )
 
@@ -257,6 +258,11 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
 		case *parser.Literal:
 			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.Literal).Value
+		case *parser.BinaryExpression:
+			binaryExpr = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression)
+
+			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+
 		default:
 			return nil, errors.New("invalid left side of comparison predicate")
 		}
@@ -324,14 +330,15 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 					if err != nil {
 						return nil, err
 					}
-
 					row[left.(string)] = val
+
+					log.Println(row)
 				}
 
 				ok, res := evaluatePredicate(where.SearchCondition, row, tbls)
 				if ok {
 
-					resTbls := []string{}
+					var resTbls []string
 
 					for t, _ := range res {
 						resTbls = append(resTbls, t)
@@ -390,6 +397,17 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 			} else {
 				results[tbls[0].Name] = []map[string]interface{}{row}
 			}
+		} else if _, ok = cond.Left.Value.(*parser.BinaryExpression); ok {
+
+			var val interface{}
+			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
+			if err != nil {
+				return false, nil
+			}
+
+			left = val
+
+			results[tbls[0].Name] = []map[string]interface{}{row}
 		}
 
 		if _, ok = cond.Right.Value.(*parser.Literal); ok {
@@ -433,6 +451,15 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 
 		}
 
+		// convert left and right to float64
+		if _, ok := left.(string); !ok {
+			if _, ok := left.(float64); !ok {
+				left = float64(left.(int))
+			}
+
+			right = float64(right.(int))
+		}
+
 		// The right type should be the same as the left type in the end
 
 		switch cond.Op {
@@ -442,6 +469,7 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 				return left.(int) == right.(int), results
 
 			case float64:
+				log.Println("BO", results)
 				return left.(float64) == right.(float64), results
 			case string:
 				return left.(string) == right.(string), results
@@ -468,7 +496,12 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}) error {
 	leftInt, ok := expr.Left.(*parser.Literal).Value.(uint64)
 	if !ok {
-		return fmt.Errorf("left value is not a number")
+		_, ok = expr.Left.(*parser.Literal).Value.(int)
+		if !ok {
+			return fmt.Errorf("left value is not a number")
+		}
+
+		leftInt = uint64(expr.Left.(*parser.Literal).Value.(int))
 	}
 
 	left := float64(leftInt)
@@ -482,7 +515,12 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}) e
 	} else {
 		rightInt, ok := expr.Right.(*parser.Literal).Value.(uint64)
 		if !ok {
-			return fmt.Errorf("right value is not a number")
+			_, ok = expr.Right.(*parser.Literal).Value.(int)
+			if !ok {
+				return fmt.Errorf("right value is not a number")
+			}
+
+			rightInt = uint64(expr.Left.(*parser.Literal).Value.(int))
 		}
 
 		right = float64(rightInt)
