@@ -1111,6 +1111,18 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
+		case "LIKE":
+			// Parse like expression
+			expr, err = p.parseLikeExpr()
+			if err != nil {
+				return nil, err
+			}
+		case "IS":
+			// Parse is expression
+			expr, err = p.parseIsExpr()
+			if err != nil {
+				return nil, err
+			}
 
 		}
 	}
@@ -1127,6 +1139,70 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 	}
 
 	return expr, nil
+
+}
+
+// parseLikeExpr parses a LIKE expression
+func (p *Parser) parseLikeExpr() (*LikePredicate, error) {
+	// Parse left side of like expression
+	left, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Eat LIKE
+	p.consume()
+
+	// Parse pattern
+	pattern, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &LikePredicate{
+		Left:    left,
+		Pattern: pattern,
+	}, nil
+
+}
+
+// parseIsExpr parses an IS expression
+func (p *Parser) parseIsExpr() (*IsPredicate, error) {
+	// Parse left side of is expression
+	left, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Eat IS
+	p.consume()
+
+	// NULL or NOT NULL
+
+	if p.peek(0).value == "NULL" {
+		p.consume()
+		return &IsPredicate{
+			Left: left,
+			Null: true,
+		}, nil
+	} else if p.peek(0).value == "NOT" {
+		// Eat NOT
+		p.consume()
+
+		if p.peek(0).value != "NULL" {
+			return nil, errors.New("expected NULL")
+		}
+
+		p.consume()
+
+		return &IsPredicate{
+			Left: left,
+			Null: false,
+		}, nil
+
+	}
+
+	return nil, errors.New("expected NULL or NOT NULL")
 
 }
 

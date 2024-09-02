@@ -265,14 +265,9 @@ type LikePredicate struct {
 	Pattern *ValueExpression
 }
 
-// IsNullPredicate represents an IS NULL predicate
-type IsNullPredicate struct {
+type IsPredicate struct {
 	Left *ValueExpression
-}
-
-// IsNotNullPredicate represents an IS NOT NULL predicate
-type IsNotNullPredicate struct {
-	Left *ValueExpression
+	Null bool
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format
