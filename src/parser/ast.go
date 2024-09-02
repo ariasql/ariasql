@@ -259,6 +259,22 @@ type InPredicate struct {
 	Values []*ValueExpression
 }
 
+// LikePredicate represents a LIKE predicate
+type LikePredicate struct {
+	Left    *ValueExpression
+	Pattern *ValueExpression
+}
+
+// IsNullPredicate represents an IS NULL predicate
+type IsNullPredicate struct {
+	Left *ValueExpression
+}
+
+// IsNotNullPredicate represents an IS NOT NULL predicate
+type IsNotNullPredicate struct {
+	Left *ValueExpression
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
