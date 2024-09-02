@@ -247,10 +247,19 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 
 	switch where.SearchCondition.(type) {
 	case *parser.ComparisonPredicate:
-		left := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+		var left interface{}
+		// if left is a binary expression
+
+		var binaryExpr *parser.BinaryExpression // can be nil
+
+		if _, ok := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
+			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
+		left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
 
 		// We check for an index on the column
-		idx := tbl.CheckIndexedColumn(left, tbl.TableSchema.ColumnDefinitions[left].Unique)
+		idx := tbl.CheckIndexedColumn(left.(string), tbl.TableSchema.ColumnDefinitions[left.(string)].Unique)
 		if idx != nil {
 			// If there is an index, we can use it
 			// We can use the index to locate the rows faster
@@ -274,6 +283,20 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 					return filteredRows, err
 				}
 
+				if binaryExpr != nil {
+					var val interface{}
+
+					// Replace binary expression column spec with a literal
+					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+
+					err = evaluateBinaryExpression(binaryExpr, &val)
+					if err != nil {
+						return filteredRows, err
+					}
+
+					row[left.(string)] = val
+				}
+
 				if evaluatePredicate(where.SearchCondition, row) {
 					filteredRows = append(filteredRows, row)
 				}
@@ -285,6 +308,20 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 				row, err := iter.Next()
 				if err != nil {
 					break
+				}
+
+				if binaryExpr != nil {
+					var val interface{}
+
+					// Replace binary expression column spec with a literal
+					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+
+					err = evaluateBinaryExpression(binaryExpr, &val)
+					if err != nil {
+						return filteredRows, err
+					}
+
+					row[left.(string)] = val
 				}
 
 				if evaluatePredicate(where.SearchCondition, row) {
