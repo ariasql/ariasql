@@ -548,7 +548,12 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 			}
 
 			if _, ok := row[colName].(int); !ok {
-				return fmt.Errorf("column %s is not an int", colName)
+				if _, ok := row[colName].(uint64); !ok {
+					return fmt.Errorf("column %s is not an int", colName)
+				} else {
+					row[colName] = int(row[colName].(uint64))
+				}
+
 			}
 
 			// Check if value fits in either INT/INTEGER, SMALLINT
