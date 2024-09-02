@@ -23,6 +23,105 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 // Execute executes a statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
 	switch stmt := stmt.(type) {
+	case *parser.CreateDatabaseStmt:
+		err := ex.aria.Catalog.CreateDatabase(stmt.Name.Value)
+		if err != nil {
+			return err
+		}
+	case *parser.CreateTableStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		err := ex.ch.Database.CreateTable(stmt.TableName.Value, stmt.TableSchema)
+		if err != nil {
+			return err
+		}
+
+	case *parser.DropTableStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		err := ex.ch.Database.DropTable(stmt.TableName.Value)
+		if err != nil {
+			return err
+		}
+	case *parser.CreateIndexStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		if tbl == nil {
+			return errors.New("table does not exist")
+		}
+
+		// convert *parser.Identifier to []string
+		var columns []string
+		for _, col := range stmt.ColumnNames {
+			columns = append(columns, col.Value)
+		}
+
+		err := tbl.CreateIndex(stmt.IndexName.Value, columns, stmt.Unique)
+		if err != nil {
+			return err
+		}
+	case *parser.DropIndexStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		if tbl == nil {
+			return errors.New("table does not exist")
+		}
+
+		err := tbl.DropIndex(stmt.IndexName.Value)
+		if err != nil {
+			return err
+		}
+
+	case *parser.InsertStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		if tbl == nil {
+			return errors.New("table does not exist")
+		}
+
+		rows := []map[string]interface{}{}
+
+		for _, row := range stmt.Values {
+			data := map[string]interface{}{}
+			for i, col := range stmt.ColumnNames {
+				data[col.Value] = row[i].Value
+			}
+			rows = append(rows, data)
+
+		}
+
+		err := tbl.Insert(rows)
+		if err != nil {
+			return err
+		}
+
+	case *parser.UseStmt:
+		db := ex.aria.Catalog.GetDatabase(stmt.DatabaseName.Value)
+		if db == nil {
+			return errors.New("database does not exist")
+		}
+
+		ex.ch.Database = db
+		return nil
+	case *parser.DropDatabaseStmt:
+		err := ex.aria.Catalog.DropDatabase(stmt.Name.Value)
+		if err != nil {
+			return err
+		}
+
 	case *parser.SelectStmt:
 		err := ex.executeSelectStmt(stmt)
 		if err != nil {
