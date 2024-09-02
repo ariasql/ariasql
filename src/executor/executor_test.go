@@ -1844,26 +1844,38 @@ func TestStmt12(t *testing.T) {
 		return
 	}
 
-	//	stmt = []byte(`
-	//	SELECT * FROM test WHERE name IN ('John Doe', 'Jane Doe');
-	//`)
-	//
-	//	lexer = parser.NewLexer(stmt)
-	//
-	//	p = parser.NewParser(lexer)
-	//	ast, err = p.Parse()
-	//	if err != nil {
-	//		t.Fatal(err)
-	//		return
-	//	}
-	//
-	//	err = ex.Execute(ast)
-	//	if err != nil {
-	//		t.Fatal(err)
-	//		return
-	//	}
-	//
-	//	log.Println(string(ex.resultSetBuffer))
+	stmt = []byte(`
+		SELECT * FROM test WHERE name IN ('John Doe', 'Jane Doe');
+	`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+---------+------------+
+| test.id | test.name  |
++---------+------------+
+| 1       | 'John Doe' |
+| 2       | 'Jane Doe' |
++---------+------------+
+`
+
+	if string(ex.resultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
+		return
+
+	}
 }
 
 func TestStmt13(t *testing.T) {

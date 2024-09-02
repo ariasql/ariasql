@@ -287,6 +287,28 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 		default:
 			return nil, errors.New("unsupported search condition")
 		}
+	case *parser.InPredicate:
+
+		if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
+			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
+		switch leftCond.(*parser.InPredicate).Left.Value.(type) {
+		case *parser.ColumnSpecification:
+			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+		case *parser.Literal:
+			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.Literal).Value
+		case *parser.BinaryExpression:
+
+			binaryExpr = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression)
+
+			// look for left table
+			if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+				leftTblName = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+			}
+
+			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
 	}
 
 	var row map[string]interface{}
@@ -529,7 +551,58 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 	results := make(map[string][]map[string]interface{})
 
 	switch cond := cond.(type) {
-	case *parser.ComparisonPredicate:
+	case *parser.InPredicate:
+
+		var left interface{}
+
+		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
+			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+		}
+
+		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
+			var val interface{}
+			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
+			if err != nil {
+				return false, nil
+			}
+
+			left = val
+		}
+
+		if _, ok := cond.Left.Value.(*parser.Literal); ok {
+			left = cond.Left.Value.(*parser.Literal).Value
+		}
+
+		for k, _ := range row {
+			// convert columnname to table.columnname
+			if len(strings.Split(k, ".")) == 1 {
+				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
+				delete(row, k)
+			}
+		}
+
+		for _, val := range cond.Values {
+			switch left.(type) {
+			case int:
+				left = int(left.(int))
+				return left == val.Value.(int), results
+			case uint64:
+				left = int(left.(uint64))
+				return left == val.Value.(int), results
+			case string:
+				if left.(string) == val.Value.(*parser.Literal).Value.(string) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+
+				}
+
+			}
+		}
+
+		if len(results) > 0 {
+			return true, results
+		}
+
+	case *parser.ComparisonPredicate: // Joins are only supported with comparison predicates
 
 		var left, right interface{}
 		var ok bool
