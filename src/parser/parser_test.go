@@ -1535,7 +1535,7 @@ func TestNewParserSelect15(t *testing.T) {
 
 func TestNewParserSelect16(t *testing.T) {
 	statement := []byte(`
-	SELECT col1 FROM tbl1 WHERE col1 BWTWEEN 1 AND 2;
+	SELECT col1 FROM tbl1 WHERE col1 BETWEEN 1 AND 2;
 `)
 
 	lexer := NewLexer(statement)
@@ -1572,4 +1572,100 @@ func TestNewParserSelect16(t *testing.T) {
 
 	log.Println(sel)
 
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Lower.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Lower.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Upper.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*BetweenPredicate).Upper.Value.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserSelect17(t *testing.T) {
+	statement := []byte(`
+	SELECT col1 FROM tbl1 WHERE col1 BETWEEN 1 AND 2 AND col2 = 3;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Op != OP_AND {
+		t.Fatalf("expected AND, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Lower.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Lower.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Upper.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*BetweenPredicate).Upper.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(3) {
+		t.Fatalf("expected 3, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
 }

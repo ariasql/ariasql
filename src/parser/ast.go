@@ -248,9 +248,9 @@ type NotExpr struct {
 
 // BetweenPredicate represents a BETWEEN predicate
 type BetweenPredicate struct {
-	Expr  *ValueExpression
-	Lower *Literal
-	Upper *Literal
+	Left  *ValueExpression
+	Lower *ValueExpression
+	Upper *ValueExpression
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format

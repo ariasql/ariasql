@@ -1097,6 +1097,12 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			return nil, err
 		}
 
+	} else if p.peek(1).tokenT == KEYWORD_TOK {
+		switch p.peek(1).value {
+		case "BETWEEN":
+			// Parse between expression
+			expr, err = p.parseBetweenExpr()
+		}
 	}
 
 	if p.peek(0).tokenT == KEYWORD_TOK {
@@ -1111,6 +1117,40 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 	}
 
 	return expr, nil
+
+}
+
+// parseBetweenExpr parses a between expression
+func (p *Parser) parseBetweenExpr() (*BetweenPredicate, error) {
+	// Parse left side of between expression
+	left, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Eat BETWEEN
+	p.consume()
+
+	// Parse lower bound
+	lower, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Eat AND
+	p.consume()
+
+	// Parse upper bound
+	upper, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	return &BetweenPredicate{
+		Left:  left,
+		Lower: lower,
+		Upper: upper,
+	}, nil
 
 }
 
