@@ -1087,32 +1087,27 @@ func (p *Parser) parseWhereClause() (*WhereClause, error) {
 func (p *Parser) parseSearchCondition() (interface{}, error) {
 	// A search condition can be a binary expression, comparison expression, or a logical expression
 
+	var expr interface{}
+	var err error
+
 	if p.peek(1).tokenT == COMPARISON_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK || p.peek(1).tokenT == AT_TOK {
 		// Parse comparison expression
-		expr, err := p.parseComparisonExpr()
+		expr, err = p.parseComparisonExpr()
 		if err != nil {
 			return nil, err
 		}
 
-		return expr, nil
 	}
 
-	if p.peek(1).tokenT == KEYWORD_TOK {
-		if p.peek(1).value == "AND" || p.peek(1).value == "OR" {
+	if p.peek(0).tokenT == KEYWORD_TOK {
+		if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
 			// Parse logical expression
-			expr, err := p.parseLogicalExpr()
+			expr, err = p.parseLogicalExpr(expr)
 			if err != nil {
 				return nil, err
 			}
 
-			return expr, nil
 		}
-	}
-
-	// Parse binary expression
-	expr, err := p.parseBinaryExpr(0)
-	if err != nil {
-		return nil, err
 	}
 
 	return expr, nil
@@ -1146,15 +1141,10 @@ func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
 }
 
 // parseLogicalExpr parses a logical expression
-func (p *Parser) parseLogicalExpr() (*LogicalCondition, error) {
-	// Parse left side of logical expression
-	left, err := p.parseSearchCondition()
-	if err != nil {
-		return nil, err
-	}
+func (p *Parser) parseLogicalExpr(left interface{}) (*LogicalCondition, error) {
 
 	// Parse logical operator
-	op := p.peek(1).value.(string)
+	op := p.peek(0).value.(string)
 	p.consume()
 
 	// Parse right side of logical expression

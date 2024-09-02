@@ -43,8 +43,8 @@ type CreateIndexStmt struct {
 
 // DropIndexStmt represents a DROP INDEX statement
 type DropIndexStmt struct {
-	TableName  *Identifier
-	IndexName  *Identifier
+	TableName *Identifier
+	IndexName *Identifier
 }
 
 // CreateTableStmt represents a CREATE TABLE statement
@@ -54,7 +54,7 @@ type CreateTableStmt struct {
 }
 
 type DropTableStmt struct {
-	TableName  *Identifier
+	TableName *Identifier
 }
 
 // UseStmt represents a USE statement
@@ -238,6 +238,10 @@ type AggregateFunc struct {
 // UnaryExpr represents a unary expression
 type UnaryExpr struct {
 	Op   string
+	Expr interface{}
+}
+
+type NotExpr struct {
 	Expr interface{}
 }
 
