@@ -16,38 +16,34 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package parser
 
+// Parser is following American National Standard SQL 1986
+
 import (
-	"ariasql/catalog"
 	"ariasql/shared"
-	"encoding/json"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
 
 var (
-	keywords = []string{
+	keywords = append([]string{
 		"ALL", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "AVG",
-		"BEGIN", "BETWEEN", "BY", "BIGINT", "BOOLEAN", "BOOL",
-		"CHAR", "CHARACTER", "CHECK", "CLOSE", "COBOL", "COMMIT",
-		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "CASCADE",
-		"DEC", "DECIMAL", "DECLARE", "DELETE", "DESC", "DISTINCT", "DOUBLE", "DATABASE", "DEFAULT", "DROP",
+		"BEGIN", "BETWEEN", "BY", "CHECK", "CLOSE", "COBOL", "COMMIT",
+		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "DECLARE", "DELETE", "DESC", "DISTINCT",
 		"END", "ESCAPE", "EXEC", "EXISTS",
-		"FETCH", "FLOAT", "FOR", "FORTRAN", "FOUND", "FROM",
+		"FETCH", "FOR", "FORTRAN", "FOUND", "FROM",
 		"GO", "GOTO", "GRANT", "GROUP", "HAVING",
-		"IN", "INDICATOR", "INSERT", "INT", "INTEGER", "INTO", "IS",
-		"LANGUAGE", "LIKE", "NO", "ACTION",
-		"MAX", "MIN", "MODULE", "NOT", "NULL", "NUMERIC",
+		"IN", "INDICATOR", "INSERT", "INTO", "IS", "SEQUENCE",
+		"LANGUAGE", "LIKE",
+		"MAX", "MIN", "MODULE", "NOT", "NULL",
 		"OF", "ON", "OPEN", "OPTION", "OR", "ORDER",
-		"PASCAL", "PLI", "PRECISION", "PRIVILEGES", "PROCEDURE", "PUBLIC", "PRIMARY",
-		"REAL", "ROLLBACK", "KEY", "REFERENCES", "RESTRICT",
-		"SCHEMA", "SECTION", "SELECT", "SET", "SMALLINT", "SOME", "SEQUENCE",
-		"SQL", "SQLCODE", "SQLERROR", "SUM", "DATE", "DATETIME", "TIME", "TIMESTAMP", "BINARY",
-		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER", "FOR", "FOREIGN",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "UUID", "INDEX", "USE", "TEXT",
-		"INNER", "OUTER", "LEFT", "RIGHT", "JOIN", "CROSS", "NATURAL", "FULL", "EXCEPT", "INTERSECT",
-		"LIMIT", "OFFSET",
-	}
+		"PASCAL", "PLI", "PRECISION", "PRIVILEGES", "PROCEDURE", "PUBLIC", "ROLLBACK",
+		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
+		"SQL", "SQLCODE", "SQLERROR", "SUM",
+		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK",
+	}, shared.DataTypes...)
 )
 
 type TokenType int // Token type
@@ -254,6 +250,7 @@ func (l *Lexer) nextToken() Token {
 					return Token{tokenT: COMPARISON_TOK, value: "<>"}
 				} else if l.input[l.pos+1] == '=' {
 					l.pos++
+					l.pos++
 					return Token{tokenT: COMPARISON_TOK, value: "<="}
 				}
 				l.pos++
@@ -266,7 +263,8 @@ func (l *Lexer) nextToken() Token {
 		case '>':
 			if !insideLiteral {
 				if l.input[l.pos+1] == '=' {
-					l.pos++
+					l.pos++ // skip =
+					l.pos++ // skip >
 					return Token{tokenT: COMPARISON_TOK, value: ">="}
 				}
 				l.pos++
@@ -501,757 +499,17 @@ func (p *Parser) Parse() (Node, error) {
 	// Check if statement starts with a keyword
 	if p.peek(0).tokenT == KEYWORD_TOK {
 		switch p.peek(0).value {
-		case "CREATE":
-			return p.parseCreateStmt()
-		case "DROP":
-			return p.parseDropStmt()
-		case "USE":
-			return p.parseUseStmt()
-		case "INSERT":
-			return p.parseInsertStmt()
 		case "SELECT":
 			return p.parseSelectStmt()
-		case "UPDATE":
-			return p.parseUpdateStmt()
-		case "DELETE":
-			return p.parseDeleteStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
-}
-
-// parseUpdateStmt parses an UPDATE statement
-func (p *Parser) parseUpdateStmt() (Node, error) {
-	// @todo
-	return nil, nil
-}
-
-// parseDeleteStmt parses a DELETE statement
-func (p *Parser) parseDeleteStmt() (Node, error) {
-	// @todo
-	return nil, nil
-}
-
-// parseDropStmt parses a DROP statement
-func (p *Parser) parseDropStmt() (Node, error) {
-	p.consume() // Consume DROP
-
-	if p.peek(0).tokenT != KEYWORD_TOK {
-		return nil, errors.New("expected keyword")
-	}
-
-	switch p.peek(0).value {
-	case "DATABASE":
-		return p.parseDropDatabaseStmt()
-	case "SCHEMA":
-		return p.parseDropSchemaStmt()
-	case "TABLE":
-		return p.parseDropTableStmt()
-	case "INDEX":
-		return p.parseDropIndexStmt()
-	}
-
-	return nil, errors.New("expected DATABASE or TABLE")
 
 }
 
-// parseDropDatabaseStmt parses a DROP DATABASE statement
-func (p *Parser) parseDropDatabaseStmt() (Node, error) {
-	p.consume() // Consume DATABASE
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	name := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	return &DropDatabaseStmt{
-		Name: &Identifier{Value: name},
-	}, nil
-}
-
-// parseDropSchemaStmt parses a DROP SCHEMA statement
-func (p *Parser) parseDropSchemaStmt() (Node, error) {
-	p.consume() // Consume SCHEMA
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	name := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	return &DropSchemaStmt{
-		Name: &Identifier{Value: name},
-	}, nil
-}
-
-// parseDropTableStmt parses a DROP TABLE statement
-func (p *Parser) parseDropTableStmt() (Node, error) {
-	p.consume() // Consume TABLE
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	if len(strings.Split(tableName, ".")) != 2 {
-		return nil, errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	return &DropTableStmt{
-		SchemaName: &Identifier{Value: schemaName},
-		TableName:  &Identifier{Value: tableName},
-	}, nil
-
-}
-
-// parseDropIndexStmt parses a DROP INDEX statement
-func (p *Parser) parseDropIndexStmt() (Node, error) {
-	p.consume() // Consume INDEX
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	indexName := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	if p.peek(0).value != "ON" {
-		return nil, errors.New("expected ON")
-	}
-
-	p.consume() // Consume ON
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-	p.consume() // Consume table name
-
-	if len(strings.Split(tableName, ".")) != 2 {
-		return nil, errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	return &DropIndexStmt{
-		SchemaName: &Identifier{Value: schemaName},
-		TableName:  &Identifier{Value: tableName},
-		IndexName:  &Identifier{Value: indexName},
-	}, nil
-
-}
-
-// parseCreateStmt parses a CREATE statement
-func (p *Parser) parseCreateStmt() (Node, error) {
-	p.consume() // Consume CREATE
-
-	if p.peek(0).tokenT != KEYWORD_TOK {
-		return nil, errors.New("expected keyword")
-	}
-
-	switch p.peek(0).value {
-	case "DATABASE":
-		return p.parseCreateDatabaseStmt()
-	case "SCHEMA":
-		return p.parseCreateSchemaStmt()
-	case "INDEX", "UNIQUE":
-		if p.peek(1).value == "INDEX" {
-			// eat unique
-			p.consume()
-
-			ast, err := p.parseCreateIndexStmt()
-			if err != nil {
-				return nil, err
-			}
-
-			ast.(*CreateIndexStmt).Unique = true
-			return ast, nil
-		}
-		return p.parseCreateIndexStmt()
-	case "TABLE":
-		return p.parseCreateTableStmt()
-	}
-
-	return nil, errors.New("expected DATABASE or TABLE")
-}
-
-// parseCreateDatabaseStmt parses a CREATE DATABASE statement
-func (p *Parser) parseCreateDatabaseStmt() (Node, error) {
-	p.consume() // Consume DATABASE
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	name := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	return &CreateDatabaseStmt{
-		Name: &Identifier{Value: name},
-	}, nil
-}
-
-// parseUseStmt parses a USE statement
-func (p *Parser) parseUseStmt() (Node, error) {
-	p.consume() // Consume USE
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	name := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	return &UseStmt{
-		DatabaseName: &Identifier{Value: name},
-	}, nil
-
-}
-
-// parseCreateSchemaStmt parses a CREATE SCHEMA statement
-func (p *Parser) parseCreateSchemaStmt() (Node, error) {
-	p.consume() // Consume SCHEMA
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	name := p.peek(0).value.(string)
-	p.consume() // Consume identifier
-
-	return &CreateSchemaStmt{
-		Name: &Identifier{Value: name},
-	}, nil
-
-}
-
-// parseCreateIndexStmt parses a CREATE INDEX statement
-func (p *Parser) parseCreateIndexStmt() (Node, error) {
-	createIndexStmt := &CreateIndexStmt{}
-	// CREATE INDEX index_name ON schema_name.table_name (column_name1, column_name2, ...)
-	// creating unique index
-	// CREATE UNIQUE INDEX index_name ON schema_name.table_name (column_name1, column_name2, ...)
-
-	// Eat INDEX
-	p.consume()
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	indexName := p.peek(0).value.(string)
-	p.consume() // Consume index name
-
-	if p.peek(0).value != "ON" {
-		return nil, errors.New("expected ON")
-	}
-
-	p.consume() // Consume ON
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-	p.consume() // Consume table name
-
-	// check if schema_name.table_name is valid
-	if len(strings.Split(tableName, ".")) != 2 {
-		return nil, errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return nil, errors.New("expected (")
-
-	}
-
-	p.consume() // Consume (
-
-	createIndexStmt.SchemaName = &Identifier{Value: schemaName}
-	createIndexStmt.TableName = &Identifier{Value: tableName}
-	createIndexStmt.IndexName = &Identifier{Value: indexName}
-	createIndexStmt.ColumnNames = make([]*Identifier, 0)
-
-	for {
-		if p.peek(0).tokenT != IDENT_TOK {
-			return nil, errors.New("expected identifier")
-		}
-
-		columnName := p.peek(0).value.(string)
-		createIndexStmt.ColumnNames = append(createIndexStmt.ColumnNames, &Identifier{Value: columnName})
-
-		p.consume() // Consume column name
-
-		if p.peek(0).tokenT == RPAREN_TOK {
-			break
-		}
-
-		if p.peek(0).tokenT != COMMA_TOK {
-			return nil, errors.New("expected ,")
-		}
-
-		p.consume() // Consume ,
-
-	}
-
-	if p.peek(0).tokenT != RPAREN_TOK {
-		return nil, errors.New("expected )")
-	}
-
-	p.consume() // Consume )
-
-	return createIndexStmt, nil
-}
-
-// parseInsertStmt parses an INSERT statement
-func (p *Parser) parseInsertStmt() (Node, error) {
-	// INSERT INTO schema_name.table_name (column_name1, column_name2, ...) VALUES (value1, value2, ...), (value1, value2, ...), ...
-
-	insertStmt := &InsertStmt{}
-
-	// Eat INSERT
-	p.consume()
-
-	if p.peek(0).value != "INTO" {
-		return nil, errors.New("expected INTO")
-	}
-
-	// Eat INTO
-	p.consume()
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-
-	if len(strings.Split(tableName, ".")) != 2 {
-		return nil, errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	insertStmt.SchemaName = &Identifier{Value: schemaName}
-	insertStmt.TableName = &Identifier{Value: tableName}
-	insertStmt.ColumnNames = make([]*Identifier, 0)
-	insertStmt.Values = make([][]*Literal, 0)
-
-	p.consume() // Consume schema_name.table_name
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return nil, errors.New("expected (")
-	}
-
-	p.consume() // Consume (
-	for {
-		if p.peek(0).tokenT != IDENT_TOK {
-			return nil, errors.New("expected identifier")
-		}
-
-		columnName := p.peek(0).value.(string)
-		insertStmt.ColumnNames = append(insertStmt.ColumnNames, &Identifier{Value: columnName})
-
-		p.consume() // Consume column name
-
-		if p.peek(0).tokenT == RPAREN_TOK {
-			break
-		}
-
-		if p.peek(0).tokenT != COMMA_TOK {
-			return nil, errors.New("expected ,")
-		}
-
-		p.consume() // Consume ,
-
-	}
-
-	if p.peek(0).tokenT != RPAREN_TOK {
-		return nil, errors.New("expected )")
-	}
-
-	p.consume() // Consume )
-
-	// Look for VALUES
-
-	if p.peek(0).value != "VALUES" {
-		return nil, errors.New("expected VALUES")
-	}
-
-	p.consume() // Consume VALUES
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return nil, errors.New("expected (")
-	}
-
-	for {
-		if p.peek(0).tokenT != LPAREN_TOK {
-			return nil, errors.New("expected (")
-		}
-
-		p.consume() // Consume (
-
-		values := make([]*Literal, 0)
-
-		for {
-			if p.peek(0).tokenT == RPAREN_TOK {
-				break
-			}
-
-			if p.peek(0).tokenT != LITERAL_TOK {
-				return nil, errors.New("expected literal")
-			}
-
-			values = append(values, &Literal{Value: p.peek(0).value})
-
-			p.consume() // Consume literal
-
-			if p.peek(0).tokenT == RPAREN_TOK {
-				break
-			}
-
-			if p.peek(0).tokenT != COMMA_TOK {
-				return nil, errors.New("expected ,")
-			}
-
-			p.consume() // Consume ,
-		}
-
-		insertStmt.Values = append(insertStmt.Values, values)
-
-		if p.peek(0).tokenT != RPAREN_TOK {
-			return nil, errors.New("expected )")
-		}
-
-		p.consume() // Consume )
-
-		if p.peek(0).tokenT == SEMICOLON_TOK {
-			break
-		}
-
-		if p.peek(0).tokenT != COMMA_TOK {
-			return nil, errors.New("expected ,")
-		}
-
-		p.consume() // Consume ,
-	}
-
-	return insertStmt, nil
-}
-
-// parseCreateTableStmt parses a CREATE TABLE statement
-func (p *Parser) parseCreateTableStmt() (Node, error) {
-	// CREATE TABLE schema_name.table_name (column_name1 data_type constraints, column_name2 data_type constraints, ...)
-	createTableStmt := &CreateTableStmt{}
-
-	// Eat TABLE
-	p.consume()
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-
-	if len(strings.Split(tableName, ".")) != 2 {
-		return nil, errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	createTableStmt.SchemaName = &Identifier{Value: schemaName}
-	createTableStmt.TableName = &Identifier{Value: tableName}
-
-	p.consume() // Consume schema_name.table_name
-
-	createTableStmt.TableSchema = &catalog.TableSchema{
-		ColumnDefinitions: make(map[string]*catalog.ColumnDefinition),
-	}
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return nil, errors.New("expected (")
-	}
-
-	p.consume() // Consume (
-
-	for p.peek(0).tokenT != SEMICOLON_TOK {
-		if p.peek(0).tokenT != IDENT_TOK {
-			return nil, errors.New("expected identifier")
-		}
-
-		columnName := p.peek(0).value.(string)
-
-		p.consume() // Consume column name
-
-		if p.peek(0).tokenT != DATATYPE_TOK {
-
-			return nil, errors.New("expected data type")
-		}
-
-		dataType := p.peek(0).value.(string)
-
-		createTableStmt.TableSchema.ColumnDefinitions[columnName] = &catalog.ColumnDefinition{
-			Datatype: dataType,
-		}
-
-		p.consume() // Consume data type
-
-		// check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
-		if p.peek(0).tokenT == LPAREN_TOK {
-			switch dataType {
-			case "CHAR", "CHARACTER":
-				p.consume() // Consume (
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-
-					return nil, errors.New("expected literal")
-				}
-
-				length := p.peek(0).value.(uint64)
-
-				p.consume() // Consume literal
-
-				if p.peek(0).tokenT != RPAREN_TOK {
-					return nil, errors.New("expected )")
-				}
-
-				p.consume() // Consume )
-
-				createTableStmt.TableSchema.ColumnDefinitions[columnName].Length = int(length)
-			case "DEC", "DECIMAL", "NUMERIC":
-
-				p.consume() // Consume (
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-					return nil, errors.New("expected literal")
-				}
-
-				precision := p.peek(0).value.(uint64)
-
-				p.consume() // Consume literal
-
-				if p.peek(0).tokenT != COMMA_TOK {
-					return nil, errors.New("expected ,")
-				}
-
-				p.consume() // Consume ,
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-					return nil, errors.New("expected literal")
-				}
-
-				scale := p.peek(0).value.(uint64)
-
-				p.consume() // Consume literal
-
-				if p.peek(0).tokenT != RPAREN_TOK {
-					return nil, errors.New("expected )")
-				}
-
-				p.consume() // Consume )
-
-				createTableStmt.TableSchema.ColumnDefinitions[columnName].Precision = int(precision)
-				createTableStmt.TableSchema.ColumnDefinitions[columnName].Scale = int(scale)
-
-			}
-		}
-
-		// Check for constraints
-		if p.peek(0).tokenT == KEYWORD_TOK {
-			for p.peek(0).tokenT == KEYWORD_TOK {
-				switch p.peek(0).value {
-				case "NOT":
-					p.consume() // Consume NOT
-
-					if p.peek(0).value != "NULL" {
-						return nil, errors.New("expected NULL")
-					}
-
-					p.consume() // Consume NULL
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
-					continue
-				case "PRIMARY":
-					p.consume() // Consume PRIMARY
-
-					if p.peek(0).value != "KEY" {
-						return nil, errors.New("expected KEY")
-					}
-
-					p.consume() // Consume KEY
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].PrimaryKey = true
-					continue
-				case "UNIQUE":
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
-
-					p.consume() // Consume UNIQUE
-					continue
-				case "DEFAULT":
-					p.consume() // Consume DEFAULT
-
-					if p.peek(0).tokenT != LITERAL_TOK {
-						return nil, errors.New("expected literal")
-					}
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = p.peek(0).value
-
-					p.consume() // Consume literal
-					continue
-				case "SEQUENCE":
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
-
-					p.consume() // Consume SEQUENCE
-					continue
-				case "FOREIGN":
-					p.consume() // Consume FOREIGN
-
-					if p.peek(0).value != "KEY" {
-						return nil, errors.New("expected KEY")
-					}
-
-					p.consume() // Consume KEY
-				case "REFERENCES":
-					if p.peek(0).value != "REFERENCES" {
-						return nil, errors.New("expected REFERENCES")
-					}
-
-					p.consume() // Consume REFERENCES
-
-					if p.peek(0).tokenT != IDENT_TOK {
-						return nil, errors.New("expected identifier")
-					}
-
-					// check if schema_name.table_name is valid
-					if len(strings.Split(p.peek(0).value.(string), ".")) != 2 {
-						return nil, errors.New("expected schema_name.table_name")
-					}
-
-					rSchemaName := strings.Split(p.peek(0).value.(string), ".")[0]
-					rTableName := strings.Split(p.peek(0).value.(string), ".")[1]
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignTable = rTableName
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignSchema = rSchemaName
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].IsForeign = true
-
-					p.consume() // Consume schema_name.table_name
-
-					if p.peek(0).tokenT != LPAREN_TOK {
-						return nil, errors.New("expected (")
-					}
-
-					p.consume() // Consume (
-
-					if p.peek(0).tokenT != IDENT_TOK {
-						return nil, errors.New("expected identifier")
-					}
-
-					rColumnName := p.peek(0).value.(string)
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].ForeignColumn = rColumnName
-
-					p.consume() // Consume column name
-
-					if p.peek(0).tokenT != RPAREN_TOK {
-						return nil, errors.New("expected )")
-					}
-
-					// Consume )
-					p.consume()
-
-				case "ON":
-					p.consume() // Consume ON
-
-					cascadeOpt := p.peek(0).value.(string)
-
-					if p.peek(0).value == "DELETE" || p.peek(0).value == "UPDATE" {
-						p.consume() // Consume DELETE or UPDATE
-
-						if p.peek(0).value == "CASCADE" {
-							if cascadeOpt == "DELETE" {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionCascade
-							} else {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionCascade
-							}
-							p.consume() // Consume CASCADE
-						} else if p.peek(0).value == "SET" {
-							p.consume() // Consume SET
-
-							if p.peek(0).value == "NULL" {
-								if cascadeOpt == "DELETE" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetNull
-								} else {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetNull
-								}
-								p.consume() // Consume NULL
-							} else if p.peek(0).value == "DEFAULT" {
-								if cascadeOpt == "DELETE" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionSetDefault
-								} else {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionSetDefault
-								}
-								p.consume() // Consume DEFAULT
-							} else {
-								return nil, errors.New("expected CASCADE, SET NULL or SET DEFAULT")
-							}
-						} else if p.peek(0).value == "NO" {
-							p.consume() // Consume NO
-
-							if p.peek(0).value == "ACTION" {
-								if cascadeOpt == "DELETE" {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionNone
-								} else {
-									createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionNone
-								}
-								p.consume() // Consume ACTION
-							} else {
-								return nil, errors.New("expected ACTION")
-							}
-						} else if p.peek(0).value == "RESTRICT" {
-							if cascadeOpt == "DELETE" {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnDelete = catalog.CascadeActionRestrict
-							} else {
-								createTableStmt.TableSchema.ColumnDefinitions[columnName].OnUpdate = catalog.CascadeActionRestrict
-							}
-							p.consume() // Consume RESTRICT
-						} else {
-							return nil, errors.New("expected CASCADE, SET NULL, SET DEFAULT, NO ACTION or RESTRICT")
-						}
-
-					}
-
-				default:
-					return nil, errors.New("expected PRIMARY, NOT NULL, UNIQUE, DEFAULT, SEQUENCE or FOREIGN KEY")
-				}
-
-			}
-
-		}
-
-		p.consume() // Consume ,
-
-	}
-
-	return createTableStmt, nil
-}
-
-// parseSelectStmt parses a SELECT statement
 func (p *Parser) parseSelectStmt() (Node, error) {
+
 	selectStmt := &SelectStmt{}
 
 	// Eat SELECT
@@ -1263,1752 +521,206 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 		p.consume()
 	}
 
-	// Parse column set
-	err := p.parseColumnSet(selectStmt)
+	// Parse select list
+	err := p.parseSelectList(selectStmt)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check for FROM
 	if p.peek(0).value == "FROM" {
-		err = p.parseFrom(selectStmt)
+		tableExpr, err := p.parseTableExpression()
 		if err != nil {
 			return nil, err
-		}
-	}
 
-	// Check for joins
-	if p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" {
-		err = p.parseJoin(selectStmt)
-		if err != nil {
-			return nil, err
 		}
+
+		selectStmt.TableExpression = tableExpr
 
 	}
 
 	// Check for WHERE
 	if p.peek(0).value == "WHERE" {
-		err = p.parseWhere(selectStmt)
+		whereClause, err := p.parseWhereClause()
 		if err != nil {
 			return nil, err
 		}
 
-	}
-
-	// Check for GROUP BY
-	if p.peek(0).value == "GROUP" {
-		err = p.parseGroupBy(selectStmt)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	// Check for HAVING
-	if p.peek(0).value == "HAVING" {
-		err = p.parseHaving(selectStmt)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	// Check for ORDER BY
-	if p.peek(0).value == "ORDER" {
-		err = p.parseOrderBy(selectStmt)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	// Check for LIMIT-OFFSET
-	if p.peek(0).value == "LIMIT" {
-		err = p.parseLimit(selectStmt)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Check for Union, Intersect, Except
-	if p.peek(0).value == "UNION" || p.peek(0).value == "INTERSECT" || p.peek(0).value == "EXCEPT" {
-		err = p.parseSetOperation(selectStmt)
-		if err != nil {
-			return nil, err
-		}
+		selectStmt.TableExpression.WhereClause = whereClause
 
 	}
 
 	return selectStmt, nil
+
 }
 
-// parseHaving parses a HAVING clause
-func (p *Parser) parseHaving(selectStmt *SelectStmt) error {
-	havingClause := &HavingClause{}
+func (p *Parser) parseWhereClause() (*WhereClause, error) {
+	whereClause := &WhereClause{}
 
-	p.consume() // Consume HAVING
+	// Eat WHERE
+	p.consume()
 
-	// HAVING COUNT(OrderID) BETWEEN 5 AND 10 OR COUNT(OrderID) > 10
-
-	err := p.parseHavingExpr(havingClause)
+	// Parse search condition
+	searchCondition, err := p.parseSearchCondition()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// check for AND or OR
-	if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-		for p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-			logical := &LogicalCondition{}
+	whereClause.SearchCondition = searchCondition
 
-			switch p.peek(0).value {
-			case "AND":
-				logical.Operator = And
-			case "OR":
-				logical.Operator = Or
+	return whereClause, nil
 
-			}
-
-			p.consume() // Consume AND or OR
-
-			logical.LeftCond = havingClause.Cond
-
-			havingClause.Cond = logical
-
-			havingClauseRight := &HavingClause{}
-
-			err = p.parseHavingExpr(havingClauseRight)
-			if err != nil {
-				return err
-			}
-
-			logical.RightCond = havingClauseRight.Cond
-		}
-
-	}
-
-	selectStmt.Having = havingClause
-
-	return nil
 }
 
-func (p *Parser) parseHavingExpr(havingClause *HavingClause) error {
-	if p.peek(0).tokenT != KEYWORD_TOK {
-		return errors.New("expected keyword")
-	}
+func (p *Parser) parseSearchCondition() (interface{}, error) {
+	// A search condition can be a binary expression, comparison expression, or a logical expression
 
-	switch p.peek(0).value {
-	case "COUNT", "SUM", "AVG", "MIN", "MAX":
-		aggFunc, err := p.parseAggregateFunc()
+	if p.peek(1).tokenT == COMPARISON_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK || p.peek(1).tokenT == AT_TOK {
+		// Parse comparison expression
+		expr, err := p.parseComparisonExpr()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		// Check for predicate
-		switch p.peek(0).tokenT {
-		case COMPARISON_TOK:
-			op := p.peek(0).value.(string)
-			p.consume() // Consume comparison operator
-
-			switch p.peek(0).tokenT {
-			case LITERAL_TOK:
-				literal := p.peek(0).value
-				p.consume() // Consume literal
-
-				havingClause.Cond = &ComparisonPredicate{
-					LeftExpr:  aggFunc,
-					RightExpr: &Literal{Value: literal},
-				}
-
-				switch op {
-				case "=":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Eq
-				case "!=", "<>":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Ne
-				case ">":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Gt
-				case "<":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Lt
-				case ">=":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Ge
-				case "<=":
-					havingClause.Cond.(*ComparisonPredicate).Operator = Le
-				default:
-					return errors.New("invalid operator")
-				}
-			case KEYWORD_TOK:
-				switch p.peek(0).value {
-				case "COUNT", "SUM", "AVG", "MIN", "MAX":
-					aggFunc2, err := p.parseAggregateFunc()
-					if err != nil {
-						return err
-					}
-
-					havingClause.Cond = &ComparisonPredicate{
-						LeftExpr:  aggFunc,
-						RightExpr: aggFunc2,
-					}
-
-					switch op {
-					case "=":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Eq
-					case "!=", "<>":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Ne
-					case ">":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Gt
-					case "<":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Lt
-					case ">=":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Ge
-					case "<=":
-						havingClause.Cond.(*ComparisonPredicate).Operator = Le
-					default:
-						return errors.New("invalid operator")
-					}
-				default:
-					return errors.New("expected aggregate function")
-				}
-
-			default:
-				return errors.New("expected aggregate function")
-
-			}
-		case KEYWORD_TOK:
-			switch p.peek(0).value {
-			case "BETWEEN":
-				p.consume() // Consume BETWEEN
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-					return errors.New("expected literal")
-				}
-
-				lower := p.peek(0).value
-
-				p.consume() // Consume literal
-
-				if p.peek(0).value != "AND" {
-					return errors.New("expected AND")
-				}
-
-				p.consume() // Consume AND
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-					return errors.New("expected literal")
-				}
-
-				upper := p.peek(0).value
-
-				p.consume() // Consume literal
-
-				havingClause.Cond = &BetweenPredicate{
-					Expr:  aggFunc,
-					Lower: &Literal{Value: lower},
-					Upper: &Literal{Value: upper},
-				}
-			case "IN":
-				p.consume() // Consume IN
-
-				if p.peek(0).tokenT != LPAREN_TOK {
-					return errors.New("expected (")
-				}
-
-				p.consume() // Consume (
-
-				inList := []interface{}{}
-
-				// Look for subquery
-				if p.peek(0).value == "SELECT" {
-					subQuery, err := p.parseSelectStmt()
-					if err != nil {
-						return err
-					}
-
-					inList = append(inList, subQuery)
-
-					if p.peek(0).tokenT != RPAREN_TOK {
-						return errors.New("expected )")
-					}
-
-					p.consume() // Consume )
-				} else {
-
-					for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != SEMICOLON_TOK {
-						if p.peek(0).tokenT != LITERAL_TOK {
-							return errors.New("expected literal")
-						}
-
-						inList = append(inList, &Literal{Value: p.peek(0).value})
-
-						p.consume() // Consume literal
-
-						if p.peek(0).tokenT == RPAREN_TOK {
-							break
-						}
-
-						if p.peek(0).tokenT != COMMA_TOK {
-							return errors.New("expected ,")
-						}
-
-						p.consume() // Consume ,
-					}
-
-					p.consume() // Consume )
-				}
-				havingClause.Cond = &InPredicate{
-					Expr:   aggFunc,
-					Values: inList,
-				}
-			case "LIKE":
-				p.consume() // Consume LIKE
-
-				if p.peek(0).tokenT != LITERAL_TOK {
-					return errors.New("expected literal")
-				}
-
-				pattern := p.peek(0).value
-
-				p.consume() // Consume literal
-
-				havingClause.Cond = &LikePredicate{
-					Expr:    aggFunc,
-					Pattern: pattern,
-				}
-				// eh probably not really needed
-			case "IS":
-				p.consume() // Consume IS
-
-				switch p.peek(0).value {
-				case "NULL":
-					p.consume() // Consume NULL
-
-					havingClause.Cond = &IsNullPredicate{
-						Expr: aggFunc,
-					}
-				case "NOT":
-					p.consume() // Consume NOT
-
-					if p.peek(0).value != "NULL" {
-						return errors.New("expected NULL")
-					}
-				}
-			default:
-				return errors.New("expected predicate")
-			}
-		default:
-			return errors.New("expected predicate")
-		}
+		return expr, nil
 	}
 
-	return nil
-}
-
-// parseSetOperation parses a UNION, INTERSECT or EXCEPT
-func (p *Parser) parseSetOperation(selectStmt *SelectStmt) error {
-	if p.peek(0).value == "UNION" {
-		union := &UnionStmt{}
-		p.consume()
-		if p.peek(0).value == "ALL" {
-			union.All = true
-			p.consume()
-
-			if p.peek(0).value == "SELECT" {
-				sel, err := p.parseSelectStmt()
-				if err != nil {
-					return err
-				}
-
-				union.SelectStmt = sel.(*SelectStmt)
-
-				selectStmt.Union = union
-			}
-		}
-	} else if p.peek(0).value == "INTERSECT" {
-		intersect := &IntersectStmt{}
-		p.consume()
-
-		if p.peek(0).value == "SELECT" {
-			sel, err := p.parseSelectStmt()
+	if p.peek(1).tokenT == KEYWORD_TOK {
+		if p.peek(1).value == "AND" || p.peek(1).value == "OR" {
+			// Parse logical expression
+			expr, err := p.parseLogicalExpr()
 			if err != nil {
-				return err
+				return nil, err
 			}
 
-			intersect.SelectStmt = sel.(*SelectStmt)
-
-			selectStmt.Intersect = intersect
-		}
-
-	} else if p.peek(0).value == "EXCEPT" {
-		except := &ExceptStmt{}
-		p.consume()
-
-		if p.peek(0).value == "SELECT" {
-			sel, err := p.parseSelectStmt()
-			if err != nil {
-				return err
-			}
-
-			except.SelectStmt = sel.(*SelectStmt)
-
-			selectStmt.Except = except
-
+			return expr, nil
 		}
 	}
 
-	return nil
-}
-
-// parseLimit parses a LIMIT-OFFSET
-func (p *Parser) parseLimit(selectStmt *SelectStmt) error {
-	p.consume() // Consume LIMIT
-
-	if p.peek(0).tokenT != LITERAL_TOK {
-		return errors.New("expected literal")
-	}
-
-	limit := p.peek(0).value.(uint64)
-
-	selectStmt.Limit = &LimitClause{
-		Offset: 0,
-		Count:  int(limit),
-	}
-
-	p.consume() // Consume literal
-
-	if p.peek(0).value == "OFFSET" {
-		p.consume() // Consume OFFSET
-
-		if p.peek(0).tokenT != LITERAL_TOK {
-			return errors.New("expected literal")
-		}
-
-		offset := p.peek(0).value.(uint64)
-
-		selectStmt.Limit.Offset = int(offset)
-	}
-
-	return nil
-}
-
-// parseOrderBy parses an ORDER BY
-func (p *Parser) parseOrderBy(selectStmt *SelectStmt) error {
-	orderByClause := &OrderByClause{}
-
-	selectStmt.OrderBy = orderByClause
-
-	p.consume() // Consume ORDER
-
-	if p.peek(0).value != "BY" {
-		return errors.New("expected BY")
-	}
-
-	p.consume() // Consume BY
-
-	orderByColumns := []interface{}{}
-
-	for {
-		if p.peek(0).tokenT != IDENT_TOK {
-			return errors.New("expected identifier")
-		}
-
-		columnName := p.peek(0).value.(string)
-
-		if len(strings.Split(columnName, ".")) != 2 {
-			return errors.New("expected table_name.column_name, or alias.column_name")
-		}
-
-		tableName := strings.Split(columnName, ".")[0]
-		columnName = strings.Split(columnName, ".")[1]
-
-		orderByColumns = append(orderByColumns, &ColumnSpec{
-			TableName:  &Identifier{Value: tableName},
-			ColumnName: &Identifier{Value: columnName},
-		})
-
-		p.consume() // Consume column name
-
-		if p.peek(0).tokenT == SEMICOLON_TOK {
-			break
-		}
-
-		if p.peek(0).tokenT != COMMA_TOK {
-			break
-		}
-
-		p.consume() // Consume ,
-
-	}
-
-	orderByClause.Columns = orderByColumns
-
-	if p.peek(0).value == "ASC" {
-		orderByClause.Dir = Asc
-		p.consume() // Consume ASC
-
-	} else {
-		orderByClause.Dir = Desc
-		p.consume() // Consume DESC
-
-	}
-
-	return nil
-}
-
-// parseGroupBy parses a GROUP BY
-func (p *Parser) parseGroupBy(selectStmt *SelectStmt) error {
-	groupByClause := &GroupByClause{}
-	selectStmt.GroupBy = groupByClause
-
-	p.consume() // Consume GROUP
-
-	if p.peek(0).value != "BY" {
-		return errors.New("expected BY")
-	}
-
-	p.consume() // Consume BY
-
-	for {
-		if p.peek(0).tokenT != IDENT_TOK {
-			return errors.New("expected identifier")
-		}
-
-		columnName := p.peek(0).value.(string)
-
-		if len(strings.Split(columnName, ".")) != 2 {
-			return errors.New("expected table_name.column_name, or alias.column_name")
-		}
-
-		tableName := strings.Split(columnName, ".")[0]
-		columnName = strings.Split(columnName, ".")[1]
-
-		groupBy := []interface{}{}
-
-		groupBy = append(groupBy, &ColumnSpec{
-			TableName:  &Identifier{Value: tableName},
-			ColumnName: &Identifier{Value: columnName},
-		})
-
-		selectStmt.GroupBy.Columns = groupBy
-
-		p.consume() // Consume column name
-
-		if p.peek(0).tokenT == SEMICOLON_TOK {
-			break
-		}
-
-		if p.peek(0).tokenT != COMMA_TOK {
-			return errors.New("expected ,")
-		}
-
-		p.consume() // Consume ,
-
-	}
-
-	return nil
-}
-
-// parseJoin parses a JOIN
-func (p *Parser) parseJoin(selectStmt *SelectStmt) error {
-
-	// JOIN schema_name.table_name ON column_name1 = column_name2
-
-	join := &Join{}
-
-	var joinType JoinType
-
-	if p.peek(0).value == "JOIN" {
-		joinType = InnerJoin
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "INNER" {
-		joinType = InnerJoin
-		p.consume() // Consume INNER
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "LEFT" {
-		joinType = LeftJoin
-		p.consume() // Consume LEFT
-
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "RIGHT" {
-		joinType = RightJoin
-		p.consume() // Consume RIGHT
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "FULL" {
-		joinType = FullJoin
-		p.consume() // Consume FULL
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "CROSS" {
-		joinType = CrossJoin
-		p.consume() // Consume CROSS
-
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-	} else if p.peek(0).value == "NATURAL" {
-		joinType = NaturalJoin
-		p.consume() // Consume NATURAL
-
-		// look for outer
-		if p.peek(0).value == "OUTER" {
-			p.consume() // Consume OUTER
-		}
-
-		p.consume() // Consume JOIN
-
-	}
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return errors.New("expected identifier")
-	}
-
-	tableName := p.peek(0).value.(string)
-
-	if len(strings.Split(tableName, ".")) != 2 {
-		return errors.New("expected schema_name.table_name")
-	}
-
-	schemaName := strings.Split(tableName, ".")[0]
-	tableName = strings.Split(tableName, ".")[1]
-
-	rightTable := &Table{
-		SchemaName: &Identifier{Value: schemaName},
-		TableName:  &Identifier{Value: tableName},
-	}
-
-	join.RightTable = rightTable
-
-	join.LeftTable = selectStmt.From.Tables[0]
-
-	join.JoinType = joinType
-
-	p.consume() // Consume schema_name.table_name
-
-	// Look for alias
-	if p.peek(0).value == "AS" {
-		p.consume() // Consume AS
-
-		if p.peek(0).tokenT != IDENT_TOK {
-			return errors.New("expected identifier")
-		}
-
-		alias := p.peek(0).value.(string)
-		rightTable.Alias = &Identifier{Value: alias}
-
-		p.consume() // Consume alias
-
-	}
-
-	if p.peek(0).value != "ON" {
-		return errors.New("expected ON")
-	}
-
-	p.consume() // Consume ON
-
-	// Parse join comparison
-	err := p.parseComparisonPredicate(join, nil)
+	// Parse binary expression
+	expr, err := p.parseBinaryExpr(0)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	selectStmt.Joins = append(selectStmt.Joins, join)
+	return expr, nil
 
-	return nil
 }
 
-// parseComparisonPredicate parses a comparison predicate
-func (p *Parser) parseComparisonPredicate(where interface{}, valueExpr *ValueExpr) error {
-	_, ok := where.(*Join)
-	if ok {
-		colL := p.peek(0).value.(string)
-
-		if len(strings.Split(colL, ".")) != 2 {
-			return errors.New("expected table_name.column_name")
-		}
-
-		tableNameL := strings.Split(colL, ".")[0]
-		columnNameL := strings.Split(colL, ".")[1]
-
-		columnSpecL := &ColumnSpec{
-			TableName:  &Identifier{Value: tableNameL},
-			ColumnName: &Identifier{Value: columnNameL},
-		}
-
-		p.consume() // Consume schema_name.table_name.column_name
-
-		switch p.peek(0).value {
-		case "=":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Eq,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[0]
-			columnNameR := strings.Split(colR, ".")[1]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		case "<>", "!=":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Ne,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		case "<":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Lt,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		case "<=":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Le,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		case ">":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Gt,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		case ">=":
-			compPred := &ComparisonPredicate{
-				LeftExpr:  columnSpecL,
-				RightExpr: nil,
-				Operator:  Ge,
-			}
-
-			p.consume() // Consume =
-
-			colR := p.peek(0).value.(string)
-
-			if len(strings.Split(colR, ".")) != 2 {
-				return errors.New("expected table_name.column_name")
-			}
-
-			tableNameR := strings.Split(colR, ".")[1]
-			columnNameR := strings.Split(colR, ".")[2]
-
-			columnSpecR := &ColumnSpec{
-				TableName:  &Identifier{Value: tableNameR},
-				ColumnName: &Identifier{Value: columnNameR},
-			}
-
-			compPred.RightExpr = columnSpecR
-
-			where.(*Join).Cond = compPred
-
-			return nil
-		default:
-			return errors.New("expected comparison operator")
-
-		}
-
-	}
-
-	switch p.peek(0).value {
-	case "=":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Eq,
-		}
-
-		p.consume() // Consume =
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	case "<>", "!=":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Ne,
-		}
-
-		p.consume() // Consume <>, !=
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	case "<":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Lt,
-		}
-
-		p.consume() // Consume <
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	case "<=":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Le,
-		}
-
-		p.consume() // Consume <=
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	case ">":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Gt,
-		}
-
-		p.consume() // Consume >
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	case ">=":
-		compPred := &ComparisonPredicate{
-			LeftExpr:  valueExpr,
-			RightExpr: nil,
-			Operator:  Ge,
-		}
-
-		p.consume() // Consume =
-
-		if p.peek(0).tokenT == LITERAL_TOK {
-			compPred.RightExpr = &ValueExpr{
-				Value: p.peek(0).value,
-			}
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = compPred
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = compPred
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = compPred
-		}
-	default:
-		return errors.New("expected comparison operator")
-	}
-
-	p.consume() // Consume value
-
-	return nil
-}
-
-// parseInPredicate parses an IN predicate
-func (p *Parser) parseInPredicate(where interface{}, valueExpr *ValueExpr) error {
-	p.consume() // Consume IN
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return errors.New("expected (")
-	}
-
-	p.consume() // Consume (
-
-	in := &InPredicate{
-		Expr:   valueExpr,
-		Values: make([]interface{}, 0),
-	}
-
-	// Check for subquery
-	if p.peek(0).value == "SELECT" {
-
-		subquery, err := p.parseSelectStmt()
-		if err != nil {
-			return err
-		}
-
-		in.Subquery = subquery.(*SelectStmt)
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = in
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = in
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = in
-		}
-
-	} else {
-
-		for p.peek(0).tokenT != RPAREN_TOK {
-			if p.peek(0).tokenT != LITERAL_TOK {
-				return errors.New("expected literal")
-			}
-
-			in.Values = append(in.Values, &ValueExpr{
-				Value: &Literal{Value: p.peek(0).value},
-			})
-
-			p.consume() // Consume literal
-
-			if p.peek(0).tokenT == RPAREN_TOK {
-				break
-			}
-
-			if p.peek(0).tokenT != COMMA_TOK {
-				return errors.New("expected ,")
-			}
-
-			p.consume() // Consume ,
-
-		}
-
-		if p.peek(0).tokenT != RPAREN_TOK {
-			return errors.New("expected )")
-		}
-
-		p.consume() // Consume )
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = in
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = in
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = in
-		}
-	}
-
-	return nil
-}
-
-// parseBetweenPredicate parses a BETWEEN predicate
-func (p *Parser) parseBetweenPredicate(where interface{}, valueExpr *ValueExpr) error {
-	p.consume() // Consume BETWEEN
-
-	if p.peek(0).tokenT != LITERAL_TOK {
-		return errors.New("expected literal")
-	}
-
-	lower := p.peek(0).value
-
-	p.consume() // Consume literal
-
-	if p.peek(0).value != "AND" {
-		return errors.New("expected AND")
-	}
-
-	p.consume() // Consume AND
-
-	if p.peek(0).tokenT != LITERAL_TOK {
-		return errors.New("expected literal")
-	}
-
-	upper := p.peek(0).value
-
-	p.consume() // Consume literal
-
-	between := &BetweenPredicate{
-		Expr: valueExpr,
-		Lower: &ValueExpr{
-			Value: &Literal{Value: lower},
-		},
-		Upper: &ValueExpr{
-			Value: &Literal{Value: upper},
-		},
-	}
-
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = between
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = between
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = between
-	}
-
-	return nil
-}
-
-// parseLikePredicate parses a LIKE predicate
-func (p *Parser) parseLikePredicate(where interface{}, valueExpr *ValueExpr) error {
-	p.consume() // consume LIKE
-	if p.peek(0).tokenT != LITERAL_TOK {
-		return errors.New("expected literal")
-	}
-
-	likeExpr := &LikePredicate{
-		Expr: valueExpr,
-		Pattern: &Literal{
-			Value: p.peek(0).value,
-		},
-	}
-
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = likeExpr
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = likeExpr
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = likeExpr
-	}
-
-	p.consume() // consume literal
-
-	return nil
-}
-
-// parseIsPredicate parses an IS predicate
-func (p *Parser) parseIsPredicate(where interface{}, valueExpr *ValueExpr) error {
-	p.consume() // consume IS
-
-	// IS NULL or IS NOT NULL
-	if p.peek(0).value == "NULL" {
-		isExpr := &IsNullPredicate{
-			Expr: valueExpr,
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = isExpr
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = isExpr
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = isExpr
-		}
-
-		p.consume() // consume NULL
-
-	} else if p.peek(0).value == "NOT" {
-		p.consume() // consume NOT
-
-		if p.peek(0).value != "NULL" {
-			return errors.New("expected NULL")
-		}
-
-		isExpr := &IsNotNullPredicate{
-			Expr: valueExpr,
-		}
-
-		switch where.(type) {
-		case *WhereClause:
-			where.(*WhereClause).Cond = isExpr
-		case *NotPredicate:
-			where.(*NotPredicate).Expr = isExpr
-		case *LogicalCondition:
-			where.(*LogicalCondition).RightCond = isExpr
-		}
-
-		p.consume() // consume NULL
-	}
-
-	return nil
-}
-
-// parseExistsPredicate parses an EXISTS predicate
-func (p *Parser) parseExistsPredicate(where interface{}, valueExpr *ValueExpr) error {
-	// SELECT * FROM table_name WHERE EXISTS (SELECT * FROM table_name WHERE condition)
-	p.consume() // consume EXISTS
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return errors.New("expected (")
-	}
-
-	p.consume() // consume (
-
-	if p.peek(0).value != "SELECT" {
-		return errors.New("expected SELECT")
-	}
-
-	subquery, err := p.parseSelectStmt()
-
+func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
+	// Parse left side of comparison
+	left, err := p.parseValueExpression()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	existsExpr := &ExistsPredicate{
-		SelectStmt: subquery.(*SelectStmt),
-	}
+	log.Println("WTF")
 
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = existsExpr
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = existsExpr
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = existsExpr
-	}
+	log.Println(p.peek(0).value)
 
-	return nil
-}
+	// Parse comparison operator
+	op := p.peek(0).value.(string)
 
-// parseAnyPredicate parses a ANY predicate
-func (p *Parser) parseAnyPredicate(where interface{}, valueExpr *ValueExpr) error {
-	// SELECT * FROM table_name WHERE column_name operator ANY (SELECT * FROM table_name WHERE condition)
-	p.consume() // consume ANY
+	p.consume()
 
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return errors.New("expected (")
-	}
-
-	p.consume() // consume (
-
-	if p.peek(0).value != "SELECT" {
-		return errors.New("expected SELECT")
-	}
-
-	subquery, err := p.parseSelectStmt()
-
+	// Parse right side of comparison
+	right, err := p.parseValueExpression()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	anyExpr := &AnyPredicate{
-		SelectStmt: subquery.(*SelectStmt),
-	}
-
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = anyExpr
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = anyExpr
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = anyExpr
-	}
-
-	return nil
+	return &ComparisonPredicate{
+		Left:  left,
+		Op:    getComparisonOperator(op),
+		Right: right,
+	}, nil
 }
 
-// parseAllPredicate parses an ALL predicate
-func (p *Parser) parseAllPredicate(where interface{}, valueExpr *ValueExpr) error {
-	// SELECT * FROM table_name WHERE column_name operator ALL (SELECT * FROM table_name WHERE condition)
-	p.consume() // consume ALL
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return errors.New("expected (")
-	}
-
-	p.consume() // consume (
-
-	if p.peek(0).value != "SELECT" {
-		return errors.New("expected SELECT")
-	}
-
-	subquery, err := p.parseSelectStmt()
-
+func (p *Parser) parseLogicalExpr() (*LogicalCondition, error) {
+	// Parse left side of logical expression
+	left, err := p.parseSearchCondition()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	allExpr := &AllPredicate{
-		SelectStmt: subquery.(*SelectStmt),
-	}
+	// Parse logical operator
+	op := p.peek(1).value.(string)
+	p.consume()
 
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = allExpr
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = allExpr
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = allExpr
-	}
-
-	return nil
-}
-
-// parseSomePredicate parses a SOME predicate
-func (p *Parser) parseSomePredicate(where interface{}, valueExpr *ValueExpr) error {
-	// SELECT * FROM table_name WHERE column_name operator SOME (SELECT * FROM table_name WHERE condition)
-	p.consume() // consume ALL
-
-	if p.peek(0).tokenT != LPAREN_TOK {
-		return errors.New("expected (")
-	}
-
-	p.consume() // consume (
-
-	if p.peek(0).value != "SELECT" {
-		return errors.New("expected SELECT")
-	}
-
-	subquery, err := p.parseSelectStmt()
-
+	// Parse right side of logical expression
+	right, err := p.parseSearchCondition()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	someExpr := &SomePredicate{
-		SelectStmt: subquery.(*SelectStmt),
-	}
-
-	switch where.(type) {
-	case *WhereClause:
-		where.(*WhereClause).Cond = someExpr
-	case *NotPredicate:
-		where.(*NotPredicate).Expr = someExpr
-	case *LogicalCondition:
-		where.(*LogicalCondition).RightCond = someExpr
-	}
-
-	return nil
+	return &LogicalCondition{
+		Left:  left,
+		Op:    getLogicalOperator(op),
+		Right: right,
+	}, nil
 }
 
-// parseNotPredicate parses a NOT predicate
-func (p *Parser) parseNotPredicate(where *WhereClause, valueExpr *ValueExpr) error {
-	not := &NotPredicate{}
+func (p *Parser) parseTableExpression() (*TableExpression, error) {
+	tableExpr := &TableExpression{}
 
-	p.consume() // consume NOT
+	// Eat FROM
+	p.consume()
 
-	switch p.peek(0).value {
-	case "IN":
-		err := p.parseInPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-	case "BETWEEN":
-		err := p.parseBetweenPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	case "LIKE":
-		err := p.parseLikePredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	case "IS":
-		err := p.parseIsPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	case "EXISTS":
-		err := p.parseExistsPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	case "ANY":
-		err := p.parseAnyPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-	case "ALL":
-		err := p.parseAllPredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	case "SOME":
-		err := p.parseSomePredicate(not, valueExpr)
-		if err != nil {
-			return err
-		}
-
-	default:
-		err := p.parseComparisonPredicate(not, valueExpr)
-		if err != nil {
-			return err
-
-		}
+	// Parse from clause
+	fromClause, err := p.parseFromClause()
+	if err != nil {
+		return nil, err
 	}
 
-	where.Cond = not
+	tableExpr.FromClause = fromClause
 
-	return nil
+	return tableExpr, nil
 }
 
-// parseWhere parses the WHERE clause of a SELECT statement
-func (p *Parser) parseWhere(selectStmt *SelectStmt) error {
-	p.consume() // Consume WHERE
-
-	where := &WhereClause{
-		Cond: nil,
-	}
-
-	// Parse condition
-	switch p.peek(0).tokenT {
-	case IDENT_TOK:
-		ve := &ValueExpr{}
-		var err error
-		// Check if we need to parse binary expression or column spec
-		if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
-			// Parse binary expression
-			expr, err := p.parseBinaryExpr(0)
-			if err != nil {
-				return err
-			}
-
-			ve.Value = expr
-		} else {
-			// Parse column spec
-			ve.Value, err = p.parseColumnSpec()
-			if err != nil {
-				return err
-			}
-		}
-
-		// Check for predicate
-		if p.peek(0).tokenT == COMPARISON_TOK {
-			err = p.parseComparisonPredicate(where, ve)
-			if err != nil {
-				return err
-			}
-
-		} else if p.peek(0).tokenT == KEYWORD_TOK {
-			switch p.peek(0).value {
-			case "IN":
-				err = p.parseInPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "BETWEEN":
-				err = p.parseBetweenPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-
-			case "LIKE":
-				err = p.parseLikePredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "IS":
-				err = p.parseIsPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "EXISTS":
-				err = p.parseExistsPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "ANY":
-				err = p.parseAnyPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "ALL":
-				err = p.parseAllPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "SOME":
-				err = p.parseSomePredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			case "NOT":
-				err = p.parseNotPredicate(where, ve)
-				if err != nil {
-					return err
-				}
-			}
-
-		}
-
-		currLogiCond := where.Cond
-
-		// Look for AND, OR
-		if p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-			for p.peek(0).value == "AND" || p.peek(0).value == "OR" {
-				// Parse logical expression
-				err = p.parseLogicalExpr(where)
-				if err != nil {
-					return err
-				}
-
-				if currLogiCond != nil {
-
-					where.Cond.(*LogicalCondition).LeftCond = currLogiCond
-					currLogiCond = where.Cond
-				} else {
-					currLogiCond = where.Cond
-				}
-
-				if p.peek(0).value == ";" {
-					break
-				}
-			}
-
-		}
-
-	case LITERAL_TOK:
-		return errors.New("expected identifier")
-	case LPAREN_TOK:
-		// Parse binary expression or subquery
-		if p.peek(1).value == "SELECT" {
-			subquery, err := p.parseSelectStmt()
-			if err != nil {
-				return err
-			}
-
-			where.Cond = subquery
-		} else {
-			expr, err := p.parseBinaryExpr(0)
-			if err != nil {
-				return err
-			}
-
-			where.Cond = expr
-
-		}
-	}
-
-	selectStmt.Where = where
-
-	return nil
-
-}
-
-// parseLogicalExpr parses the logical expression of a WHERE clause
-func (p *Parser) parseLogicalExpr(where *WhereClause) error {
-
-	logical := &LogicalCondition{}
-
-	logical.LeftCond = where.Cond
-
-	switch p.peek(0).value {
-	case "AND":
-		logical.Operator = And
-	case "OR":
-		logical.Operator = Or
-	default:
-		return nil
-	}
-
-	p.consume() // Consume AND or OR
-
-	// Parse condition
-	switch p.peek(0).tokenT {
-	case IDENT_TOK:
-		ve := &ValueExpr{}
-		var err error
-		// Check if we need to parse binary expression or column spec
-		if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
-			// Parse binary expression
-			expr, err := p.parseBinaryExpr(0)
-			if err != nil {
-				return err
-			}
-
-			ve.Value = expr
-		} else {
-
-			// Parse column spec
-			ve.Value, err = p.parseColumnSpec()
-			if err != nil {
-				return err
-			}
-		}
-
-		// Check for predicate
-		if p.peek(0).tokenT == COMPARISON_TOK {
-			err = p.parseComparisonPredicate(logical, ve)
-			if err != nil {
-				return err
-			}
-
-		} else if p.peek(0).tokenT == KEYWORD_TOK {
-			switch p.peek(0).value {
-			case "IN":
-				err = p.parseInPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			case "BETWEEN":
-				err = p.parseBetweenPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-
-			case "LIKE":
-				err = p.parseLikePredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			case "IS":
-				err = p.parseIsPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			case "EXISTS":
-				err = p.parseExistsPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			case "ANY":
-				err = p.parseAnyPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			case "ALL":
-				err = p.parseAllPredicate(logical, ve)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	where.Cond = logical
-
-	return nil
-
-}
-
-// parseFrom parses the FROM clause of a SELECT statement
-func (p *Parser) parseFrom(selectStmt *SelectStmt) error {
-	p.consume() // Consume FROM
-
-	from := &FromClause{
+func (p *Parser) parseFromClause() (*FromClause, error) {
+	fromClause := &FromClause{
 		Tables: make([]*Table, 0),
 	}
 
-	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value == "LIMIT" || p.peek(0).value == "OFFSET" || p.peek(0).value != "JOIN" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "CROSS" || p.peek(0).value != "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
 		}
 
-		if p.peek(0).tokenT == KEYWORD_TOK {
-			if p.peek(0).value == "WHERE" || p.peek(0).value == "LIMIT" || p.peek(0).value == "OFFSET" || p.peek(0).value == "JOIN" || p.peek(0).value == "INNER" || p.peek(0).value == "LEFT" || p.peek(0).value == "RIGHT" || p.peek(0).value == "FULL" || p.peek(0).value == "CROSS" || p.peek(0).value == "NATURAL" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "UNION" || p.peek(0).value != "INTERSECT" || p.peek(0).value != "EXCEPT" {
-				break
-			}
-		}
-
-		if p.peek(0).tokenT != IDENT_TOK {
-			if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).tokenT == RPAREN_TOK {
-				break
-			}
-			return errors.New("expected identifier")
-		}
-
-		tableName := p.peek(0).value.(string)
-
-		if len(strings.Split(tableName, ".")) != 2 {
-			return errors.New("expected schema_name.table_name")
-		}
-
-		schemaName := strings.Split(tableName, ".")[0]
-		tableName = strings.Split(tableName, ".")[1]
-
-		table := &Table{
-			SchemaName: &Identifier{Value: schemaName},
-			TableName:  &Identifier{Value: tableName},
-		}
-
-		p.consume() // Consume schema_name.table_name
-
-		if p.peek(0).tokenT == KEYWORD_TOK {
-			if p.peek(0).value == "AS" {
-				p.consume()
-
-				if p.peek(0).tokenT != IDENT_TOK {
-					return errors.New("expected identifier")
-				}
-
-				alias := p.peek(0).value.(string)
-				table.Alias = &Identifier{Value: alias}
-
-				p.consume()
-			}
-		}
-
-		from.Tables = append(from.Tables, table)
-
-		if p.peek(0).tokenT == SEMICOLON_TOK {
+		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" {
 			break
 		}
 
+		// Parse table
+		table, err := p.parseTable()
+		if err != nil {
+			return nil, err
+		}
+
+		fromClause.Tables = append(fromClause.Tables, table)
 	}
 
-	selectStmt.From = from
-
-	return nil
-
+	return fromClause, nil
 }
 
-// parseColumnSet parses the column set of a SELECT statement
-func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
-	columnSet := &ColumnSet{
-		Exprs: make([]interface{}, 0),
+func (p *Parser) parseTable() (*Table, error) {
+	table := &Table{}
+
+	// Parse table name
+	tableName, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	table.Name = tableName
+
+	return table, nil
+}
+
+func (p *Parser) parseSelectList(selectStmt *SelectStmt) error {
+	selectList := &SelectList{
+		Expressions: make([]*ValueExpression, 0),
 	}
 
 	for p.peek(0).value != "FROM" || p.peek(0).tokenT != SEMICOLON_TOK {
@@ -3024,225 +736,142 @@ func (p *Parser) parseColumnSet(selectStmt *SelectStmt) error {
 		// can be binary expression, column spec, or aggregate function
 		if p.peek(0).tokenT == ASTERISK_TOK {
 			// if we encounter an asterisk, we add all columns and no more columns nor expressions can be added
-			columnSet.Exprs = append(columnSet.Exprs, &ColumnSpec{
-				SchemaName: nil,
-				TableName:  nil,
-				ColumnName: &Identifier{
-					Value: "*",
-				},
+			selectList.Expressions = append(selectList.Expressions, &ValueExpression{
+				Value: &Wildcard{},
 			})
 
 			p.consume()
 
-			selectStmt.ColumnSet = columnSet
+			selectStmt.SelectList = selectList
 
 			return nil
 
 		}
 
-		if p.peek(0).tokenT == IDENT_TOK {
-			// Check if we need to parse binary expression or column spec
-			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
-				// Parse binary expression
-				expr, err := p.parseBinaryExpr(0)
-				if err != nil {
-					return err
-				}
-
-				ve := &ValueExpr{
-					Value: expr,
-					Alias: nil,
-				}
-
-				// Check for alias
-				if p.peek(0).tokenT == KEYWORD_TOK {
-					if p.peek(0).value == "AS" {
-						p.consume()
-
-						if p.peek(0).tokenT != IDENT_TOK {
-							return errors.New("expected identifier")
-						}
-
-						alias := p.peek(0).value.(string)
-						ve.Alias = &Identifier{Value: alias}
-
-						p.consume()
-					}
-				}
-
-				columnSet.Exprs = append(columnSet.Exprs, ve)
-			} else {
-				// Parse column spec
-				columnSpec, err := p.parseColumnSpec()
-				if err != nil {
-					return err
-				}
-
-				columnSet.Exprs = append(columnSet.Exprs, columnSpec)
-
-			}
-
-			if p.peek(0).tokenT == SEMICOLON_TOK {
-				break
-			}
-		} else if p.peek(0).tokenT == LITERAL_TOK {
-			var ve *ValueExpr
-			if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK {
-				// Parse binary expression
-				expr, err := p.parseBinaryExpr(0)
-				if err != nil {
-					return err
-				}
-
-				ve = &ValueExpr{
-					Value: expr,
-					Alias: nil,
-				}
-			} else {
-				// Parse literal
-				literal, err := p.parseLiteral()
-				if err != nil {
-					return err
-				}
-
-				ve = &ValueExpr{
-					Value: literal,
-					Alias: nil,
-				}
-			}
-			// Check for alias
-			if p.peek(0).tokenT == KEYWORD_TOK {
-				if p.peek(0).value == "AS" {
-					p.consume()
-
-					if p.peek(0).tokenT != IDENT_TOK {
-						return errors.New("expected identifier")
-					}
-
-					alias := p.peek(0).value.(string)
-					ve.Alias = &Identifier{Value: alias}
-
-					p.consume()
-				}
-			}
-
-			columnSet.Exprs = append(columnSet.Exprs, ve)
-
-			if p.peek(0).tokenT == SEMICOLON_TOK {
-				break
-			}
-		} else if p.peek(0).tokenT == KEYWORD_TOK {
-			switch p.peek(0).value {
-			case "AVG", "COUNT", "MAX", "MIN", "SUM":
-				// Parse aggregate function
-				aggFunc, err := p.parseAggregateFunc()
-				if err != nil {
-					return err
-				}
-
-				columnSet.Exprs = append(columnSet.Exprs, aggFunc)
-			default:
-				return errors.New("expected aggregate function")
-
-			}
-		} else {
-			return errors.New("expected identifier or literal or keyword")
-
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
 		}
 
+		// Parse value expression
+		valueExpr, err := p.parseValueExpression()
+		if err != nil {
+			return err
+		}
+
+		selectList.Expressions = append(selectList.Expressions, valueExpr)
 	}
 
-	selectStmt.ColumnSet = columnSet
+	selectStmt.SelectList = selectList
 
 	return nil
+
 }
 
-// parseBinaryExpr parses a binary expression
-func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
-	left, err := p.parsePrimaryExpr()
-	if err != nil {
-		return nil, err
-	}
+func (p *Parser) parseValueExpression() (*ValueExpression, error) {
+	// A value expression can be a binary expression, column spec, or aggregate function
 
-	for {
-		nextPrecedence := p.getPrecedence(p.peek(0).tokenT)
-
-		if nextPrecedence <= precedence {
-			return left, nil
-		}
-
-		op := p.peek(0).value
-
-		p.consume()
-
-		right, err := p.parseBinaryExpr(nextPrecedence)
-		if err != nil {
-			return nil, err
-		}
-
-		left = &BinaryExpr{Left: left, Op: op.(string), Right: right}
-	}
-}
-
-// parsePrimaryExpr parses a primary expression
-func (p *Parser) parsePrimaryExpr() (interface{}, error) {
-	if p.peek(0).tokenT == LPAREN_TOK {
-		p.consume()
-
+	if p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK {
+		// Parse binary expression
 		expr, err := p.parseBinaryExpr(0)
 		if err != nil {
 			return nil, err
 		}
 
-		if p.peek(0).tokenT != RPAREN_TOK {
-			return nil, errors.New("expected )")
-		}
-
-		p.consume()
-
-		return expr, nil
-	}
-
-	return p.parseUnaryExpr()
-}
-
-// parseUnaryExpr parses a unary expression
-func (p *Parser) parseUnaryExpr() (interface{}, error) {
-	if p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == DIVIDE_TOK {
-		op := p.peek(0).value.(string)
-
-		p.consume()
-
-		expr, err := p.parsePrimaryExpr()
-		if err != nil {
-			return nil, err
-		}
-
-		return &UnaryExpr{Op: op, Expr: expr}, nil
+		return &ValueExpression{
+			Value: expr,
+		}, nil
 	}
 
 	switch p.peek(0).tokenT {
 	case LITERAL_TOK:
-		return p.parseLiteral()
-	case IDENT_TOK:
-		return p.parseColumnSpec()
+		lit, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		return &ValueExpression{
+			Value: lit,
+		}, nil
+
 	case KEYWORD_TOK:
 		switch p.peek(0).value {
-		case "AVG", "COUNT", "MAX", "MIN", "SUM":
-			return p.parseAggregateFunc()
+		case "COUNT", "MAX", "MIN", "SUM", "AVG":
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return nil, err
+			}
 
+			return &ValueExpression{
+				Value: expr,
+			}, nil
 		default:
 			return nil, errors.New("expected aggregate function")
 		}
+	case IDENT_TOK:
+
+		// Parse column spec
+		colSpec, err := p.parseColumnSpecification()
+		if err != nil {
+			return nil, err
+		}
+
+		return &ValueExpression{
+			Value: colSpec,
+		}, nil
 	default:
-		return nil, errors.New("expected literal or column spec")
+
+		return nil, errors.New("expected column spec or aggregate function")
 	}
+
+}
+
+func (p *Parser) parseColumnSpecification() (*ColumnSpecification, error) {
+
+	// A column specification is in the form of table_name.column_name or column_name depending on FROM
+
+	// Parse column name
+	columnName, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(strings.Split(columnName.Value, ".")) == 2 {
+		tableName := &Identifier{
+			Value: strings.Split(columnName.Value, ".")[0],
+		}
+		columnName = &Identifier{
+			Value: strings.Split(columnName.Value, ".")[1],
+		}
+		return &ColumnSpecification{
+			TableName:  tableName,
+			ColumnName: columnName,
+		}, nil
+	}
+
+	return &ColumnSpecification{
+		ColumnName: columnName,
+	}, nil
+}
+
+func (p *Parser) parseIdentifier() (*Identifier, error) {
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	ident := &Identifier{
+		Value: p.peek(0).value.(string),
+	}
+
+	p.consume()
+
+	return ident, nil
+
 }
 
 // parseAggregateFunc parses an aggregate function
-func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
+func (p *Parser) parseAggregateFunc() (*AggregateFunc, error) {
 	// Eat aggregate function
-	aggFunc := &AggFunc{FuncName: p.peek(0).value.(string)}
+	aggFunc := &AggregateFunc{FuncName: p.peek(0).value.(string)}
 
 	p.consume()
 
@@ -3287,7 +916,7 @@ func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
 				aggFunc.Args = append(aggFunc.Args, expr)
 			} else {
 				// Parse column spec
-				columnSpec, err := p.parseColumnSpec()
+				columnSpec, err := p.parseColumnSpecification()
 				if err != nil {
 					return nil, err
 				}
@@ -3309,18 +938,6 @@ func (p *Parser) parseAggregateFunc() (*AggFunc, error) {
 	return aggFunc, nil
 }
 
-// parseLiteral parses a literal
-func (p *Parser) parseLiteral() (*Literal, error) {
-	if p.peek(0).tokenT != LITERAL_TOK {
-		return nil, errors.New("expected literal")
-	}
-
-	literal := &Literal{Value: p.peek(0).value}
-	p.consume()
-
-	return literal, nil
-}
-
 // getPrecendence returns the precedence of an arithmetic operator
 func (p *Parser) getPrecedence(tokenT TokenType) int {
 	switch tokenT {
@@ -3333,63 +950,96 @@ func (p *Parser) getPrecedence(tokenT TokenType) int {
 	}
 }
 
-// parseColumnSpec parses a column spec
-func (p *Parser) parseColumnSpec() (*ColumnSpec, error) {
-	columnSpec := &ColumnSpec{}
-
-	if p.peek(0).tokenT != IDENT_TOK {
-		return nil, errors.New("expected identifier")
+// parseBinaryExpr parses a binary expression
+func (p *Parser) parseBinaryExpr(precedence int) (interface{}, error) {
+	left, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
 	}
 
-	// schema_name.table_name.column_name
-	// Check for alias
+	for {
+		nextPrecedence := p.getPrecedence(p.peek(0).tokenT)
 
-	if len(strings.Split(p.peek(0).value.(string), ".")) == 3 {
-		schemaName := strings.Split(p.peek(0).value.(string), ".")[0]
-		tableName := strings.Split(p.peek(0).value.(string), ".")[1]
-		columnName := strings.Split(p.peek(0).value.(string), ".")[2]
-
-		columnSpec.SchemaName = &Identifier{Value: schemaName}
-		columnSpec.TableName = &Identifier{Value: tableName}
-		columnSpec.ColumnName = &Identifier{Value: columnName}
-	} else if len(strings.Split(p.peek(0).value.(string), ".")) == 2 {
-		// alias.column_name
-		tableName := strings.Split(p.peek(0).value.(string), ".")[0]
-		columnName := strings.Split(p.peek(0).value.(string), ".")[1]
-
-		columnSpec.TableName = &Identifier{Value: tableName}
-		columnSpec.ColumnName = &Identifier{Value: columnName}
-	} else {
-		return nil, errors.New("expected schema_name.table_name.column_name")
-	}
-
-	p.consume() // Consume column name
-	// Check for alias
-	if p.peek(0).tokenT == KEYWORD_TOK {
-		if p.peek(0).value == "AS" {
-			p.consume()
-
-			if p.peek(0).tokenT != IDENT_TOK {
-				return nil, errors.New("expected identifier")
-			}
-
-			alias := p.peek(0).value.(string)
-			columnSpec.Alias = &Identifier{Value: alias}
-
-			p.consume()
+		if nextPrecedence <= precedence {
+			return left, nil
 		}
-	}
 
-	return columnSpec, nil
+		op := p.peek(0).value
+
+		p.consume()
+
+		right, err := p.parseBinaryExpr(nextPrecedence)
+		if err != nil {
+			return nil, err
+		}
+
+		left = &BinaryExpression{Left: left, Op: getBinaryExpressionOperator(op.(string)), Right: right}
+	}
 }
 
-// PrintAST prints the AST of a parsed SQL statement in JSON format
-func PrintAST(node Node) (string, error) {
-	marshalled, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return "", err
+// parsePrimaryExpr parses a primary expression
+func (p *Parser) parsePrimaryExpr() (interface{}, error) {
+	if p.peek(0).tokenT == LPAREN_TOK {
+		p.consume()
+
+		expr, err := p.parseBinaryExpr(0)
+		if err != nil {
+			return nil, err
+		}
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume()
+
+		return expr, nil
 	}
 
-	return string(marshalled), nil
+	return p.parseUnaryExpr()
+}
 
+// parseUnaryExpr parses a unary expression
+func (p *Parser) parseUnaryExpr() (interface{}, error) {
+	if p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == DIVIDE_TOK {
+		op := p.peek(0).value.(string)
+
+		p.consume()
+
+		expr, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		return &UnaryExpr{Op: op, Expr: expr}, nil
+	}
+
+	switch p.peek(0).tokenT {
+	case LITERAL_TOK:
+		return p.parseLiteral()
+	case IDENT_TOK:
+		return p.parseColumnSpecification()
+	case KEYWORD_TOK:
+		switch p.peek(0).value {
+		case "AVG", "COUNT", "MAX", "MIN", "SUM":
+			return p.parseAggregateFunc()
+
+		default:
+			return nil, errors.New("expected aggregate function")
+		}
+	default:
+		return nil, errors.New("expected literal or column spec")
+	}
+}
+
+func (p *Parser) parseLiteral() (interface{}, error) {
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return nil, errors.New("expected literal")
+	}
+
+	lit := p.peek(0).value
+
+	p.consume()
+
+	return &Literal{Value: lit}, nil
 }

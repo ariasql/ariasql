@@ -1,4 +1,4 @@
-// Package catalog
+// Package catalog tests
 // AriaSQL system catalog package tests
 // Copyright (C) Alex Gaetano Padula
 //
@@ -17,559 +17,982 @@
 package catalog
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
 
-func TestCatalog_Initialize(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
+func TestNewCatalog(t *testing.T) {
+	c := New("test/") // Catalog for databases, tables, etc
+	if c == nil {
+		t.Fatal("expected non-nil catalog")
+	}
+}
+
+func TestCatalog_Open(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// check if test directory exists
+
+	stat, err := os.Stat("test/")
+	if err != nil {
 		return
 	}
 
-	defer cat.Close()
+	if !stat.IsDir() {
+		t.Fatal("expected test to be a directory")
+	}
 
-	// Check for databases directory
-	_, err = os.Stat("databases")
+	// check if test/databases exists
+
+	stat, err = os.Stat(fmt.Sprintf("test%sdatabases", string(os.PathSeparator)))
 	if err != nil {
 		t.Fatal(err)
-		return
+	}
 
+	if !stat.IsDir() {
+		t.Fatal(fmt.Sprintf("expected test%sdatabases to be a directory", string(os.PathSeparator)))
+	}
+
+	defer c.Close()
+}
+
+func TestCatalog_Open2(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if test directory exists
+
+	stat, err := os.Stat("test/")
+	if err != nil {
+		return
+	}
+
+	if !stat.IsDir() {
+		t.Fatal("expected test to be a directory")
+	}
+
+	// check if test/databases exists
+
+	stat, err = os.Stat(fmt.Sprintf("test%sdatabases", string(os.PathSeparator)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !stat.IsDir() {
+		t.Fatal(fmt.Sprintf("expected test%sdatabases to be a directory", string(os.PathSeparator)))
+	}
+
+	// Create 5 databases
+	for i := 0; i < 5; i++ {
+		err = c.CreateDatabase(fmt.Sprintf("db%d", i))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// check if the databases were created
+	for i := 0; i < 5; i++ {
+		stat, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb%d", string(os.PathSeparator), string(os.PathSeparator), i))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !stat.IsDir() {
+			t.Fatal(fmt.Sprintf("expected test%sdatabases%sdb%d to be a directory", string(os.PathSeparator), string(os.PathSeparator), i))
+		}
+	}
+
+	c.Close()
+
+	// Reopen the catalog
+	err = c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	// check if the databases were reloaded into memory
+	for i := 0; i < 5; i++ {
+		db := c.GetDatabase(fmt.Sprintf("db%d", i))
+		if db == nil {
+			t.Fatal("expected non-nil database")
+		}
 	}
 
 }
 
 func TestCatalog_CreateDatabase(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	err = cat.CreateDatabase("test")
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	if cat.GetDatabase("test") == nil {
-		t.Fatal("database not found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test")
+	// check if the database was created
+	stat, err := os.Stat(fmt.Sprintf("test%sdatabases%sdb1", string(os.PathSeparator), string(os.PathSeparator)))
 	if err != nil {
 		t.Fatal(err)
-		return
+	}
+
+	if !stat.IsDir() {
+		t.Fatal(fmt.Sprintf("expected test%sdatabases%sdb1 to be a directory", string(os.PathSeparator), string(os.PathSeparator)))
+	}
+
+	// Check in-memory
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
 	}
 }
 
 func TestCatalog_DropDatabase(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	err = cat.CreateDatabase("test")
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	err = cat.DropDatabase("test")
+	err = c.DropDatabase("db1")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	if cat.GetDatabase("test") != nil {
-		t.Fatal("database found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test")
+	// check if the database was deleted
+	_, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb1", string(os.PathSeparator), string(os.PathSeparator)))
 	if err == nil {
-		t.Fatal("database directory found")
-		return
+		t.Fatal("expected db1 to be deleted")
 	}
 }
 
-func TestCatalog_CreateSchema(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
+func TestDatabase_CreateTable(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	err = cat.CreateDatabase("test")
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
 	}
 
-	if db.GetSchema("test") == nil {
-		t.Fatal("schema not found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test/test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-}
-
-func TestCatalog_DropSchema(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = db.DropSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if db.GetSchema("test") != nil {
-		t.Fatal("schema found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test/test")
-	if err == nil {
-		t.Fatal("schema directory found")
-		return
-	}
-}
-
-func Test_Catalog_CreateTable(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
+	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
 				Name:     "id",
-				Datatype: "int",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if schema.GetTable("test") == nil {
-		t.Fatal("table not found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test/test/test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-}
-
-func Test_Catalog_DropTable(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
-		ColumnDefinitions: map[string]*ColumnDefinition{
-			"id": {
-				Name:     "id",
-				Datatype: "int",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if schema.GetTable("test") == nil {
-		t.Fatal("table not found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test/test/test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = schema.DropTable("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if schema.GetTable("test") != nil {
-		t.Fatal("table found")
-		return
-	}
-
-	// Check for databases directory
-	_, err = os.Stat("databases/test/test/test")
-	if err == nil {
-		t.Fatal("table directory found")
-		return
-	}
-}
-
-func TestCatalog_CreateIndex(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
-		ColumnDefinitions: map[string]*ColumnDefinition{
-			"id": {
-				Name:     "id",
-				Datatype: "int",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	tbl := schema.GetTable("test")
-
-	if tbl == nil {
-		t.Fatal("table not found")
-		return
-	}
-
-	err = tbl.CreateIndex("id_idx", []string{"id"}, false)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if tbl.GetIndex("id_idx") == nil {
-		t.Fatal("index not found")
-		return
-	}
-
-	// Check for id_idx.bt
-	_, err = os.Stat("databases/test/test/test/id_idx.bt")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-}
-
-func TestCatalog_DropIndex(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
-		ColumnDefinitions: map[string]*ColumnDefinition{
-			"id": {
-				Name:     "id",
-				Datatype: "int",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	tbl := schema.GetTable("test")
-
-	if tbl == nil {
-		t.Fatal("table not found")
-		return
-	}
-
-	err = tbl.CreateIndex("id_idx", []string{"id"}, false)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if tbl.GetIndex("id_idx") == nil {
-		t.Fatal("index not found")
-		return
-	}
-
-	// Check for id_idx.bt
-	_, err = os.Stat("databases/test/test/test/id_idx.bt")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = tbl.DropIndex("id_idx")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	if tbl.GetIndex("id_idx") != nil {
-		t.Fatal("index found")
-		return
-	}
-
-	// Check for id_idx.bt
-	_, err = os.Stat("databases/test/test/test/id_idx.bt")
-	if err == nil {
-		t.Fatal("index directory found")
-		return
-	}
-}
-
-func TestIncrementSequence(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
-		ColumnDefinitions: map[string]*ColumnDefinition{
-			"id": {
-				Name:     "id",
-				Datatype: "int",
-			},
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	tbl := schema.GetTable("test")
-
-	if tbl == nil {
-		t.Fatal("table not found")
-		return
-	}
-
-	for i := 0; i < 50; i++ {
-		if i == 0 {
-			continue
-		}
-		val, err := tbl.IncrementSequence()
-		if err != nil {
-			t.Fatal(err)
-			return
-		}
-
-		if val != i {
-			t.Fatalf("expected %d, got %d", i, val)
-			return
-		}
-	}
-
-}
-
-func TestCatalog_Insert(t *testing.T) {
-	defer os.RemoveAll("databases")
-	cat := NewCatalog("./")
-	err := cat.Initialize()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = cat.CreateDatabase("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	db := cat.GetDatabase("test")
-	err = db.CreateSchema("test")
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	schema := db.GetSchema("test")
-	err = schema.CreateTable("test", &TableSchema{
-		ColumnDefinitions: map[string]*ColumnDefinition{
-			"id": {
-				Name:     "id",
-				Datatype: "int",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
 			},
 			"name": {
 				Name:     "name",
-				Datatype: "text",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
 			},
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
-		return
 	}
 
-	tbl := schema.GetTable("test")
+	// Expect under table directory:
+	// idx_unique_id.bt.del
+	// table1.seq
+	// table1.schma
+	// table1.dat.del
+	// table1.dat
+	// idx_unique_name.idx
+	// idx_unique_name.bt.del
+	// idx_unique_name.bt
+	// idx_unique_id.idx
+	// idx_unique_id.bt
 
-	if tbl == nil {
-		t.Fatal("table not found")
-		return
+	expectedFiles := []string{
+		"idx_unique_id.bt.del",
+		"table1.seq",
+		"table1.schma",
+		"table1.dat.del",
+		"table1.dat",
+		"idx_unique_name.idx",
+		"idx_unique_name.bt.del",
+		"idx_unique_name.bt",
+		"idx_unique_id.idx",
+		"idx_unique_id.bt",
 	}
 
-	for i := 0; i < 50; i++ {
-		err = tbl.Insert([]map[string]interface{}{{
-			"id":   i,
-			"name": "test",
-		}})
+	for _, file := range expectedFiles {
+		_, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb1%stable1%s%s", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), file))
 		if err != nil {
 			t.Fatal(err)
-			return
 		}
 	}
+}
 
-	iter := tbl.RowsIterator()
+func TestDatabase_DropTable(t *testing.T) {
+	defer os.RemoveAll("test/")
 
-	for i := 0; i < 50; i++ {
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = db.DropTable("table1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if the table was deleted
+	_, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb1%stable1", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator)))
+	if err == nil {
+		t.Fatal("expected table1 to be deleted")
+	}
+}
+
+func TestCatalog_GetDatabase(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+}
+
+func TestDatabase_GetTable(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+}
+
+func TestTable_CreateIndex(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	err = table.CreateIndex("name", []string{"name"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Expect under table directory:
+	// idx_name.idx
+	// idx_name.bt.del
+	// idx_name.bt
+
+	expectedFiles := []string{
+		"idx_name.idx",
+		"idx_name.bt.del",
+		"idx_name.bt",
+	}
+
+	for _, file := range expectedFiles {
+		_, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb1%stable1%s%s", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), file))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestTable_GetIndex(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	err = table.CreateIndex("name", []string{"name"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	index := table.GetIndex("name")
+	if index == nil {
+		t.Fatal("expected non-nil index")
+	}
+}
+
+func TestTable_DropIndex(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	err = table.CreateIndex("name", []string{"name"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = table.DropIndex("name")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if the index was deleted
+	_, err = os.Stat(fmt.Sprintf("test%sdatabases%sdb1%stable1%sidx_name.idx", string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator), string(os.PathSeparator)))
+	if err == nil {
+		t.Fatal("expected idx_name to be deleted")
+	}
+}
+
+func TestTable_CheckIndexedColumn(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true, // should be indexed
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true, // should be indexed
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	idx := table.CheckIndexedColumn("name", true)
+
+	if idx == nil {
+		t.Fatal("expected non-nil index")
+	}
+}
+
+func TestTable_IncrementSequence(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	seq, err := table.IncrementSequence()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if seq != 1 {
+		t.Fatalf("expected 1, got %d", seq)
+	}
+
+	seq, err = table.IncrementSequence()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if seq != 2 {
+		t.Fatalf("expected 2, got %d", seq)
+	}
+}
+
+func TestTable_Insert(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check if the row was inserted
+	row, err := table.GetRow(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if row["name"] != "John Doe" {
+		t.Fatalf("expected John Doe, got %s", row["name"])
+	}
+
+}
+
+func TestTable_GetRow(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check if the row was inserted
+	row, err := table.GetRow(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if row["name"] != "John Doe" {
+		t.Fatalf("expected John Doe, got %s", row["name"])
+	}
+}
+
+func TestTable_RowCount(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check if the row count is 1
+	count := table.RowCount()
+
+	if count != 1 {
+		t.Fatalf("expected 1, got %d", count)
+	}
+}
+
+func TestTable_NewIterator(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+		{
+			"name": "Jane Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iter := table.NewIterator()
+
+	for iter.Valid() {
 		row, err := iter.Next()
 		if err != nil {
-			t.Fatal(err)
-			return
+			break
 		}
 
-		if row["id"] != i {
-			t.Fatalf("expected %d, got %d", i, row["id"])
-			return
+		if row["name"] != "John Doe" && row["name"] != "Jane Doe" {
+			t.Fatalf("expected John Doe or Jane Doe, got %s", row["name"])
 		}
 	}
 

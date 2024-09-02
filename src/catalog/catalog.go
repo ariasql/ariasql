@@ -21,6 +21,7 @@ import (
 	"ariasql/storage/btree"
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -59,14 +60,8 @@ type Catalog struct {
 
 // Database is a database object
 type Database struct {
-	Schemas   map[string]*Schema // Schemas is a map of schema names to schema objects
-	Directory string             // Directory is the directory where database data is stored
-}
-
-// Schema is a schema object
-type Schema struct {
-	Tables    map[string]*Table // Tables is a map of table names to table objects
-	Directory string            // Directory is the directory where schema data is stored
+	Tables    map[string]*Table
+	Directory string // Directory is the directory where database data is stored
 }
 
 // Table is a table object
@@ -85,37 +80,16 @@ type TableSchema struct {
 	ColumnDefinitions map[string]*ColumnDefinition // ColumnDefinitions is a map of column names to column definitions
 }
 
-// CascadeAction is an action to take on a cascade
-// This can be set on table columns
-type CascadeAction int
-
-const (
-	CascadeActionNone       CascadeAction = iota // CascadeActionNone
-	CascadeActionSetNull                         // CascadeActionSetNull
-	CascadeActionSetDefault                      // CascadeActionSetDefault
-	CascadeActionCascade                         // CascadeActionCascade
-	CascadeActionRestrict                        // CascadeActionRestrict
-)
-
 // ColumnDefinition is a column definition
 type ColumnDefinition struct {
-	Name          string        // Column name
-	Datatype      string        // Column data type
-	NotNull       bool          // Column cannot be null
-	PrimaryKey    bool          // Column is a primary key
-	Sequence      bool          // Column is auto increment/sequence
-	Unique        bool          // Column is unique
-	Length        int           // Column length
-	Scale         int           // Column scale
-	Precision     int           // Column precision
-	Default       interface{}   // Column default value
-	ForeignColumn string        // Foreign column name, if column is foreign key
-	ForeignSchema string        // Foreign schema name, if column is foreign key
-	ForeignTable  string        // Foreign table name, if column is foreign key
-	IsForeign     bool          // Is foreign key
-	OnDelete      CascadeAction // On delete action
-	OnUpdate      CascadeAction // On update action
-	// Check @todo
+	Name      string // Column name
+	DataType  string // Column data type
+	NotNull   bool   // Column cannot be null
+	Sequence  bool   // Column is auto increment/sequence
+	Unique    bool   // Column is unique
+	Length    int    // Column length
+	Scale     int    // Column scale
+	Precision int    // Column precision
 }
 
 // Index is an index object
@@ -126,26 +100,22 @@ type Index struct {
 	btree   *btree.BTree // BTree is the Btree object for the index
 }
 
-// User is a database system user
-type User struct {
-	// @todo
-}
-
-func NewCatalog(directory string) *Catalog {
+// New creates a new catalog
+func New(directory string) *Catalog {
 	return &Catalog{
 		Directory: directory,
 	}
 }
 
-// Initialize initializes the catalog, reading all databases, schemas, tables, indexes, etc from disk
-func (cat *Catalog) Initialize() error {
+// Open initializes the catalog, reading all databases, tables, indexes, etc from disk
+func (cat *Catalog) Open() error {
 	cat.Databases = make(map[string]*Database)
 
 	// Check for databases directory
 	_, err := os.Stat(fmt.Sprintf("%s%sdatabases", cat.Directory, shared.GetOsPathSeparator()))
 	if os.IsNotExist(err) {
 		// Create databases directory
-		err = os.Mkdir(fmt.Sprintf("%s%sdatabases", cat.Directory, shared.GetOsPathSeparator()), 0755)
+		err = os.MkdirAll(fmt.Sprintf("%s%sdatabases", cat.Directory, shared.GetOsPathSeparator()), 0755)
 		if err != nil {
 			return err
 		}
@@ -160,107 +130,13 @@ func (cat *Catalog) Initialize() error {
 		for _, databaseDir := range databaseDirs {
 			if databaseDir.IsDir() {
 				db := &Database{
-					Schemas:   make(map[string]*Schema),
 					Directory: fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), databaseDir.Name()),
 				}
 
 				cat.Databases[databaseDir.Name()] = db
 
-				// Within databases directory there are schema directories
-				schemaDirs, err := os.ReadDir(fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), databaseDir.Name()))
-				if err != nil {
-					return err
-				}
+				// Within databases directory there are table directories
 
-				for _, schemaDir := range schemaDirs {
-					schema := &Schema{
-						Tables: make(map[string]*Table),
-					}
-
-					db.Schemas[schemaDir.Name()] = schema
-
-					// Within schema directories there are table directories
-					tableDirs, err := os.ReadDir(fmt.Sprintf("%sdatabases%s%s%s%s", cat.Directory, shared.GetOsPathSeparator(), databaseDir.Name(), shared.GetOsPathSeparator(), schemaDir.Name()))
-					if err != nil {
-						return err
-					}
-
-					for _, tableDir := range tableDirs {
-						if tableDir.IsDir() {
-							table := &Table{
-								Indexes: make(map[string]*Index),
-							}
-
-							schema.Tables[tableDir.Name()] = table
-
-							table.Name = tableDir.Name()
-							table.Directory = fmt.Sprintf("%sdatabases%s%s%s%s%s%s", cat.Directory, shared.GetOsPathSeparator(), databaseDir.Name(), shared.GetOsPathSeparator(), schemaDir.Name(), shared.GetOsPathSeparator(), tableDir.Name())
-
-							// Read table schema
-							schemaFile, err := os.Open(fmt.Sprintf("%s%s%s%s", table.Directory, shared.GetOsPathSeparator(), table.Name, DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION))
-							if err != nil {
-								return err
-							}
-
-							defer schemaFile.Close()
-
-							// Decode schema from file
-							dec := gob.NewDecoder(schemaFile)
-
-							err = dec.Decode(&table.TableSchema)
-
-							if err != nil {
-								return err
-							}
-
-							// Open btree pager
-							rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s%s", table.Directory, shared.GetOsPathSeparator(), table.Name, DB_SCHEMA_TABLE_DATA_FILE_EXTENSION), os.O_CREATE|os.O_RDWR, 0755)
-							if err != nil {
-								return err
-							}
-
-							table.Rows = rowFile
-
-							// Read indexes
-							indexFiles, err := os.ReadDir(fmt.Sprintf("%s%sdatabases%s%s%s%s%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), databaseDir.Name(), shared.GetOsPathSeparator(), schemaDir.Name(), shared.GetOsPathSeparator(), tableDir.Name()))
-							if err != nil {
-								return err
-							}
-
-							for _, indexFile := range indexFiles {
-								if strings.HasSuffix(indexFile.Name(), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION) {
-
-									indexFile, err := os.Open(fmt.Sprintf("%s%s%s", table.Directory, shared.GetOsPathSeparator(), indexFile.Name()))
-									if err != nil {
-										return err
-									}
-
-									defer indexFile.Close()
-
-									// Decode index from file
-									dec := gob.NewDecoder(indexFile)
-
-									var index Index
-
-									err = dec.Decode(&index)
-									if err != nil {
-										return err
-									}
-
-									// Open btree
-									bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", table.Directory, shared.GetOsPathSeparator(), index.Name, ".bt"), os.O_CREATE|os.O_RDWR, 0755, 6)
-									if err != nil {
-										return err
-									}
-
-									index.btree = bt
-
-									table.Indexes[index.Name] = &index
-								}
-							}
-						}
-					}
-				}
 			}
 		}
 
@@ -272,15 +148,13 @@ func (cat *Catalog) Initialize() error {
 // Close closes the catalog
 func (cat *Catalog) Close() {
 	for _, db := range cat.Databases {
-		for _, sch := range db.Schemas {
-			for _, tbl := range sch.Tables {
-				if tbl.Rows != nil {
-					tbl.Rows.Close()
-				}
-				for _, idx := range tbl.Indexes {
-					if idx.btree != nil {
-						idx.btree.Close()
-					}
+		for _, tbl := range db.Tables {
+			if tbl.Rows != nil {
+				tbl.Rows.Close()
+			}
+			for _, idx := range tbl.Indexes {
+				if idx.btree != nil {
+					idx.btree.Close()
 				}
 			}
 		}
@@ -297,7 +171,7 @@ func (cat *Catalog) CreateDatabase(name string) error {
 
 	// Create database
 	cat.Databases[name] = &Database{
-		Schemas:   make(map[string]*Schema),
+		Tables:    make(map[string]*Table),
 		Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), name),
 	}
 
@@ -329,49 +203,28 @@ func (cat *Catalog) DropDatabase(name string) error {
 	return nil
 }
 
-// CreateSchema creates a new database schema
-func (db *Database) CreateSchema(name string) error {
-	// Check if schema exists
-	if _, ok := db.Schemas[name]; ok {
-		return fmt.Errorf("schema %s already exists", name)
+// DropTable drops a table by name
+func (db *Database) DropTable(name string) error {
+	// Check if table exists
+	if _, ok := db.Tables[name]; !ok {
+		return fmt.Errorf("table %s does not exist", name)
 	}
 
-	// Create schema
-	db.Schemas[name] = &Schema{
-		Tables:    make(map[string]*Table),
-		Directory: fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name),
-	}
+	// Drop table
+	delete(db.Tables, name)
 
-	// Create schema directory
-	err := os.Mkdir(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name), 0755)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DropSchema drops a schema by name and all of its tables
-func (db *Database) DropSchema(name string) error {
-	// Check if schema exists
-	if _, ok := db.Schemas[name]; !ok {
-		return fmt.Errorf("schema %s does not exist", name)
-	}
-
-	// Drop schema
-	delete(db.Schemas, name)
-
-	// Drop schema directory
+	// Drop table directory
 	err := os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 	if err != nil {
 		return err
 	}
 
 	return nil
+
 }
 
 // CreateTable creates a new table in a schema
-func (sch *Schema) CreateTable(name string, tblSchema *TableSchema) error {
+func (db *Database) CreateTable(name string, tblSchema *TableSchema) error {
 	if tblSchema == nil {
 		return fmt.Errorf("table schema is nil")
 	}
@@ -381,68 +234,116 @@ func (sch *Schema) CreateTable(name string, tblSchema *TableSchema) error {
 	}
 
 	// Check if table exists
-	if _, ok := sch.Tables[name]; ok {
+	if _, ok := db.Tables[name]; ok {
 		return fmt.Errorf("table %s already exists", name)
 	}
 
 	// Create table
-	sch.Tables[name] = &Table{
+	db.Tables[name] = &Table{
 		Name:        name,
 		Indexes:     make(map[string]*Index),
 		TableSchema: tblSchema,
-		Directory:   fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name),
+		Directory:   fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name),
 	}
 
 	// Create table directory
-	err := os.Mkdir(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name), 0755)
+	err := os.Mkdir(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name), 0755)
 	if err != nil {
 		return err
 	}
+
+	sequenceDefined := false
 
 	for colName, colDef := range tblSchema.ColumnDefinitions {
 		if len(colName) > MAX_COLUMN_NAME_SIZE {
 			// delete table
-			delete(sch.Tables, name)
-			os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+			delete(db.Tables, name)
+			os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 			return fmt.Errorf("column name is too long, max length is %d", MAX_COLUMN_NAME_SIZE)
 		}
 
-		if !shared.IsValidDataType(colDef.Datatype) {
-			delete(sch.Tables, name)
-			os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
-			return fmt.Errorf("invalid data type %s", colDef.Datatype)
+		if !shared.IsValidDataType(colDef.DataType) {
+			delete(db.Tables, name)
+			os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+			return fmt.Errorf("invalid data type %s", colDef.DataType)
 		}
 
-		if colDef.PrimaryKey {
-			// Create a new index
-			err = sch.Tables[name].CreateIndex(fmt.Sprintf("primary_key_%s_%s", name, colName), []string{colName}, true)
+		if colDef.Unique {
+			err = db.Tables[name].CreateIndex(fmt.Sprintf("unique_%s", colName), []string{colName}, true)
 			if err != nil {
-				delete(sch.Tables, name)
-				os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 				return err
 			}
-		} else if colDef.Unique {
-			err = sch.Tables[name].CreateIndex(fmt.Sprintf("unique_%s_%s", name, colName), []string{colName}, true)
-			if err != nil {
-				delete(sch.Tables, name)
-				os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
-				return err
+		}
+
+		if colDef.Sequence {
+			if sequenceDefined {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("only one sequence column is allowed per table")
 			}
+
+			// Sequenced column must be unique and not null
+
+			if !colDef.Unique || !colDef.NotNull {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("sequence column %s must be unique and not null", colName)
+			}
+
+			// Datatype MUST be an integer
+			if strings.ToUpper(colDef.DataType) != "INT" && strings.ToUpper(colDef.DataType) != "INTEGER" {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("sequence column %s must be an integer", colName)
+			}
+
+			sequenceDefined = true
+		}
+
+		switch strings.ToUpper(colDef.DataType) {
+		case "CHARACTER", "CHAR":
+			// A character datatype requires a length
+			if colDef.Length == 0 {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("column %s requires a length", colName)
+			}
+		case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
+			// A numeric datatype requires a precision and scale
+			if colDef.Precision == 0 {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("column %s requires a precision", colName)
+			}
+
+			if colDef.Scale == 0 {
+				delete(db.Tables, name)
+				os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+				return fmt.Errorf("column %s requires a scale", colName)
+			}
+		case "INT", "INTEGER", "SMALLINT":
+			// An integer datatype does not require a precision or scale
+		default:
+			delete(db.Tables, name)
+			os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
+			return fmt.Errorf("invalid data type %s", colDef.DataType)
 		}
 	}
 
 	// Create sequence file
-	seqFile, err := os.Create(fmt.Sprintf("%s%s%s%s", sch.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION))
+	seqFile, err := os.Create(fmt.Sprintf("%s%s%s%s", db.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION))
 	if err != nil {
-		delete(sch.Tables, name)
-		os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+		delete(db.Tables, name)
+		os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 		return err
 	}
 
-	schemaFile, err := os.Create(fmt.Sprintf("%s%s%s%s", sch.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION))
+	schemaFile, err := os.Create(fmt.Sprintf("%s%s%s%s", db.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION))
 	if err != nil {
-		delete(sch.Tables, name)
-		os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+		delete(db.Tables, name)
+		os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 		return err
 	}
 
@@ -453,44 +354,30 @@ func (sch *Schema) CreateTable(name string, tblSchema *TableSchema) error {
 
 	err = enc.Encode(tblSchema)
 	if err != nil {
-		delete(sch.Tables, name)
-		os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+		delete(db.Tables, name)
+		os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 		return err
 	}
 
 	// Create btree pager
-	rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s%s", sch.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_DATA_FILE_EXTENSION), os.O_CREATE|os.O_RDWR, 0755)
+	rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s%s", db.Tables[name].Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_DATA_FILE_EXTENSION), os.O_CREATE|os.O_RDWR, 0755)
 	if err != nil {
-		delete(sch.Tables, name)
-		os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
+		delete(db.Tables, name)
+		os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 		return err
 	}
 
-	sch.Tables[name].Rows = rowFile
+	db.Tables[name].Rows = rowFile
 
-	sch.Tables[name].SequenceFile = seqFile
-	sch.Tables[name].SeqLock = &sync.Mutex{}
+	db.Tables[name].SequenceFile = seqFile
+	db.Tables[name].SeqLock = &sync.Mutex{}
 
 	return nil
 }
 
-// DropTable drops a table by name
-func (sch *Schema) DropTable(name string) error {
-	// Check if table exists
-	if _, ok := sch.Tables[name]; !ok {
-		return fmt.Errorf("table %s does not exist", name)
-	}
-
-	// Drop table
-	delete(sch.Tables, name)
-
-	// Drop table directory
-	err := os.RemoveAll(fmt.Sprintf("%s%s%s", sch.Directory, shared.GetOsPathSeparator(), name))
-	if err != nil {
-		return err
-	}
-
-	return nil
+// GetTable gets a table by name
+func (db *Database) GetTable(tableName string) *Table {
+	return db.Tables[tableName]
 }
 
 // CreateIndex creates a new index on a table
@@ -504,7 +391,7 @@ func (tbl *Table) CreateIndex(name string, columns []string, unique bool) error 
 		return fmt.Errorf("index %s already exists", name)
 	}
 
-	bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), name, ".bt"), os.O_CREATE|os.O_RDWR, 0755, 6)
+	bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", name), ".bt"), os.O_CREATE|os.O_RDWR, 0755, 6)
 	if err != nil {
 		return err
 	}
@@ -518,7 +405,7 @@ func (tbl *Table) CreateIndex(name string, columns []string, unique bool) error 
 	}
 
 	// Create index file
-	indexFile, err := os.Create(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION))
+	indexFile, err := os.Create(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", name), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION))
 	if err != nil {
 		return err
 	}
@@ -548,13 +435,13 @@ func (tbl *Table) DropIndex(name string) error {
 	delete(tbl.Indexes, name)
 
 	// Drop index file
-	err := os.Remove(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), name, DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION))
+	err := os.Remove(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", name), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION))
 	if err != nil {
 		return err
 	}
 
 	// Remove btree file
-	err = os.Remove(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), name, ".bt"))
+	err = os.Remove(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", name), ".bt"))
 	if err != nil {
 		return err
 	}
@@ -568,16 +455,6 @@ func (cat *Catalog) GetDatabase(name string) *Database {
 	return cat.Databases[name]
 
 	return nil
-}
-
-// GetSchema gets a schema by name
-func (db *Database) GetSchema(name string) *Schema {
-	return db.Schemas[name]
-}
-
-// GetTable gets a table by name
-func (sch *Schema) GetTable(name string) *Table {
-	return sch.Tables[name]
 }
 
 // GetIndex gets an index by name
@@ -602,88 +479,149 @@ func (tbl *Table) Insert(rows []map[string]interface{}) error {
 func (tbl *Table) insert(row map[string]interface{}) error {
 	// Check row against schema
 	for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
-		if colDef.NotNull {
+
+		if colDef.NotNull && !colDef.Sequence {
 			if _, ok := row[colName]; !ok {
 				return fmt.Errorf("column %s cannot be null", colName)
 			}
 		}
 
-		if colDef.PrimaryKey && !colDef.Sequence {
-			// Check if primary key exists
-			if _, ok := row[colName]; !ok {
-				return fmt.Errorf("column %s cannot be null", colName)
-			}
-		} else if colDef.PrimaryKey && colDef.Sequence {
-			// Increment sequence
-			seq, err := tbl.IncrementSequence()
-			if err != nil {
-				return err
-			}
-
-			row[colName] = seq
-		}
-
-		if colDef.Unique {
-			// Check if unique key exists
-			if _, ok := row[colName]; !ok {
-				return fmt.Errorf("column %s cannot be null", colName)
-			}
-
-		}
-
-		if colDef.IsForeign {
-			// Check if foreign key exists
-			if _, ok := row[colName]; !ok {
-				return fmt.Errorf("column %s cannot be null", colName)
-			}
-		}
-
-		switch strings.ToUpper(colDef.Datatype) {
-		case "CHARACTER", "CHAR", "TEXT":
+		switch strings.ToUpper(colDef.DataType) {
+		case "CHARACTER", "CHAR":
 			if _, ok := row[colName].(string); !ok {
 				return fmt.Errorf("column %s is not a string", colName)
 			}
-		case "NUMERIC", "DECIMAL", "DEC":
+
+			// Check length
+			if len(row[colName].(string)) > colDef.Length {
+				return fmt.Errorf("column %s is too long", colName)
+			}
+
+		case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
 			if _, ok := row[colName].(float64); !ok {
 				return fmt.Errorf("column %s is not a float64", colName)
 			}
 
+			str := fmt.Sprintf("%.14g", row[colName].(float64))
+
+			// Split the string on the decimal point
+			parts := strings.Split(str, ".")
+
+			// The scale is the number of digits after the decimal point
+			scale := len(parts[1])
+
+			// The precision is the total number of digits
+			precision := len(parts[0]) + len(parts[1])
+
 			if colDef.Scale > 0 {
 				// Check scale
+
+				if scale > colDef.Scale {
+					return fmt.Errorf("column %s has too many digits after the decimal point", colName)
+				}
 
 			}
 
 			if colDef.Precision > 0 {
 				// Check precision
+				if precision > colDef.Precision {
+					return fmt.Errorf("column %s is too large", colName)
+				}
 			}
 
-		case "INT", "INTEGER", "SMALLINT", "BIGINT":
+		case "INT", "INTEGER", "SMALLINT":
+			// Check for sequence
+			if colDef.Sequence {
+				// Check if sequence column is unique
+				idx := tbl.CheckIndexedColumn(colName, true)
+				if idx == nil {
+					return fmt.Errorf("sequence column %s must be unique", colName)
+				}
+
+				// Increment sequence
+				seq, err := tbl.IncrementSequence()
+				if err != nil {
+					return err
+				}
+
+				row[colName] = seq
+			}
+
 			if _, ok := row[colName].(int); !ok {
 				return fmt.Errorf("column %s is not an int", colName)
 			}
 
-		case "DATE", "DATETIME", "TIME", "TIMESTAMP":
-			if _, ok := row[colName].(string); !ok {
-				return fmt.Errorf("column %s is not a string", colName)
+			// Check if value fits in either INT/INTEGER, SMALLINT
+
+			// Check if value fits in INT/INTEGER
+			if strings.ToUpper(colDef.DataType) == "INT" || strings.ToUpper(colDef.DataType) == "INTEGER" {
+				if row[colName].(int) > 2147483647 {
+					return fmt.Errorf("column %s is too large for INT/INTEGER", colName)
+				}
 			}
 
-		case "BOOLEAN", "BOOL":
-			if _, ok := row[colName].(bool); !ok {
-				return fmt.Errorf("column %s is not a bool", colName)
-			}
-
-		case "UUID":
-			if _, ok := row[colName].(string); !ok {
-				return fmt.Errorf("column %s is not a string", colName)
-			}
-
-		case "BINARY":
-			if _, ok := row[colName].(string); !ok {
-				return fmt.Errorf("column %s is not a string", colName)
+			// Check if value fits in SMALLINT
+			if strings.ToUpper(colDef.DataType) == "SMALLINT" {
+				if row[colName].(int) > 32767 {
+					return fmt.Errorf("column %s is too large for SMALLINT", colName)
+				}
 			}
 
 		default:
-			return fmt.Errorf("invalid data type %s", colDef.Datatype)
+			return fmt.Errorf("invalid data type %s", colDef.DataType)
+		}
+
+		if colDef.Unique {
+			// Check if unique key exists
+			if !colDef.Sequence {
+				if _, ok := row[colName]; !ok {
+					return fmt.Errorf("column %s cannot be null", colName)
+				}
+			}
+
+			idx := tbl.CheckIndexedColumn(colName, true)
+			if idx == nil {
+				return fmt.Errorf("problem getting unique rows for column %s", colName)
+			}
+
+			// Check if unique key exists
+			key, err := idx.btree.Get([]byte(fmt.Sprintf("%v", row[colName])))
+			if err != nil {
+				return fmt.Errorf("problem getting unique rows for column %s", colName)
+			}
+
+			if key != nil {
+
+				for _, rowId := range key.V {
+					// We store a []byte(rowId) in the btree
+					// We need to convert it to an int64
+
+					// Convert []byte to int64
+					id, err := strconv.ParseInt(string(rowId), 10, 64)
+					if err != nil {
+						return errors.New("problem getting unique rows")
+					}
+
+					// Get row from table
+					r, err := tbl.Rows.GetPage(id)
+					if err != nil {
+						return errors.New("problem getting unique rows")
+					}
+
+					// Decode row
+					decoded, err := decodeRow(r)
+					if err != nil {
+						return errors.New("problem getting unique rows")
+					}
+
+					// Check if row exists
+					if decoded[colName] == row[colName] {
+						return fmt.Errorf("row with %s %v already exists", colName, row[colName])
+					}
+
+				}
+			}
+
 		}
 
 	}
@@ -782,22 +720,39 @@ func (tbl *Table) IncrementSequence() (int, error) {
 	return 0, nil
 }
 
-// RowIterator is an iterator for rows in a table
-type RowIterator struct {
+// Iterator is an iterator for rows in a table
+type Iterator struct {
 	table *Table
 	row   int64
 }
 
-// RowsIterator returns a new row iterator
-func (tbl *Table) RowsIterator() *RowIterator {
-	return &RowIterator{
+// GetRow gets a row by id
+func (tbl *Table) GetRow(rowId int64) (map[string]interface{}, error) {
+	// Read row from table
+	row, err := tbl.Rows.GetPage(rowId)
+	if err != nil {
+		return nil, err
+	}
+
+	// decode row
+	decoded, err := decodeRow(row)
+	if err != nil {
+		return nil, err
+	}
+
+	return decoded, nil
+}
+
+// NewIterator returns a new row iterator
+func (tbl *Table) NewIterator() *Iterator {
+	return &Iterator{
 		table: tbl,
 		row:   0,
 	}
 }
 
 // Next returns the next row in the table
-func (ri *RowIterator) Next() (map[string]interface{}, error) {
+func (ri *Iterator) Next() (map[string]interface{}, error) {
 	// Read row from table
 	row, err := ri.table.Rows.GetPage(ri.row)
 	if err != nil {
@@ -817,7 +772,28 @@ func (ri *RowIterator) Next() (map[string]interface{}, error) {
 	return decoded, nil
 }
 
+// Valid returns true if the iterator is valid
+func (ri *Iterator) Valid() bool {
+	return ri.row < ri.table.Rows.CountWD()
+
+}
+
 // RowCount returns the number of rows in the table
 func (tbl *Table) RowCount() int64 {
 	return tbl.Rows.Count()
+}
+
+// CheckIndexedColumn checks if a column is indexed, if so return index
+// If unique is true, check if the index is unique
+func (tbl *Table) CheckIndexedColumn(column string, unique bool) *Index {
+	for _, idx := range tbl.Indexes {
+		if slices.Contains(idx.Columns, column) {
+
+			if idx.Unique == unique {
+				return idx
+			}
+		}
+	}
+
+	return nil
 }

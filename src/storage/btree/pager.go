@@ -421,3 +421,9 @@ func (p *Pager) Count() int64 {
 	stat, _ := p.file.Stat()
 	return (stat.Size() / (PAGE_SIZE + HEADER_SIZE)) - int64(len(p.deletedPages)) // we need to subtract the deleted pages
 }
+
+// CountWD returns the number of pages with deleted pages
+func (p *Pager) CountWD() int64 {
+	stat, _ := p.file.Stat()
+	return stat.Size() / (PAGE_SIZE + HEADER_SIZE)
+}

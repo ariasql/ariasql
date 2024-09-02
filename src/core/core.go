@@ -35,7 +35,6 @@ type AriaSQL struct {
 type Channel struct {
 	ChannelID uint64
 	Database  *catalog.Database // Current database, this would be a result of using the USE command
-	User      *catalog.User     // Current user
 }
 
 // Config is the configuration for AriaSQL

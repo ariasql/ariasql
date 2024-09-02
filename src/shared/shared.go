@@ -17,6 +17,8 @@
 package shared
 
 import (
+	"bytes"
+	"fmt"
 	"os"
 	"runtime"
 	"strings"
@@ -24,10 +26,9 @@ import (
 
 // Shared between all packages
 
-// dataTypes is a list of valid system data types
-var dataTypes = []string{
-	"CHARACTER", "CHAR", "TEXT", "NUMERIC", "DECIMAL", "DEC",
-	"INT", "INTEGER", "SMALLINT", "BIGINT", "DATE", "DATETIME", "TIME", "TIMESTAMP", "BOOLEAN", "BOOL", "UUID", "BINARY",
+// DataTypes is a list of valid system data types
+var DataTypes = []string{
+	"CHAR", "CHARACTER", "DEC", "DECIMAL", "DOUBLE", "FLOAT", "SMALLINT", "INT", "INTEGER", "REAL", "NUMERIC",
 }
 
 // GetDefaultDataDir returns the default data directory for the current OS
@@ -53,10 +54,72 @@ func GetOsPathSeparator() string {
 
 // IsValidDataType checks if the data type is valid
 func IsValidDataType(dataType string) bool {
-	for _, dt := range dataTypes {
+	for _, dt := range DataTypes {
 		if dt == strings.ToUpper(dataType) {
 			return true
 		}
 	}
 	return false
+}
+
+// getColumnWidths Get the maximum width of each column
+func getColumnWidths(data []map[string]interface{}, headers []string) map[string]int {
+	widths := make(map[string]int)
+	for _, header := range headers {
+		widths[header] = len(header)
+	}
+	for _, row := range data {
+		for _, header := range headers {
+			value := fmt.Sprintf("%v", row[header])
+			if len(value) > widths[header] {
+				widths[header] = len(value)
+			}
+		}
+	}
+	return widths
+}
+
+func GetHeaders(data []map[string]interface{}) []string {
+	if len(data) == 0 {
+		return []string{}
+	}
+	headers := make([]string, 0)
+	for header := range data[0] {
+		headers = append(headers, header)
+	}
+	return headers
+}
+
+// CreateTableByteArray Create the table as a byte array
+func CreateTableByteArray(data []map[string]interface{}, headers []string) []byte {
+	var buffer bytes.Buffer
+	widths := getColumnWidths(data, headers)
+
+	// Create the border
+	border := "+"
+	for _, header := range headers {
+		border += strings.Repeat("-", widths[header]+2) + "+"
+	}
+	buffer.WriteString(border + "\n")
+
+	// Print headers
+	headerLine := "|"
+	for _, header := range headers {
+		headerLine += " " + fmt.Sprintf("%-*v", widths[header], header) + " |"
+	}
+	buffer.WriteString(headerLine + "\n")
+	buffer.WriteString(border + "\n")
+
+	// Print rows
+	for _, row := range data {
+		rowLine := "|"
+		for _, header := range headers {
+			value := fmt.Sprintf("%v", row[header])
+			rowLine += " " + fmt.Sprintf("%-*v", widths[header], value) + " |"
+		}
+		buffer.WriteString(rowLine + "\n")
+	}
+	buffer.WriteString(border + "\n")
+
+	return buffer.Bytes()
 }
