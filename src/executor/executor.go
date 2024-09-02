@@ -769,7 +769,7 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 			switch left.(type) {
 			case int:
 				left = int(left.(int))
-				return left == val.Value.(int), results
+				return left == int(val.Value.(*parser.Literal).Value.(uint64)), results
 			case uint64:
 				if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
 					results[tbls[0].Name] = []map[string]interface{}{row}
