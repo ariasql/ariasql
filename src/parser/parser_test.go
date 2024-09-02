@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -1565,13 +1564,6 @@ func TestNewParserSelect16(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
 	}
@@ -1625,13 +1617,6 @@ func TestNewParserSelect17(t *testing.T) {
 		t.Fatal(err)
 
 	}
-
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
 
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
@@ -1702,13 +1687,6 @@ func TestNewParserSelect18(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
 	}
@@ -1760,13 +1738,6 @@ func TestNewParserSelect19(t *testing.T) {
 		t.Fatal(err)
 
 	}
-
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
 
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
@@ -1822,13 +1793,6 @@ func TestNewParserSelect20(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
 	}
@@ -1879,13 +1843,6 @@ func TestNewParserSelect21(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
 	}
@@ -1935,13 +1892,6 @@ func TestNewParserSelect22(t *testing.T) {
 		t.Fatal(err)
 
 	}
-
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
 
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
 		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
