@@ -7,8 +7,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -109,8 +107,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				data[col.Value] = row[i].Value
 			}
 			rows = append(rows, data)
-
-			log.Println(data)
 
 		}
 
@@ -580,8 +576,6 @@ func evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[strin
 // evaluatePredicate evaluates a predicate condition on a row
 func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*catalog.Table) (bool, map[string][]map[string]interface{}) {
 	results := make(map[string][]map[string]interface{})
-
-	log.Println(reflect.TypeOf(cond))
 
 	switch cond := cond.(type) {
 	case *parser.IsPredicate:

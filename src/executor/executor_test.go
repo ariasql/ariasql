@@ -4,7 +4,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/core"
 	"ariasql/parser"
-	"log"
 	"os"
 	"sync"
 	"testing"
@@ -2260,7 +2259,7 @@ func TestStmt14(t *testing.T) {
 		return
 	}
 
-	log.Println(string(ex.resultSetBuffer))
+	//log.Println(string(ex.resultSetBuffer))
 	//result should be empty
 	if len(ex.resultSetBuffer) != 0 {
 		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
@@ -2471,7 +2470,7 @@ func TestStmt15(t *testing.T) {
 		return
 	}
 
-	log.Println(string(ex.resultSetBuffer))
+	//log.Println(string(ex.resultSetBuffer))
 	//result should be empty
 	if len(ex.resultSetBuffer) != 0 {
 		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
