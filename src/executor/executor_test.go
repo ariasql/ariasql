@@ -381,11 +381,11 @@ func TestStmt4(t *testing.T) {
 		return
 	}
 
-	expect := `+------------+----+
-| name       | id |
-+------------+----+
-| 'John Doe' | 1  |
-+------------+----+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
 `
 
 	if string(ex.resultSetBuffer) != expect {
@@ -518,6 +518,38 @@ func TestStmt5(t *testing.T) {
 	if len(ex.resultSetBuffer) != 0 {
 		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
 		return
+	}
+
+	stmt = []byte(`
+	SELECT * FROM test WHERE name = 'John Doe';
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
+`
+
+	if string(ex.resultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
+		return
+
 	}
 
 }

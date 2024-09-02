@@ -22,7 +22,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -1127,8 +1126,6 @@ func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println(p.peek(0).value)
 
 	// Parse comparison operator
 	op := p.peek(0).value.(string)

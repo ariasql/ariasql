@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 )
 
@@ -87,6 +88,9 @@ func GetHeaders(data []map[string]interface{}) []string {
 	for header := range data[0] {
 		headers = append(headers, header)
 	}
+
+	sort.Sort(sort.StringSlice(headers))
+
 	return headers
 }
 
@@ -122,4 +126,24 @@ func CreateTableByteArray(data []map[string]interface{}, headers []string) []byt
 	buffer.WriteString(border + "\n")
 
 	return buffer.Bytes()
+}
+
+type ByColumn []map[string]interface{}
+
+func (a ByColumn) Len() int {
+	return len(a)
+}
+
+func (a ByColumn) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a ByColumn) Less(i, j int) bool {
+	iName, _ := a[i]["name"].(string)
+	jName, _ := a[j]["name"].(string)
+	return iName < jName
+}
+
+func SortColumns(results []map[string]interface{}) {
+	sort.Sort(ByColumn(results))
 }
