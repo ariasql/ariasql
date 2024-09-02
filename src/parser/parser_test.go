@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -220,6 +221,387 @@ func TestNewParserCreateTable2(t *testing.T) {
 	if createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale != 2 {
 		t.Fatalf("expected 2, got %d", createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale)
 
+	}
+
+}
+
+func TestNewParserCreateIndex(t *testing.T) {
+	statement := []byte(`
+	CREATE INDEX idx1 ON TEST (col1);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createIndexStmt, ok := stmt.(*CreateIndexStmt)
+	if !ok {
+		t.Fatalf("expected *CreateIndexStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createIndexStmt.IndexName.Value != "idx1" {
+		t.Fatalf("expected idx1, got %s", createIndexStmt.IndexName.Value)
+	}
+
+	if createIndexStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createIndexStmt.TableName.Value)
+	}
+
+	if createIndexStmt.ColumnNames[0].Value != "col1" {
+		t.Fatalf("expected col1, got %s", createIndexStmt.ColumnNames[0].Value)
+	}
+
+}
+
+func TestNewParserCreateIndexUnique(t *testing.T) {
+	statement := []byte(`
+	CREATE UNIQUE INDEX idx1 ON TEST (col1);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createIndexStmt, ok := stmt.(*CreateIndexStmt)
+	if !ok {
+		t.Fatalf("expected *CreateIndexStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createIndexStmt.IndexName.Value != "idx1" {
+		t.Fatalf("expected idx1, got %s", createIndexStmt.IndexName.Value)
+	}
+
+	if createIndexStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createIndexStmt.TableName.Value)
+	}
+
+	if createIndexStmt.ColumnNames[0].Value != "col1" {
+		t.Fatalf("expected col1, got %s", createIndexStmt.ColumnNames[0].Value)
+	}
+
+	if createIndexStmt.Unique != true {
+		t.Fatalf("expected true, got %v", createIndexStmt.Unique)
+	}
+
+}
+
+func TestNewParserCreateIndex2(t *testing.T) {
+	// multiple columns
+
+	statement := []byte(`
+	CREATE UNIQUE INDEX idx1 ON TEST (col1, col2, col3);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createIndexStmt, ok := stmt.(*CreateIndexStmt)
+	if !ok {
+		t.Fatalf("expected *CreateIndexStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createIndexStmt.IndexName.Value != "idx1" {
+		t.Fatalf("expected idx1, got %s", createIndexStmt.IndexName.Value)
+	}
+
+	if createIndexStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createIndexStmt.TableName.Value)
+	}
+
+	for i, col := range createIndexStmt.ColumnNames {
+		if col.Value != fmt.Sprintf("col%d", i+1) {
+			t.Fatalf("expected col%d, got %s", i+1, col.Value)
+		}
+	}
+
+	if createIndexStmt.Unique != true {
+		t.Fatalf("expected true, got %v", createIndexStmt.Unique)
+
+	}
+
+}
+
+func TestNewParserCreateIndexUnique2(t *testing.T) {
+	// multiple columns
+
+	statement := []byte(`
+	CREATE INDEX idx1 ON TEST (col1, col2, col3);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createIndexStmt, ok := stmt.(*CreateIndexStmt)
+	if !ok {
+		t.Fatalf("expected *CreateIndexStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createIndexStmt.IndexName.Value != "idx1" {
+		t.Fatalf("expected idx1, got %s", createIndexStmt.IndexName.Value)
+	}
+
+	if createIndexStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createIndexStmt.TableName.Value)
+	}
+
+	for i, col := range createIndexStmt.ColumnNames {
+		if col.Value != fmt.Sprintf("col%d", i+1) {
+			t.Fatalf("expected col%d, got %s", i+1, col.Value)
+		}
+	}
+
+}
+
+func TestNewParserInsert(t *testing.T) {
+	statement := []byte(`
+	INSERT INTO TEST (col1, col2) VALUES (1, 'hello'), (2, 'world');
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	insertStmt, ok := stmt.(*InsertStmt)
+	if !ok {
+		t.Fatalf("expected *InsertStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if insertStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", insertStmt.TableName.Value)
+	}
+
+	if len(insertStmt.ColumnNames) != 2 {
+		t.Fatalf("expected 2, got %d", len(insertStmt.ColumnNames))
+	}
+
+	for i, col := range insertStmt.ColumnNames {
+		if col.Value != fmt.Sprintf("col%d", i+1) {
+			t.Fatalf("expected col%d, got %s", i+1, col.Value)
+		}
+
+	}
+
+	if len(insertStmt.Values) != 2 {
+		t.Fatalf("expected 2, got %d", len(insertStmt.Values))
+	}
+
+	if insertStmt.Values[0][0].Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].Value)
+	}
+
+	if insertStmt.Values[0][1].Value.(string) != "'hello'" {
+		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].Value)
+
+	}
+
+}
+
+func TestNewParserDropDatabase(t *testing.T) {
+	statement := []byte(`
+	DROP DATABASE TEST;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropDatabaseStmt, ok := stmt.(*DropDatabaseStmt)
+	if !ok {
+		t.Fatalf("expected *DropDatabaseStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dropDatabaseStmt.Name.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", dropDatabaseStmt.Name.Value)
+	}
+
+}
+
+func TestNewParserDropTable(t *testing.T) {
+	statement := []byte(`
+	DROP TABLE TEST;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropTableStmt, ok := stmt.(*DropTableStmt)
+	if !ok {
+		t.Fatalf("expected *DropTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dropTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", dropTableStmt.TableName.Value)
+	}
+
+}
+
+func TestNewParserDropIndex(t *testing.T) {
+	statement := []byte(`
+	DROP INDEX idx1 ON TEST;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropIndexStmt, ok := stmt.(*DropIndexStmt)
+	if !ok {
+		t.Fatalf("expected *DropIndexStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dropIndexStmt.IndexName.Value != "idx1" {
+		t.Fatalf("expected idx1, got %s", dropIndexStmt.IndexName.Value)
+	}
+
+	if dropIndexStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", dropIndexStmt.TableName.Value)
 	}
 
 }
