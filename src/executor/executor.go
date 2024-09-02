@@ -311,6 +311,29 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 
 		}
 
+	case *parser.LikePredicate:
+
+		if _, ok := leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression); ok {
+			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
+		switch leftCond.(*parser.LikePredicate).Left.Value.(type) {
+		case *parser.ColumnSpecification:
+			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+		case *parser.Literal:
+			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.Literal).Value
+		case *parser.BinaryExpression:
+
+			binaryExpr = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression)
+
+			// look for left table
+			if _, ok := leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+				leftTblName = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+			}
+
+			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
 	case *parser.InPredicate:
 
 		if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
@@ -617,6 +640,95 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 			if left != nil {
 				results[tbls[0].Name] = []map[string]interface{}{row}
 			}
+		}
+
+		if len(results) > 0 {
+			return true, results
+		}
+
+	case *parser.LikePredicate:
+
+		var left interface{}
+
+		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
+			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+		}
+
+		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
+			var val interface{}
+			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
+			if err != nil {
+				return false, nil
+			}
+
+			left = val
+		}
+
+		if _, ok := cond.Left.Value.(*parser.Literal); ok {
+			left = cond.Left.Value.(*parser.Literal).Value
+		}
+
+		for k, _ := range row {
+			// convert columnname to table.columnname
+			if len(strings.Split(k, ".")) == 1 {
+				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
+				delete(row, k)
+			}
+		}
+
+		/*
+			'%a'
+			Matches any string that ends with 'a'. The '%' wildcard matches any sequence of characters, including an empty sequence.
+
+			'%a%'
+			Matches any string that contains 'a' anywhere within it. The '%' wildcard before and after 'a' means that 'a' can be preceded or followed by any sequence of characters.
+
+			'a%'
+			Matches any string that starts with 'a'. The '%' wildcard after 'a' allows for any sequence of characters after 'a'.
+
+			'a%b'
+			Matches any string that starts with 'a' and ends with 'b'. The '%' wildcard in the middle allows for any sequence of characters between 'a' and 'b'.
+
+		*/
+
+		// check if left is a string
+		if _, ok := left.(string); ok {
+
+			pattern := cond.Pattern.Value
+
+			switch {
+			case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+				// '%a%'
+				if strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+				}
+			case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+				// 'a%'
+				if strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+				}
+			case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
+				// '%a'
+				if strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+				}
+			case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
+				// 'a%b'
+				lStr := strings.TrimLeft(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[0], "'")
+				rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
+
+				if strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+				}
+
+			default:
+				return false, nil
+
+			}
+
+		} else {
+			return false, nil
+
 		}
 
 		if len(results) > 0 {
