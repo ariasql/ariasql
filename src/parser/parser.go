@@ -1102,6 +1102,16 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 		case "BETWEEN":
 			// Parse between expression
 			expr, err = p.parseBetweenExpr()
+			if err != nil {
+				return nil, err
+			}
+		case "IN":
+			// Parse in expression
+			expr, err = p.parseInExpr()
+			if err != nil {
+				return nil, err
+			}
+
 		}
 	}
 
@@ -1117,6 +1127,66 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 	}
 
 	return expr, nil
+
+}
+
+// parseInExpr parses an IN expression
+func (p *Parser) parseInExpr() (*InPredicate, error) {
+	// Parse left side of in expression
+	left, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	// Eat IN
+	p.consume()
+
+	// Eat (
+	p.consume()
+
+	inPredicate := &InPredicate{
+		Left: left,
+	}
+
+	if p.peek(0).value == "SELECT" {
+		// Parse subquery
+		subquery, err := p.parseSubquery()
+		if err != nil {
+			return nil, err
+		}
+
+		inPredicate.Values = append(inPredicate.Values, subquery)
+
+		// Eat )
+		p.consume()
+
+		return inPredicate, nil
+
+	}
+
+	for p.peek(0).tokenT != EOF_TOK {
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT == COMMA_TOK {
+			p.consume()
+			continue
+		}
+
+		// Parse right side of in expression
+		right, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		inPredicate.Values = append(inPredicate.Values, right)
+	}
+
+	// Eat )
+	p.consume()
+
+	return inPredicate, nil
 
 }
 
@@ -1230,7 +1300,7 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 			continue
 		}
 
-		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" {
+		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" || p.peek(0).tokenT == LPAREN_TOK || p.peek(0).tokenT == RPAREN_TOK {
 			break
 		}
 
@@ -1590,4 +1660,18 @@ func (p *Parser) parseLiteral() (interface{}, error) {
 	p.consume()
 
 	return &Literal{Value: lit}, nil
+}
+
+// parseSubquery parses a subquery
+func (p *Parser) parseSubquery() (*ValueExpression, error) {
+	// Parse select statement
+	selectStmt, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ValueExpression{
+		Value: selectStmt,
+	}, nil
+
 }

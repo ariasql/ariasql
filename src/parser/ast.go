@@ -253,6 +253,12 @@ type BetweenPredicate struct {
 	Upper *ValueExpression
 }
 
+// InPredicate represents an IN predicate
+type InPredicate struct {
+	Left   *ValueExpression
+	Values []*ValueExpression
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
