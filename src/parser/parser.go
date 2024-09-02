@@ -688,11 +688,17 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 				break
 			}
 
-			if p.peek(0).tokenT != LITERAL_TOK {
-				return nil, errors.New("expected literal")
+			if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" {
+
+				return nil, errors.New("expected literal or NULL")
+
 			}
 
-			values = append(values, &Literal{Value: p.peek(0).value})
+			if p.peek(0).value == "NULL" {
+				values = append(values, &Literal{Value: nil})
+			} else {
+				values = append(values, &Literal{Value: p.peek(0).value})
+			}
 
 			p.consume() // Consume literal
 

@@ -7,6 +7,8 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -107,6 +109,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				data[col.Value] = row[i].Value
 			}
 			rows = append(rows, data)
+
+			log.Println(data)
 
 		}
 
@@ -287,6 +291,30 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 		default:
 			return nil, errors.New("unsupported search condition")
 		}
+	case *parser.IsPredicate:
+
+		if _, ok := leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression); ok {
+			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
+		switch leftCond.(*parser.IsPredicate).Left.Value.(type) {
+		case *parser.ColumnSpecification:
+			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+		case *parser.Literal:
+			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.Literal).Value
+		case *parser.BinaryExpression:
+
+			binaryExpr = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression)
+
+			// look for left table
+			if _, ok := leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+				leftTblName = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+			}
+
+			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+
+		}
+
 	case *parser.InPredicate:
 
 		if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
@@ -316,7 +344,9 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 
 	// Check if tbl is indexed
 
-	idx := tbl.CheckIndexedColumn(left.(string), true)
+	var idx *catalog.Index
+
+	idx = tbl.CheckIndexedColumn(left.(string), true)
 	if idx == nil {
 		// try not unique index
 		idx = tbl.CheckIndexedColumn(left.(string), false)
@@ -324,6 +354,7 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 			idx = nil
 
 		}
+
 	}
 
 	if idx != nil {
@@ -361,7 +392,7 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 		for iter.Valid() {
 			row, err = iter.Next()
 			if err != nil {
-				break
+				continue
 			}
 
 			err = evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls)
@@ -550,7 +581,54 @@ func evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[strin
 func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*catalog.Table) (bool, map[string][]map[string]interface{}) {
 	results := make(map[string][]map[string]interface{})
 
+	log.Println(reflect.TypeOf(cond))
+
 	switch cond := cond.(type) {
+	case *parser.IsPredicate:
+
+		var left interface{}
+
+		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
+			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+		}
+
+		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
+			var val interface{}
+			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
+			if err != nil {
+				return false, nil
+			}
+
+			left = val
+		}
+
+		if _, ok := cond.Left.Value.(*parser.Literal); ok {
+			left = cond.Left.Value.(*parser.Literal).Value
+		}
+
+		for k, _ := range row {
+			// convert columnname to table.columnname
+			if len(strings.Split(k, ".")) == 1 {
+				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
+				delete(row, k)
+			}
+		}
+
+		if cond.Null {
+			if left == nil {
+				results[tbls[0].Name] = []map[string]interface{}{row}
+			}
+		} else {
+
+			if left != nil {
+				results[tbls[0].Name] = []map[string]interface{}{row}
+			}
+		}
+
+		if len(results) > 0 {
+			return true, results
+		}
+
 	case *parser.InPredicate:
 
 		var left interface{}
@@ -587,8 +665,14 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 				left = int(left.(int))
 				return left == val.Value.(int), results
 			case uint64:
-				left = int(left.(uint64))
-				return left == val.Value.(int), results
+				if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+
+				}
+			case float64:
+				if left.(float64) == val.Value.(*parser.Literal).Value.(float64) {
+					results[tbls[0].Name] = []map[string]interface{}{row}
+				}
 			case string:
 				if left.(string) == val.Value.(*parser.Literal).Value.(string) {
 					results[tbls[0].Name] = []map[string]interface{}{row}

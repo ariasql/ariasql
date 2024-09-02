@@ -489,12 +489,19 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 		switch strings.ToUpper(colDef.DataType) {
 		case "CHARACTER", "CHAR":
 			if _, ok := row[colName].(string); !ok {
-				return fmt.Errorf("column %s is not a string", colName)
-			}
 
-			// Check length
-			if len(row[colName].(string)) > colDef.Length {
-				return fmt.Errorf("column %s is too long", colName)
+				// if column can be null, check if it is null
+				if !colDef.NotNull {
+					if row[colName] != nil {
+						return fmt.Errorf("column %s is not a string", colName)
+					}
+				}
+
+			} else {
+				// Check length
+				if len(row[colName].(string)) > colDef.Length {
+					return fmt.Errorf("column %s is too long", colName)
+				}
 			}
 
 		case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
