@@ -1,0 +1,17 @@
+.idea
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+.env
+bin
+src/databases
+src/test
+src/*.yaml
+ariasql
+src/ariasql

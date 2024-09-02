@@ -1,6 +1,0 @@
-port: 3695
-host: 0.0.0.0
-buffersize: 1024
-tls: false
-tlscert: ""
-tlskey: ""
