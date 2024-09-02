@@ -5,9 +5,9 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 // Executor is the main executor structure
@@ -240,7 +240,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 }
 
 func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interface{}, error) {
-	filteredRows := []map[string]interface{}{}
+	var filteredRows []map[string]interface{}
 
 	// In a search condition the left side should be a column
 	// The right side can be a column or a literal
@@ -250,7 +250,7 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 		left := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
 
 		// We check for an index on the column
-		idx := tbl.CheckIndexedColumn(left, false)
+		idx := tbl.CheckIndexedColumn(left, tbl.TableSchema.ColumnDefinitions[left].Unique)
 		if idx != nil {
 			// If there is an index, we can use it
 			// We can use the index to locate the rows faster
@@ -262,9 +262,12 @@ func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interfa
 
 			// Get the row
 			for _, rowIdBytes := range key.V {
+				int64Str := string(rowIdBytes)
 
-				// Decode int64 bytes
-				rowId := int64(binary.LittleEndian.Uint64(rowIdBytes))
+				rowId, err := strconv.ParseInt(int64Str, 10, 64)
+				if err != nil {
+					return filteredRows, err
+				}
 
 				row, err := tbl.GetRow(rowId)
 				if err != nil {

@@ -311,7 +311,7 @@ func TestStmt4(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE test (id INT SEQUENCE NOT NULL UNIQUE, name CHAR(255));
+	CREATE TABLE test (id INT SEQUENCE NOT NULL UNIQUE, name CHAR(255) UNIQUE);
 `)
 
 	lexer = parser.NewLexer(stmt)
