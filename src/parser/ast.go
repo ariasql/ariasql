@@ -1,6 +1,9 @@
 package parser
 
-import "encoding/json"
+import (
+	"ariasql/catalog"
+	"encoding/json"
+)
 
 // Node represents an AST node
 type Node interface{}
@@ -18,6 +21,52 @@ type Identifier struct {
 // Literal represents a literal value, like a number or string
 type Literal struct {
 	Value interface{}
+}
+
+// CreateDatabaseStmt represents a CREATE DATABASE statement
+type CreateDatabaseStmt struct {
+	Name *Identifier
+}
+
+// DropDatabaseStmt represents a DROP DATABASE statement
+type DropDatabaseStmt struct {
+	Name *Identifier
+}
+
+// CreateIndexStmt represents a CREATE INDEX statement
+type CreateIndexStmt struct {
+	TableName   *Identifier
+	IndexName   *Identifier
+	ColumnNames []*Identifier
+	Unique      bool
+}
+
+// DropIndexStmt represents a DROP INDEX statement
+type DropIndexStmt struct {
+	TableName  *Identifier
+	IndexName  *Identifier
+}
+
+// CreateTableStmt represents a CREATE TABLE statement
+type CreateTableStmt struct {
+	TableName   *Identifier
+	TableSchema *catalog.TableSchema
+}
+
+type DropTableStmt struct {
+	TableName  *Identifier
+}
+
+// UseStmt represents a USE statement
+type UseStmt struct {
+	DatabaseName *Identifier
+}
+
+// InsertStmt represents an INSERT statement
+type InsertStmt struct {
+	TableName   *Identifier
+	ColumnNames []*Identifier
+	Values      [][]*Literal
 }
 
 // SelectStmt represents a SELECT statement

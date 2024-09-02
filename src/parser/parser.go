@@ -19,6 +19,7 @@ package parser
 // Parser is following American National Standard SQL 1986
 
 import (
+	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
 	"log"
@@ -30,7 +31,7 @@ var (
 	keywords = append([]string{
 		"ALL", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "AVG",
 		"BEGIN", "BETWEEN", "BY", "CHECK", "CLOSE", "COBOL", "COMMIT",
-		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "DECLARE", "DELETE", "DESC", "DISTINCT",
+		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "DECLARE", "DELETE", "DESC", "DISTINCT", "DATABASE",
 		"END", "ESCAPE", "EXEC", "EXISTS",
 		"FETCH", "FOR", "FORTRAN", "FOUND", "FROM",
 		"GO", "GOTO", "GRANT", "GROUP", "HAVING",
@@ -42,7 +43,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE",
 	}, shared.DataTypes...)
 )
 
@@ -499,6 +500,14 @@ func (p *Parser) Parse() (Node, error) {
 	// Check if statement starts with a keyword
 	if p.peek(0).tokenT == KEYWORD_TOK {
 		switch p.peek(0).value {
+		case "CREATE":
+			return p.parseCreateStmt()
+		case "DROP":
+			return p.parseDropStmt()
+		case "USE":
+			return p.parseUseStmt()
+		case "INSERT":
+			return p.parseInsertStmt()
 		case "SELECT":
 			return p.parseSelectStmt()
 		}
@@ -508,6 +517,508 @@ func (p *Parser) Parse() (Node, error) {
 
 }
 
+// parseDropStmt parses a DROP statement
+func (p *Parser) parseDropStmt() (Node, error) {
+	p.consume() // Consume DROP
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "DATABASE":
+		return p.parseDropDatabaseStmt()
+	case "TABLE":
+		return p.parseDropTableStmt()
+	case "INDEX":
+		return p.parseDropIndexStmt()
+	}
+
+	return nil, errors.New("expected DATABASE or TABLE")
+
+}
+
+// parseDropTableStmt parses a DROP TABLE statement
+func (p *Parser) parseDropTableStmt() (Node, error) {
+	p.consume() // Consume TABLE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &DropTableStmt{
+		TableName: &Identifier{Value: tableName},
+	}, nil
+
+}
+
+// parseDropIndexStmt parses a DROP INDEX statement
+func (p *Parser) parseDropIndexStmt() (Node, error) {
+	p.consume() // Consume INDEX
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	indexName := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	if p.peek(0).value != "ON" {
+		return nil, errors.New("expected ON")
+	}
+
+	p.consume() // Consume ON
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume table name
+
+	return &DropIndexStmt{
+		TableName: &Identifier{Value: tableName},
+		IndexName: &Identifier{Value: indexName},
+	}, nil
+
+}
+
+// parseDropDatabaseStmt parses a DROP DATABASE statement
+func (p *Parser) parseDropDatabaseStmt() (Node, error) {
+	p.consume() // Consume DATABASE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &DropDatabaseStmt{
+		Name: &Identifier{Value: name},
+	}, nil
+}
+
+// parseInsertStmt parses an INSERT statement
+func (p *Parser) parseInsertStmt() (Node, error) {
+	// INSERT INTO schema_name.table_name (column_name1, column_name2, ...) VALUES (value1, value2, ...), (value1, value2, ...), ...
+
+	insertStmt := &InsertStmt{}
+
+	// Eat INSERT
+	p.consume()
+
+	if p.peek(0).value != "INTO" {
+		return nil, errors.New("expected INTO")
+	}
+
+	// Eat INTO
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+
+	insertStmt.TableName = &Identifier{Value: tableName}
+	insertStmt.ColumnNames = make([]*Identifier, 0)
+	insertStmt.Values = make([][]*Literal, 0)
+
+	p.consume() // Consume schema_name.table_name
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+	for {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+		insertStmt.ColumnNames = append(insertStmt.ColumnNames, &Identifier{Value: columnName})
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	if p.peek(0).tokenT != RPAREN_TOK {
+		return nil, errors.New("expected )")
+	}
+
+	p.consume() // Consume )
+
+	// Look for VALUES
+
+	if p.peek(0).value != "VALUES" {
+		return nil, errors.New("expected VALUES")
+	}
+
+	p.consume() // Consume VALUES
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	for {
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		values := make([]*Literal, 0)
+
+		for {
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			if p.peek(0).tokenT != LITERAL_TOK {
+				return nil, errors.New("expected literal")
+			}
+
+			values = append(values, &Literal{Value: p.peek(0).value})
+
+			p.consume() // Consume literal
+
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			if p.peek(0).tokenT != COMMA_TOK {
+				return nil, errors.New("expected ,")
+			}
+
+			p.consume() // Consume ,
+		}
+
+		insertStmt.Values = append(insertStmt.Values, values)
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+	}
+
+	return insertStmt, nil
+}
+
+// parseCreateStmt parses a CREATE statement
+func (p *Parser) parseCreateStmt() (Node, error) {
+	p.consume() // Consume CREATE
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "DATABASE":
+		return p.parseCreateDatabaseStmt()
+	case "INDEX", "UNIQUE":
+		if p.peek(1).value == "INDEX" {
+			// eat unique
+			p.consume()
+
+			ast, err := p.parseCreateIndexStmt()
+			if err != nil {
+				return nil, err
+			}
+
+			ast.(*CreateIndexStmt).Unique = true
+			return ast, nil
+		}
+		return p.parseCreateIndexStmt()
+	case "TABLE":
+		return p.parseCreateTableStmt()
+	}
+
+	return nil, errors.New("expected DATABASE or TABLE or INDEX")
+
+}
+
+// parseCreateTableStmt parses a CREATE TABLE statement
+func (p *Parser) parseCreateTableStmt() (Node, error) {
+	// CREATE TABLE schema_name.table_name (column_name1 data_type constraints, column_name2 data_type constraints, ...)
+	createTableStmt := &CreateTableStmt{}
+
+	// Eat TABLE
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+
+	createTableStmt.TableName = &Identifier{Value: tableName}
+
+	p.consume() // Consume schema_name.table_name
+
+	createTableStmt.TableSchema = &catalog.TableSchema{
+		ColumnDefinitions: make(map[string]*catalog.ColumnDefinition),
+	}
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	for p.peek(0).tokenT != SEMICOLON_TOK {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT != DATATYPE_TOK {
+
+			return nil, errors.New("expected data type")
+		}
+
+		dataType := p.peek(0).value.(string)
+
+		createTableStmt.TableSchema.ColumnDefinitions[columnName] = &catalog.ColumnDefinition{
+			DataType: dataType,
+		}
+
+		p.consume() // Consume data type
+
+		// check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
+		if p.peek(0).tokenT == LPAREN_TOK {
+			switch dataType {
+			case "CHAR", "CHARACTER":
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+
+					return nil, errors.New("expected literal")
+				}
+
+				length := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Length = int(length)
+			case "DEC", "DECIMAL", "NUMERIC", "REAL", "FLOAT", "DOUBLE":
+
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				precision := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != COMMA_TOK {
+					return nil, errors.New("expected ,")
+				}
+
+				p.consume() // Consume ,
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				scale := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Precision = int(precision)
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Scale = int(scale)
+
+			}
+		}
+
+		// Check for constraints
+		if p.peek(0).tokenT == KEYWORD_TOK {
+			for p.peek(0).tokenT == KEYWORD_TOK {
+				switch p.peek(0).value {
+				case "NOT":
+					p.consume() // Consume NOT
+
+					if p.peek(0).value != "NULL" {
+						return nil, errors.New("expected NULL")
+					}
+
+					p.consume() // Consume NULL
+
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+					continue
+				case "UNIQUE":
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
+
+					p.consume() // Consume UNIQUE
+					continue
+				case "SEQUENCE":
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
+
+					p.consume() // Consume SEQUENCE
+					continue
+				default:
+					return nil, errors.New("expected NOT NULL or UNIQUE or SEQUENCE")
+				}
+
+			}
+
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	return createTableStmt, nil
+}
+
+// parseCreateIndexStmt parses a CREATE INDEX statement
+func (p *Parser) parseCreateIndexStmt() (Node, error) {
+	createIndexStmt := &CreateIndexStmt{}
+	// CREATE INDEX index_name ON schema_name.table_name (column_name1, column_name2, ...)
+	// creating unique index
+	// CREATE UNIQUE INDEX index_name ON schema_name.table_name (column_name1, column_name2, ...)
+
+	// Eat INDEX
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	indexName := p.peek(0).value.(string)
+	p.consume() // Consume index name
+
+	if p.peek(0).value != "ON" {
+		return nil, errors.New("expected ON")
+	}
+
+	p.consume() // Consume ON
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume table name
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+
+	}
+
+	p.consume() // Consume (
+
+	createIndexStmt.TableName = &Identifier{Value: tableName}
+	createIndexStmt.IndexName = &Identifier{Value: indexName}
+	createIndexStmt.ColumnNames = make([]*Identifier, 0)
+
+	for {
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+		createIndexStmt.ColumnNames = append(createIndexStmt.ColumnNames, &Identifier{Value: columnName})
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	if p.peek(0).tokenT != RPAREN_TOK {
+		return nil, errors.New("expected )")
+	}
+
+	p.consume() // Consume )
+
+	return createIndexStmt, nil
+}
+
+// parseCreateDatabaseStmt parses a CREATE DATABASE statement
+func (p *Parser) parseCreateDatabaseStmt() (Node, error) {
+	p.consume() // Consume DATABASE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &CreateDatabaseStmt{
+		Name: &Identifier{Value: name},
+	}, nil
+}
+
+// parseUseStmt parses a USE statement
+func (p *Parser) parseUseStmt() (Node, error) {
+	p.consume() // Consume USE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+	p.consume() // Consume identifier
+
+	return &UseStmt{
+		DatabaseName: &Identifier{Value: name},
+	}, nil
+
+}
+
+// parseSelectStmt parses a SELECT statement
 func (p *Parser) parseSelectStmt() (Node, error) {
 
 	selectStmt := &SelectStmt{}
@@ -554,6 +1065,7 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 }
 
+// parseWhereClause parses a WHERE clause
 func (p *Parser) parseWhereClause() (*WhereClause, error) {
 	whereClause := &WhereClause{}
 
@@ -572,6 +1084,7 @@ func (p *Parser) parseWhereClause() (*WhereClause, error) {
 
 }
 
+// parseSearchCondition parses a search condition
 func (p *Parser) parseSearchCondition() (interface{}, error) {
 	// A search condition can be a binary expression, comparison expression, or a logical expression
 
@@ -607,6 +1120,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 }
 
+// parseComparisonExpr parses a comparison expression
 func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
 	// Parse left side of comparison
 	left, err := p.parseValueExpression()
@@ -636,6 +1150,7 @@ func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
 	}, nil
 }
 
+// parseLogicalExpr parses a logical expression
 func (p *Parser) parseLogicalExpr() (*LogicalCondition, error) {
 	// Parse left side of logical expression
 	left, err := p.parseSearchCondition()
@@ -660,6 +1175,7 @@ func (p *Parser) parseLogicalExpr() (*LogicalCondition, error) {
 	}, nil
 }
 
+// parseTableExpression parses a table expression
 func (p *Parser) parseTableExpression() (*TableExpression, error) {
 	tableExpr := &TableExpression{}
 
@@ -677,6 +1193,7 @@ func (p *Parser) parseTableExpression() (*TableExpression, error) {
 	return tableExpr, nil
 }
 
+// parseFromClause parses a FROM clause
 func (p *Parser) parseFromClause() (*FromClause, error) {
 	fromClause := &FromClause{
 		Tables: make([]*Table, 0),
@@ -704,6 +1221,7 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 	return fromClause, nil
 }
 
+// parseTable parses a table
 func (p *Parser) parseTable() (*Table, error) {
 	table := &Table{}
 
@@ -718,6 +1236,7 @@ func (p *Parser) parseTable() (*Table, error) {
 	return table, nil
 }
 
+// parseSelectList parses a select list
 func (p *Parser) parseSelectList(selectStmt *SelectStmt) error {
 	selectList := &SelectList{
 		Expressions: make([]*ValueExpression, 0),
@@ -767,6 +1286,7 @@ func (p *Parser) parseSelectList(selectStmt *SelectStmt) error {
 
 }
 
+// parseValueExpression parses a value expression
 func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 	// A value expression can be a binary expression, column spec, or aggregate function
 
@@ -825,6 +1345,7 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 
 }
 
+// parseColumnSpecification parses a column specification
 func (p *Parser) parseColumnSpecification() (*ColumnSpecification, error) {
 
 	// A column specification is in the form of table_name.column_name or column_name depending on FROM
@@ -853,6 +1374,7 @@ func (p *Parser) parseColumnSpecification() (*ColumnSpecification, error) {
 	}, nil
 }
 
+// parseIdentifier parses an identifier
 func (p *Parser) parseIdentifier() (*Identifier, error) {
 	if p.peek(0).tokenT != IDENT_TOK {
 		return nil, errors.New("expected identifier")
@@ -1032,6 +1554,7 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 	}
 }
 
+// parseLiteral parses a literal
 func (p *Parser) parseLiteral() (interface{}, error) {
 	if p.peek(0).tokenT != LITERAL_TOK {
 		return nil, errors.New("expected literal")

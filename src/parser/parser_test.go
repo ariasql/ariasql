@@ -4,6 +4,226 @@ import (
 	"testing"
 )
 
+func TestNewParserCreateDatabase(t *testing.T) {
+	statement := []byte(`
+	CREATE DATABASE TEST;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createDatabaseStmt, ok := stmt.(*CreateDatabaseStmt)
+	if !ok {
+		t.Fatalf("expected *CreateDatabaseStmt, got %T", stmt)
+
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if createDatabaseStmt.Name.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createDatabaseStmt.Name.Value)
+	}
+
+}
+
+func TestNewParserUseDatabase(t *testing.T) {
+	statement := []byte(`
+	USE TEST;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	useDatabaseStmt, ok := stmt.(*UseStmt)
+	if !ok {
+		t.Fatalf("expected *UseDatabaseStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if useDatabaseStmt.DatabaseName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", useDatabaseStmt.DatabaseName.Value)
+	}
+}
+
+func TestNewParserCreateTable(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT, col2 CHAR(255), deci DECIMAL(10, 2) );
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Length != 255 {
+		t.Fatalf("expected 255, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Length)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].DataType != "DECIMAL" {
+		t.Fatalf("expected DECIMAL, got %s", createTableStmt.TableSchema.ColumnDefinitions["deci"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].Precision != 10 {
+		t.Fatalf("expected 10, got %d", createTableStmt.TableSchema.ColumnDefinitions["deci"].Precision)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale != 2 {
+		t.Fatalf("expected 2, got %d", createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale)
+
+	}
+
+}
+
+func TestNewParserCreateTable2(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT SEQUENCE NOT NULL UNIQUE, col2 CHAR(255) UNIQUE, deci DECIMAL(10, 2) );
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].Sequence != true {
+		t.Fatalf("expected true, got %v", createTableStmt.TableSchema.ColumnDefinitions["col1"].Sequence)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].NotNull != true {
+		t.Fatalf("expected true, got %v", createTableStmt.TableSchema.ColumnDefinitions["col1"].NotNull)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].Unique != true {
+		t.Fatalf("expected true, got %v", createTableStmt.TableSchema.ColumnDefinitions["col1"].Unique)
+
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Length != 255 {
+		t.Fatalf("expected 255, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Length)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Unique != true {
+		t.Fatalf("expected true, got %v", createTableStmt.TableSchema.ColumnDefinitions["col2"].Unique)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].DataType != "DECIMAL" {
+		t.Fatalf("expected DECIMAL, got %s", createTableStmt.TableSchema.ColumnDefinitions["deci"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].Precision != 10 {
+		t.Fatalf("expected 10, got %d", createTableStmt.TableSchema.ColumnDefinitions["deci"].Precision)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale != 2 {
+		t.Fatalf("expected 2, got %d", createTableStmt.TableSchema.ColumnDefinitions["deci"].Scale)
+
+	}
+
+}
+
 func TestNewParserSelect(t *testing.T) {
 	statement := []byte(`
 	SELECT 1;

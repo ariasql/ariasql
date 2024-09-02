@@ -6,14 +6,13 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 )
 
 // Executor is the main executor structure
 type Executor struct {
-	aria            *core.AriaSQL
-	ch              *core.Channel
-	resultSetBuffer []byte
+	aria            *core.AriaSQL // AriaSQL instance pointer
+	ch              *core.Channel // Channel pointer
+	resultSetBuffer []byte        // Result set buffer
 }
 
 // New creates a new Executor
@@ -70,8 +69,6 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 				if err != nil {
 					return err
 				}
-
-				log.Println("well", val)
 
 				results = append(results, map[string]interface{}{fmt.Sprintf("%v", val): val})
 			}
