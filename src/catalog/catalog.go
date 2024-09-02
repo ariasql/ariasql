@@ -807,3 +807,15 @@ func (tbl *Table) CheckIndexedColumn(column string, unique bool) *Index {
 
 	return nil
 }
+
+// GetUniqueIndex gets the first unique index for a table
+func (tbl *Table) GetUniqueIndex() *Index {
+	for _, idx := range tbl.Indexes {
+		if idx.Unique {
+			return idx
+		}
+	}
+
+	return nil
+
+}

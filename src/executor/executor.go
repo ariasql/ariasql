@@ -228,7 +228,10 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 
 // filter filters the tables
 func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]interface{}, error) {
-	var tbl *catalog.Table // The first table in from clause
+	var filteredRows []map[string]interface{}
+
+	var tbl *catalog.Table // The first table in from clause, the left table
+	// Every other table is the right table
 
 	if len(tbls) == 0 {
 		return nil, errors.New("no tables")
@@ -236,11 +239,6 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 
 		tbl = tbls[0]
 	}
-
-	var filteredRows []map[string]interface{}
-
-	// In a search condition the left side should be a column
-	// The right side can be a column or a literal
 
 	var leftCond, rightCond interface{}
 	var logicalOp parser.LogicalOperator
@@ -259,12 +257,13 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 		leftCond = where.SearchCondition
 	}
 
+	var left interface{}
+	// if left is a binary expression
+
+	var binaryExpr *parser.BinaryExpression // can be nil
+
 	switch leftCond.(type) {
 	case *parser.ComparisonPredicate:
-		var left interface{}
-		// if left is a binary expression
-
-		var binaryExpr *parser.BinaryExpression // can be nil
 
 		if _, ok := leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
 			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
@@ -285,229 +284,67 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 			}
 
 			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-
 		default:
-			return nil, errors.New("invalid left side of comparison predicate")
+			return nil, errors.New("unsupported search condition")
+		}
+	}
+
+	var row map[string]interface{}
+	var err error
+
+	// Check if tbl is indexed
+
+	idx := tbl.CheckIndexedColumn(left.(string), true)
+	if idx == nil {
+		// try not unique index
+		idx = tbl.CheckIndexedColumn(left.(string), false)
+		if idx != nil {
+			idx = nil
+
+		}
+	}
+
+	if idx != nil {
+
+		keys, err := idx.GetBtree().InOrderTraversal()
+		if err != nil {
+			return nil, err
 		}
 
-		// We check for an index on the column
-		idx := tbl.CheckIndexedColumn(left.(string), tbl.TableSchema.ColumnDefinitions[left.(string)].Unique)
-		if idx != nil {
-			// If there is an index, we can use it
-			// We can use the index to locate the rows faster
-
-			key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", leftCond.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value)))
-			if err != nil {
-				return nil, err
-			}
-
-			// Get the row
-			for _, rowIdBytes := range key.V {
-				int64Str := string(rowIdBytes)
+		for _, key := range keys {
+			for _, val := range key.V {
+				int64Str := string(val)
 
 				rowId, err := strconv.ParseInt(int64Str, 10, 64)
 				if err != nil {
 					return nil, err
 				}
 
-				row, err := tbl.GetRow(rowId)
+				row, err = tbl.GetRow(rowId)
 				if err != nil {
 					return nil, err
 				}
 
-				if binaryExpr != nil {
-					var val interface{}
-
-					// Replace binary expression column spec with a literal
-					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
-
-					err = evaluateBinaryExpression(binaryExpr, &val)
-					if err != nil {
-						return nil, err
-					}
-
-					row[left.(string)] = val
-				}
-
-				ok, res := evaluatePredicate(leftCond, row, tbls)
-				if ok {
-					filteredRows = append(filteredRows, res[tbl.Name][0])
-				}
-
-			}
-		} else {
-			iter := tbl.NewIterator()
-			for iter.Valid() {
-				row, err := iter.Next()
+				err = evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls)
 				if err != nil {
-					break
+					return nil, err
 				}
+			}
 
-				if binaryExpr != nil {
-					var val interface{}
+		}
 
-					// Replace binary expression column spec with a literal
-					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+	} else {
 
-					err = evaluateBinaryExpression(binaryExpr, &val)
-					if err != nil {
-						return nil, err
-					}
+		iter := tbl.NewIterator()
+		for iter.Valid() {
+			row, err = iter.Next()
+			if err != nil {
+				break
+			}
 
-					row[left.(string)] = val
-
-				}
-
-				if logicalOp == parser.OP_AND {
-					ok, res := evaluatePredicate(leftCond, row, tbls)
-					if ok {
-						ok, _ := evaluatePredicate(rightCond, row, tbls)
-						if ok {
-							var resTbls []string
-
-							for t, _ := range res {
-								resTbls = append(resTbls, t)
-
-							}
-
-							if len(res) == 1 {
-								for _, rows := range res[resTbls[0]] {
-									filteredRows = append(filteredRows, rows)
-
-								}
-							} else if len(res) > 1 {
-								newRow := map[string]interface{}{}
-								for _, tblName := range resTbls {
-									for _, rows := range res[tblName] {
-										for k, v := range rows {
-											newRow[k] = v //newRow[fmt.Sprintf("%s.%s", tblName, k)] = v
-										}
-
-									}
-
-								}
-
-								filteredRows = append(filteredRows, newRow)
-							}
-
-						}
-					}
-				} else if logicalOp == parser.OP_OR {
-					ok, res := evaluatePredicate(leftCond, row, tbls)
-					if ok {
-						var resTbls []string
-
-						for t, _ := range res {
-							resTbls = append(resTbls, t)
-
-						}
-
-						if len(res) == 1 {
-							for _, rows := range res[resTbls[0]] {
-								filteredRows = append(filteredRows, rows)
-
-							}
-						} else if len(res) > 1 {
-
-							newRow := map[string]interface{}{}
-							for _, tblName := range resTbls {
-								for _, rows := range res[tblName] {
-									for k, v := range rows {
-										newRow[k] = v
-									}
-
-								}
-
-							}
-
-							filteredRows = append(filteredRows, newRow)
-						}
-					}
-
-					ok, res = evaluatePredicate(rightCond, row, tbls)
-					if ok {
-						var resTbls []string
-
-						for t, _ := range res {
-							resTbls = append(resTbls, t)
-
-						}
-
-						if len(res) == 1 {
-							for _, r := range res[resTbls[0]] {
-								// copy other columns from the row if they dont exist in current rows
-								newRow := r
-
-								if len(filteredRows) > 0 {
-									for k, _ := range filteredRows[0] {
-										if _, ok = newRow[k]; !ok {
-											newRow[k] = nil
-										}
-									}
-
-									filteredRows = append(filteredRows, newRow)
-								}
-
-							}
-						} else if len(res) > 1 {
-							newRow := map[string]interface{}{}
-							for _, tblName := range resTbls {
-								for _, rows := range res[tblName] {
-									for k, v := range rows {
-										newRow[k] = v
-									}
-
-								}
-
-							}
-
-							filteredRows = append(filteredRows, newRow)
-						}
-					}
-
-				} else {
-					ok, res := evaluatePredicate(where.SearchCondition, row, tbls)
-					if ok {
-
-						var resTbls []string
-
-						for t, _ := range res {
-							resTbls = append(resTbls, t)
-
-						}
-
-						if len(res) == 1 {
-							for _, rows := range res[resTbls[0]] {
-
-								filteredRows = append(filteredRows, rows)
-							}
-						} else if len(res) > 1 {
-
-							newRow := map[string]interface{}{}
-							for _, tblName := range resTbls {
-								for _, rows := range res[tblName] {
-									for k, v := range rows {
-										if leftTblName != nil {
-											if len(strings.Split(k, ".")) == 1 {
-												newRow[fmt.Sprintf("%s.%s", leftTblName.Value, k)] = v
-											} else {
-												newRow[k] = v
-											}
-										} else {
-											newRow[k] = v
-										}
-									}
-
-								}
-
-							}
-
-							filteredRows = append(filteredRows, newRow)
-						}
-
-					}
-				}
-
+			err = evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls)
+			if err != nil {
+				return nil, err
 			}
 
 		}
@@ -515,6 +352,176 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 	}
 
 	return filteredRows, nil
+}
+
+func evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table) error {
+	var err error
+	if binaryExpr != nil {
+		var val interface{}
+
+		// Replace binary expression column spec with a literal
+		binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+
+		err = evaluateBinaryExpression(binaryExpr, &val)
+		if err != nil {
+			return err
+		}
+
+		row[left.(string)] = val
+	}
+
+	if logicalOp == parser.OP_AND {
+		ok, res := evaluatePredicate(leftCond, row, tbls)
+		if ok {
+			ok, _ := evaluatePredicate(rightCond, row, tbls)
+			if ok {
+				var resTbls []string
+
+				for t, _ := range res {
+					resTbls = append(resTbls, t)
+
+				}
+
+				if len(res) == 1 {
+					for _, rows := range res[resTbls[0]] {
+						*filteredRows = append(*filteredRows, rows)
+
+					}
+				} else if len(res) > 1 {
+					newRow := map[string]interface{}{}
+					for _, tblName := range resTbls {
+						for _, rows := range res[tblName] {
+							for k, v := range rows {
+								newRow[k] = v //newRow[fmt.Sprintf("%s.%s", tblName, k)] = v
+							}
+
+						}
+
+					}
+
+					*filteredRows = append(*filteredRows, newRow)
+				}
+
+			}
+		}
+	} else if logicalOp == parser.OP_OR {
+		ok, res := evaluatePredicate(leftCond, row, tbls)
+		if ok {
+			var resTbls []string
+
+			for t, _ := range res {
+				resTbls = append(resTbls, t)
+
+			}
+
+			if len(res) == 1 {
+				for _, rows := range res[resTbls[0]] {
+					*filteredRows = append(*filteredRows, rows)
+
+				}
+			} else if len(res) > 1 {
+
+				newRow := map[string]interface{}{}
+				for _, tblName := range resTbls {
+					for _, rows := range res[tblName] {
+						for k, v := range rows {
+							newRow[k] = v
+						}
+
+					}
+
+				}
+
+				*filteredRows = append(*filteredRows, newRow)
+			}
+		}
+
+		ok, res = evaluatePredicate(rightCond, row, tbls)
+		if ok {
+			var resTbls []string
+
+			for t, _ := range res {
+				resTbls = append(resTbls, t)
+
+			}
+
+			if len(res) == 1 {
+				for _, r := range res[resTbls[0]] {
+					// copy other columns from the row if they dont exist in current rows
+					newRow := r
+
+					if len(*filteredRows) > 0 {
+						for k, _ := range (*filteredRows)[0] {
+							if _, ok = newRow[k]; !ok {
+								newRow[k] = nil
+							}
+						}
+
+						*filteredRows = append(*filteredRows, newRow)
+					}
+
+				}
+			} else if len(res) > 1 {
+				newRow := map[string]interface{}{}
+				for _, tblName := range resTbls {
+					for _, rows := range res[tblName] {
+						for k, v := range rows {
+							newRow[k] = v
+						}
+
+					}
+
+				}
+
+				*filteredRows = append(*filteredRows, newRow)
+			}
+		}
+
+	} else {
+		ok, res := evaluatePredicate(where.SearchCondition, row, tbls)
+		if ok {
+
+			var resTbls []string
+
+			for t, _ := range res {
+				resTbls = append(resTbls, t)
+
+			}
+
+			if len(res) == 1 {
+				for _, rows := range res[resTbls[0]] {
+
+					*filteredRows = append(*filteredRows, rows)
+				}
+			} else if len(res) > 1 {
+
+				newRow := map[string]interface{}{}
+				for _, tblName := range resTbls {
+					for _, rows := range res[tblName] {
+						for k, v := range rows {
+							if leftTblName != nil {
+								if len(strings.Split(k, ".")) == 1 {
+									newRow[fmt.Sprintf("%s.%s", leftTblName.Value, k)] = v
+								} else {
+									newRow[k] = v
+								}
+							} else {
+								newRow[k] = v
+							}
+						}
+
+					}
+
+				}
+
+				*filteredRows = append(*filteredRows, newRow)
+			}
+
+		}
+	}
+
+	return nil
+
 }
 
 // evaluatePredicate evaluates a predicate condition on a row

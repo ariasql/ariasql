@@ -1014,3 +1014,58 @@ func removeNilFromKeys(keys []*Key) []*Key {
 	}
 	return newKeys
 }
+
+func (b *BTree) InOrderTraversal() ([]*Key, error) {
+	root, err := b.getRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	return b.inOrderTraversal(root)
+}
+
+func (b *BTree) inOrderTraversal(x *Node) ([]*Key, error) {
+	keys := make([]*Key, 0)
+	if x != nil {
+		i := 0
+		for i < len(x.Keys) {
+			if !x.Leaf {
+				childBytes, err := b.Pager.GetPage(x.Children[i])
+				if err != nil {
+					return nil, err
+				}
+
+				child, err := decodeNode(childBytes)
+				if err != nil {
+					return nil, err
+				}
+
+				childKeys, err := b.inOrderTraversal(child)
+				if err != nil {
+					return nil, err
+				}
+				keys = append(keys, childKeys...)
+			}
+			keys = append(keys, x.Keys[i])
+			i++
+		}
+		if !x.Leaf && i < len(x.Children) {
+			childBytes, err := b.Pager.GetPage(x.Children[i])
+			if err != nil {
+				return nil, err
+			}
+
+			child, err := decodeNode(childBytes)
+			if err != nil {
+				return nil, err
+			}
+
+			childKeys, err := b.inOrderTraversal(child)
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, childKeys...)
+		}
+	}
+	return keys, nil
+}
