@@ -241,8 +241,16 @@ type UnaryExpr struct {
 	Expr interface{}
 }
 
+// NotExpr represents a NOT expression
 type NotExpr struct {
 	Expr interface{}
+}
+
+// BetweenPredicate represents a BETWEEN predicate
+type BetweenPredicate struct {
+	Expr  *ValueExpression
+	Lower *Literal
+	Upper *Literal
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format
