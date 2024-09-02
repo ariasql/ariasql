@@ -1,1 +1,16 @@
-
+# todo
+- [ ] NOT expressions have to be handled in execution
+- [ ] Subqueries where applicable
+- [ ] Group by and having
+- [ ] Order by
+- [ ] Limit
+- [ ] Offset
+- [ ] update statement
+- [ ] delete statement
+- [ ] transactions parsing, execution, and logic with WAL, and recover
+- [ ] users and permissions
+- [ ] server authentication
+- [ ] more and more tests
+- [ ] documentation
+- [ ] procedures
+- [ ] triggers
