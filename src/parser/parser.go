@@ -453,6 +453,12 @@ func (p *Parser) peek(i int) Token {
 	return p.lexer.tokens[p.pos+i]
 }
 
+// switch switches one token with another
+func (p *Parser) switchToken(i, j int) {
+	p.lexer.tokens[p.pos+i], p.lexer.tokens[p.pos+j] = p.lexer.tokens[p.pos+j], p.lexer.tokens[p.pos+i]
+
+}
+
 // rewind goes back one token
 func (p *Parser) rewind(i int) {
 	p.pos -= i
@@ -1095,6 +1101,20 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 	var expr interface{}
 	var err error
+	var not *NotExpr
+
+	if p.peek(0).tokenT == IDENT_TOK {
+		if p.peek(1).value == "NOT" {
+			// put ident in the not position
+
+			p.switchToken(0, 1)
+
+			p.consume()
+
+			not = &NotExpr{}
+		}
+
+	}
 
 	if p.peek(1).tokenT == COMPARISON_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK || p.peek(1).tokenT == AT_TOK {
 		// Parse comparison expression
@@ -1104,24 +1124,42 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 		}
 
 	} else if p.peek(1).tokenT == KEYWORD_TOK {
+
 		switch p.peek(1).value {
 		case "BETWEEN":
+
 			// Parse between expression
 			expr, err = p.parseBetweenExpr()
 			if err != nil {
 				return nil, err
 			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
+			}
+
 		case "IN":
 			// Parse in expression
 			expr, err = p.parseInExpr()
 			if err != nil {
 				return nil, err
 			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
+			}
 		case "LIKE":
 			// Parse like expression
 			expr, err = p.parseLikeExpr()
 			if err != nil {
 				return nil, err
+			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
 			}
 		case "IS":
 			// Parse is expression
@@ -1131,6 +1169,8 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 
 		}
+	} else {
+		return nil, errors.New("expected predicate or logical expression")
 	}
 
 	if p.peek(0).tokenT == KEYWORD_TOK {
@@ -1274,6 +1314,8 @@ func (p *Parser) parseInExpr() (*InPredicate, error) {
 
 // parseBetweenExpr parses a between expression
 func (p *Parser) parseBetweenExpr() (*BetweenPredicate, error) {
+	// check for not if there remove
+
 	// Parse left side of between expression
 	left, err := p.parseValueExpression()
 	if err != nil {

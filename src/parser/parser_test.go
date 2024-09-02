@@ -1910,3 +1910,171 @@ func TestNewParserSelect22(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect23(t *testing.T) {
+	statement := []byte(`
+	SELECT col1 FROM tbl1 WHERE col1 NOT BETWEEN 1 AND 2;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Lower.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Lower.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Upper.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*BetweenPredicate).Upper.Value.(*Literal).Value)
+	}
+}
+
+func TestNewParserSelect24(t *testing.T) {
+	statement := []byte(`
+	SELECT col1 FROM tbl1 WHERE col1 NOT LIKE '%a';
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*LikePredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*LikePredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*LikePredicate).Pattern.Value.(*Literal).Value.(string) != "'%a'" {
+		t.Fatalf("expected %%a, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*LikePredicate).Pattern.Value.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserSelect25(t *testing.T) {
+	statement := []byte(`
+	SELECT col1 FROM tbl1 WHERE col1 NOT IN (1, 2, 3);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[0].Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[0].Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[1].Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[1].Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[2].Value.(*Literal).Value.(uint64) != uint64(3) {
+		t.Fatalf("expected 3, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*NotExpr).Expr.(*InPredicate).Values[2].Value.(*Literal).Value)
+	}
+
+}
