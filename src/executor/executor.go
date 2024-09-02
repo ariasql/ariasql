@@ -1,9 +1,11 @@
 package executor
 
 import (
+	"ariasql/catalog"
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
+	"encoding/binary"
 	"errors"
 	"fmt"
 )
@@ -24,10 +26,7 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 func (ex *Executor) Execute(stmt parser.Statement) error {
 	switch stmt := stmt.(type) {
 	case *parser.CreateDatabaseStmt:
-		err := ex.aria.Catalog.CreateDatabase(stmt.Name.Value)
-		if err != nil {
-			return err
-		}
+		return ex.aria.Catalog.CreateDatabase(stmt.Name.Value)
 	case *parser.CreateTableStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
@@ -38,6 +37,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		return nil
+
 	case *parser.DropTableStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
@@ -47,6 +48,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 	case *parser.CreateIndexStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
@@ -67,6 +70,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 	case *parser.DropIndexStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
@@ -82,6 +87,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		return nil
 	case *parser.InsertStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
@@ -108,6 +114,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		return nil
 	case *parser.UseStmt:
 		db := ex.aria.Catalog.GetDatabase(stmt.DatabaseName.Value)
 		if db == nil {
@@ -121,6 +128,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 
 	case *parser.SelectStmt:
 		err := ex.executeSelectStmt(stmt)
@@ -175,9 +184,154 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 
 	}
 
+	tbles := []*catalog.Table{} // Table list
+
+	if stmt.TableExpression != nil {
+		if stmt.TableExpression.FromClause == nil {
+			return errors.New("no from clause")
+		}
+
+		for _, tbl := range stmt.TableExpression.FromClause.Tables {
+			tbl := ex.ch.Database.GetTable(tbl.Name.Value)
+			if tbl == nil {
+				return errors.New("table does not exist")
+			}
+
+			tbles = append(tbles, tbl)
+		}
+
+	}
+
+	// Check if there are any tables
+	if len(tbles) == 0 {
+		return errors.New("no tables")
+	}
+
+	// If there are more than one table, join them
+	if len(tbles) > 1 {
+		// Join the tables
+		//joinedTable := shared.JoinTables(tbles)
+		//if stmt.TableExpression.WhereClause != nil {
+		//	// Filter the results
+		//	joinedTable = shared.FilterTable(joinedTable, stmt.TableExpression.WhereClause.SearchCondition)
+		//}
+		//
+		//// Get the results
+		//results = shared.GetResults(joinedTable, stmt.SelectList)
+	} else {
+		// For a 1 table query we can evaluate the search condition
+		// If the column is indexed, we can use the index to locate rows faster
+
+		if stmt.TableExpression.WhereClause != nil {
+			// Filter the results
+			rows, err := filter(tbles[0], stmt.TableExpression.WhereClause)
+			if err != nil {
+				return err
+			}
+
+			results = rows
+		}
+
+	}
+
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil
+}
+
+func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interface{}, error) {
+	filteredRows := []map[string]interface{}{}
+
+	// In a search condition the left side should be a column
+	// The right side can be a column or a literal
+
+	switch where.SearchCondition.(type) {
+	case *parser.ComparisonPredicate:
+		left := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+
+		// We check for an index on the column
+		idx := tbl.CheckIndexedColumn(left, false)
+		if idx != nil {
+			// If there is an index, we can use it
+			// We can use the index to locate the rows faster
+
+			key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", where.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value)))
+			if err != nil {
+				return filteredRows, err
+			}
+
+			// Get the row
+			for _, rowIdBytes := range key.V {
+
+				// Decode int64 bytes
+				rowId := int64(binary.LittleEndian.Uint64(rowIdBytes))
+
+				row, err := tbl.GetRow(rowId)
+				if err != nil {
+					return filteredRows, err
+				}
+
+				if evaluatePredicate(where.SearchCondition, row) {
+					filteredRows = append(filteredRows, row)
+				}
+
+			}
+		} else {
+			iter := tbl.NewIterator()
+			for iter.Valid() {
+				row, err := iter.Next()
+				if err != nil {
+					break
+				}
+
+				if evaluatePredicate(where.SearchCondition, row) {
+					filteredRows = append(filteredRows, row)
+				}
+
+			}
+
+		}
+
+	}
+
+	return filteredRows, nil
+}
+
+// evaluatePredicate evaluates a predicate
+func evaluatePredicate(cond interface{}, row map[string]interface{}) bool {
+	switch cond := cond.(type) {
+	case *parser.ComparisonPredicate:
+		var left, right interface{}
+		var ok bool
+
+		if _, ok = cond.Left.Value.(*parser.ColumnSpecification); ok {
+			left, ok = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+			if !ok {
+				return false
+			}
+		}
+
+		// The right type should be the same as the left type in the end
+
+		switch cond.Op {
+		case parser.OP_EQ:
+			return left == right
+		case parser.OP_NEQ:
+			return left != right
+		case parser.OP_LT:
+			return left.(float64) < right.(float64)
+		case parser.OP_LTE:
+			return left.(float64) <= right.(float64)
+		case parser.OP_GT:
+			return left.(float64) > right.(float64)
+		case parser.OP_GTE:
+			return left.(float64) >= right.(float64)
+		}
+
+	}
+
+	return false
+
 }
 
 // evaluateBinaryExpression evaluates a binary expression

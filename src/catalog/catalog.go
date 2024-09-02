@@ -648,6 +648,11 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 	return nil
 }
 
+// GetBtree gets the btree for an index
+func (idx *Index) GetBtree() *btree.BTree {
+	return idx.btree
+}
+
 // writeRow writes a row to the table
 func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// Write row to table
