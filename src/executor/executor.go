@@ -207,29 +207,18 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 		return errors.New("no tables")
 	}
 
-	// If there are more than one table, join them
-	if len(tbles) > 1 {
-		// Join the tables
-		//joinedTable := shared.JoinTables(tbles)
-		//if stmt.TableExpression.WhereClause != nil {
-		//	// Filter the results
-		//	joinedTable = shared.FilterTable(joinedTable, stmt.TableExpression.WhereClause.SearchCondition)
-		//}
-		//
-		//// Get the results
-		//results = shared.GetResults(joinedTable, stmt.SelectList)
-	} else {
-		// For a 1 table query we can evaluate the search condition
-		// If the column is indexed, we can use the index to locate rows faster
+	// For a 1 table query we can evaluate the search condition
+	// If the column is indexed, we can use the index to locate rows faster
 
-		if stmt.TableExpression.WhereClause != nil {
-			// Filter the results
-			rows, err := filter(tbles[0], stmt.TableExpression.WhereClause)
-			if err != nil {
-				return err
-			}
+	// Filter the results
+	tableRows, err := filter(tbles, stmt.TableExpression.WhereClause)
+	if err != nil {
+		return err
+	}
 
-			results = rows
+	for _, rows := range tableRows {
+		for _, row := range rows {
+			results = append(results, row)
 		}
 
 	}
@@ -239,102 +228,108 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 	return nil
 }
 
-func filter(tbl *catalog.Table, where *parser.WhereClause) ([]map[string]interface{}, error) {
-	var filteredRows []map[string]interface{}
+func filter(tbls []*catalog.Table, where *parser.WhereClause) (map[string][]map[string]interface{}, error) {
+	filteredTableRows := map[string][]map[string]interface{}{}
 
-	// In a search condition the left side should be a column
-	// The right side can be a column or a literal
+	for _, tbl := range tbls {
+		var filteredRows []map[string]interface{}
 
-	switch where.SearchCondition.(type) {
-	case *parser.ComparisonPredicate:
-		var left interface{}
-		// if left is a binary expression
+		// In a search condition the left side should be a column
+		// The right side can be a column or a literal
 
-		var binaryExpr *parser.BinaryExpression // can be nil
+		switch where.SearchCondition.(type) {
+		case *parser.ComparisonPredicate:
+			var left interface{}
+			// if left is a binary expression
 
-		if _, ok := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
+			var binaryExpr *parser.BinaryExpression // can be nil
 
-		left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-
-		// We check for an index on the column
-		idx := tbl.CheckIndexedColumn(left.(string), tbl.TableSchema.ColumnDefinitions[left.(string)].Unique)
-		if idx != nil {
-			// If there is an index, we can use it
-			// We can use the index to locate the rows faster
-
-			key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", where.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value)))
-			if err != nil {
-				return filteredRows, err
+			if _, ok := where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
+				left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
 			}
 
-			// Get the row
-			for _, rowIdBytes := range key.V {
-				int64Str := string(rowIdBytes)
+			left = where.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
 
-				rowId, err := strconv.ParseInt(int64Str, 10, 64)
+			// We check for an index on the column
+			idx := tbl.CheckIndexedColumn(left.(string), tbl.TableSchema.ColumnDefinitions[left.(string)].Unique)
+			if idx != nil {
+				// If there is an index, we can use it
+				// We can use the index to locate the rows faster
+
+				key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", where.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value)))
 				if err != nil {
-					return filteredRows, err
+					return nil, err
 				}
 
-				row, err := tbl.GetRow(rowId)
-				if err != nil {
-					return filteredRows, err
-				}
+				// Get the row
+				for _, rowIdBytes := range key.V {
+					int64Str := string(rowIdBytes)
 
-				if binaryExpr != nil {
-					var val interface{}
-
-					// Replace binary expression column spec with a literal
-					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
-
-					err = evaluateBinaryExpression(binaryExpr, &val)
+					rowId, err := strconv.ParseInt(int64Str, 10, 64)
 					if err != nil {
-						return filteredRows, err
+						return nil, err
 					}
 
-					row[left.(string)] = val
-				}
-
-				if evaluatePredicate(where.SearchCondition, row) {
-					filteredRows = append(filteredRows, row)
-				}
-
-			}
-		} else {
-			iter := tbl.NewIterator()
-			for iter.Valid() {
-				row, err := iter.Next()
-				if err != nil {
-					break
-				}
-
-				if binaryExpr != nil {
-					var val interface{}
-
-					// Replace binary expression column spec with a literal
-					binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
-
-					err = evaluateBinaryExpression(binaryExpr, &val)
+					row, err := tbl.GetRow(rowId)
 					if err != nil {
-						return filteredRows, err
+						return nil, err
 					}
 
-					row[left.(string)] = val
-				}
+					if binaryExpr != nil {
+						var val interface{}
 
-				if evaluatePredicate(where.SearchCondition, row) {
-					filteredRows = append(filteredRows, row)
+						// Replace binary expression column spec with a literal
+						binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+
+						err = evaluateBinaryExpression(binaryExpr, &val)
+						if err != nil {
+							return nil, err
+						}
+
+						row[left.(string)] = val
+					}
+
+					if evaluatePredicate(where.SearchCondition, row) {
+						filteredRows = append(filteredRows, row)
+					}
+
+				}
+			} else {
+				iter := tbl.NewIterator()
+				for iter.Valid() {
+					row, err := iter.Next()
+					if err != nil {
+						break
+					}
+
+					if binaryExpr != nil {
+						var val interface{}
+
+						// Replace binary expression column spec with a literal
+						binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+
+						err = evaluateBinaryExpression(binaryExpr, &val)
+						if err != nil {
+							return nil, err
+						}
+
+						row[left.(string)] = val
+					}
+
+					if evaluatePredicate(where.SearchCondition, row) {
+						filteredRows = append(filteredRows, row)
+					}
+
 				}
 
 			}
 
 		}
 
+		filteredTableRows[tbl.Name] = filteredRows
 	}
 
-	return filteredRows, nil
+	return filteredTableRows, nil
 }
 
 // evaluatePredicate evaluates a predicate
