@@ -7,6 +7,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -159,7 +160,7 @@ func (ex *Executor) Clear() {
 
 // executeSelectStmt executes a select statement
 func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([]map[string]interface{}, error) {
-	results := []map[string]interface{}{}
+	var results []map[string]interface{}
 
 	if stmt.SelectList == nil {
 		return nil, errors.New("no select list")
@@ -185,7 +186,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	}
 
-	tbles := []*catalog.Table{} // Table list
+	var tbles []*catalog.Table // Table list
 
 	// Check if table expression is not nil,
 	// if so we need to evaluate the from clause
@@ -224,6 +225,11 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	results = rows
 
 	// Based on projection (select list), we can filter the columns
+	results, err = ex.selectListFilter(rows, stmt.SelectList)
+	if err != nil {
+		return nil, err
+
+	}
 
 	if subquery {
 		return results, nil
@@ -233,6 +239,81 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil
+}
+
+func (ex *Executor) selectListFilter(results []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
+
+	if selectList == nil {
+		return nil, errors.New("no select list")
+	}
+
+	if len(selectList.Expressions) == 0 {
+		return nil, errors.New("no select list")
+	}
+
+	columns := []string{}
+
+	for _, expr := range selectList.Expressions {
+
+		switch expr := expr.Value.(type) {
+		case *parser.Wildcard:
+			return results, nil
+		case *parser.ColumnSpecification:
+			columns = append(columns, expr.ColumnName.Value)
+		case *parser.AggregateFunc:
+			switch expr.FuncName {
+			case "COUNT":
+				count := len(results)
+				// For count we truncate the results to one row
+				results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
+			case "SUM":
+				// Sum the values
+				var sum int
+
+				for _, row := range results {
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := row[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch row[arg.ColumnName.Value].(type) {
+							case int:
+								sum += row[arg.ColumnName.Value].(int)
+							case int64:
+								sum += int(row[arg.ColumnName.Value].(int64))
+							case float64:
+								sum += int(row[arg.ColumnName.Value].(float64))
+
+							}
+						}
+
+					}
+
+				}
+
+				results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
+			}
+		}
+
+	}
+
+	if len(columns) == 0 {
+		return nil, errors.New("no columns")
+	}
+
+	for _, row := range results {
+		for k, _ := range row {
+			if !slices.Contains(columns, k) {
+				delete(row, k)
+			}
+		}
+
+	}
+
+	return results, nil
+
 }
 
 // filter filters the tables
@@ -254,6 +335,21 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 
 	var leftTblName *parser.Identifier
 
+	if where == nil {
+		// If there is no where clause, we return all rows
+		iter := tbl.NewIterator()
+		for iter.Valid() {
+			row, err := iter.Next()
+			if err != nil {
+				continue
+			}
+
+			filteredRows = append(filteredRows, row)
+		}
+
+		return filteredRows, nil
+
+	}
 	// Check if search condition is a logical condition
 	if _, ok := where.SearchCondition.(*parser.LogicalCondition); ok {
 		// If so we grab the left and right conditions
