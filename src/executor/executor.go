@@ -1190,6 +1190,27 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 
 		}
 
+		// check if right is not a parser.Literal
+		if _, ok := cond.Right.Value.(*parser.Literal); !ok {
+			if _, ok := cond.Right.Value.(*parser.ColumnSpecification); !ok {
+				// check for subquery
+				if _, ok := cond.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt); ok {
+					res, err := ex.executeSelectStmt(cond.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt), true)
+					if err != nil {
+						return false, nil
+					}
+
+					// if results are greater than one only get first row first column
+					for _, r := range res {
+						for _, v := range r {
+							right = v
+							break
+						}
+					}
+				}
+			}
+		}
+
 		switch left.(type) {
 		case int:
 			left = int(left.(int))
@@ -1213,6 +1234,11 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 
 			if _, ok := right.(int); !ok {
 				if _, ok := right.(float64); !ok {
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return false, nil
+					}
+
 					right = float64(right.(int))
 				}
 			} else {

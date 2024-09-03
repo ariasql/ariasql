@@ -96,6 +96,10 @@ func GetHeaders(data []map[string]interface{}) []string {
 
 // CreateTableByteArray Create the table as a byte array
 func CreateTableByteArray(data []map[string]interface{}, headers []string) []byte {
+	if len(data) == 0 {
+		return []byte{}
+	}
+
 	var buffer bytes.Buffer
 	widths := getColumnWidths(data, headers)
 
