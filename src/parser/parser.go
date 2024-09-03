@@ -1253,6 +1253,69 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 
 		}
+	} else if p.peek(0).tokenT == KEYWORD_TOK {
+		currentPos := p.pos
+
+		expr, err = p.parseAggregateFunc()
+		if err != nil {
+			return nil, err
+		}
+
+		if p.peek(0).tokenT == COMPARISON_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == DIVIDE_TOK || p.peek(0).tokenT == MODULUS_TOK || p.peek(0).tokenT == AT_TOK {
+			// Parse comparison expression
+			p.pos = currentPos
+
+			expr, err = p.parseComparisonExpr()
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+		switch p.peek(0).value {
+		case "BETWEEN":
+
+			// Parse between expression
+			expr, err = p.parseBetweenExpr()
+			if err != nil {
+				return nil, err
+			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
+			}
+
+		case "IN":
+			// Parse in expression
+			expr, err = p.parseInExpr()
+			if err != nil {
+				return nil, err
+			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
+			}
+		case "LIKE":
+			// Parse like expression
+			expr, err = p.parseLikeExpr()
+			if err != nil {
+				return nil, err
+			}
+
+			if not != nil {
+				not.Expr = expr
+				expr = not
+			}
+		case "IS":
+			// Parse is expression
+			expr, err = p.parseIsExpr()
+			if err != nil {
+				return nil, err
+			}
+
+		}
 	} else {
 		return nil, errors.New("expected predicate or logical expression")
 	}
