@@ -187,6 +187,9 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 
 	tbles := []*catalog.Table{} // Table list
 
+	// Check if table expression is not nil,
+	// if so we need to evaluate the from clause
+	// Gathering the proposed tables
 	if stmt.TableExpression != nil {
 		if stmt.TableExpression.FromClause == nil {
 			return errors.New("no from clause")
@@ -206,7 +209,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 	// Check if there are any tables
 	if len(tbles) == 0 {
 		return errors.New("no tables")
-	}
+	} // You can't do this!!
 
 	// For a 1 table query we can evaluate the search condition
 	// If the column is indexed, we can use the index to locate rows faster
@@ -215,12 +218,14 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt) error {
 	rows, err := filter(tbles, stmt.TableExpression.WhereClause)
 	if err != nil {
 		return err
-	}
+	} // This one functions gathers the rows based on where clause.
+	// Handles joins, and other conditions such as subqueries
 
 	results = rows
 
 	// Based on projection (select list), we can filter the columns
 
+	// Now we format the results
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil
@@ -263,6 +268,31 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 	var binaryExpr *parser.BinaryExpression // can be nil
 
 	switch leftCond.(type) {
+	case *parser.NotExpr:
+		switch leftCond.(*parser.NotExpr).Expr.(type) {
+		case *parser.LikePredicate:
+
+			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression); ok {
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
+
+			switch leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(type) {
+			case *parser.ColumnSpecification:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+			case *parser.Literal:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.Literal).Value
+			case *parser.BinaryExpression:
+
+				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression)
+
+				// look for left table
+				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+				}
+
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
+		}
 	case *parser.ComparisonPredicate:
 
 		if _, ok := leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
