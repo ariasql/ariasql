@@ -271,6 +271,28 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 	switch leftCond.(type) {
 	case *parser.NotExpr:
 		switch leftCond.(*parser.NotExpr).Expr.(type) {
+		case *parser.InPredicate:
+			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
+
+			switch leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(type) {
+			case *parser.ColumnSpecification:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+			case *parser.Literal:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.Literal).Value
+			case *parser.BinaryExpression:
+
+				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression)
+
+				// look for left table
+				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+				}
+
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
+
 		case *parser.LikePredicate:
 
 			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression); ok {
@@ -834,26 +856,53 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 			}
 		}
 
-		for _, val := range cond.Values {
-			switch left.(type) {
-			case int:
-				left = int(left.(int))
-				return left == int(val.Value.(*parser.Literal).Value.(uint64)), results
-			case uint64:
-				if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
+		if !isNot {
+
+			for _, val := range cond.Values {
+				switch left.(type) {
+				case int:
+					left = int(left.(int))
+					return left == int(val.Value.(*parser.Literal).Value.(uint64)), results
+				case uint64:
+					if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+
+					}
+				case float64:
+					if left.(float64) == val.Value.(*parser.Literal).Value.(float64) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case string:
+					if left.(string) == val.Value.(*parser.Literal).Value.(string) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+
+					}
 
 				}
-			case float64:
-				if left.(float64) == val.Value.(*parser.Literal).Value.(float64) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
-				}
-			case string:
-				if left.(string) == val.Value.(*parser.Literal).Value.(string) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
+			}
+
+		} else {
+			for _, val := range cond.Values {
+				switch left.(type) {
+				case int:
+					left = int(left.(int))
+					return left != int(val.Value.(*parser.Literal).Value.(uint64)), results
+				case uint64:
+					if left.(uint64) != val.Value.(*parser.Literal).Value.(uint64) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+
+					}
+				case float64:
+					if left.(float64) != val.Value.(*parser.Literal).Value.(float64) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case string:
+					if left.(string) != val.Value.(*parser.Literal).Value.(string) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+
+					}
 
 				}
-
 			}
 		}
 
