@@ -266,6 +266,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 				count := len(results)
 				// For count we truncate the results to one row
 				results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
+				columns = []string{"COUNT"}
 			case "SUM":
 				// Sum the values
 				var sum int
@@ -294,13 +295,10 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 				}
 
 				results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
+				columns = []string{"SUM"}
 			}
 		}
 
-	}
-
-	if len(columns) == 0 {
-		return nil, errors.New("no columns")
 	}
 
 	for _, row := range results {

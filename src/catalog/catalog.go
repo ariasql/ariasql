@@ -514,25 +514,28 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 			// Split the string on the decimal point
 			parts := strings.Split(str, ".")
 
-			// The scale is the number of digits after the decimal point
-			scale := len(parts[1])
+			if len(parts) > 1 {
 
-			// The precision is the total number of digits
-			precision := len(parts[0]) + len(parts[1])
+				// The scale is the number of digits after the decimal point
+				scale := len(parts[1])
 
-			if colDef.Scale > 0 {
-				// Check scale
+				// The precision is the total number of digits
+				precision := len(parts[0]) + len(parts[1])
 
-				if scale > colDef.Scale {
-					return fmt.Errorf("column %s has too many digits after the decimal point", colName)
+				if colDef.Scale > 0 {
+					// Check scale
+
+					if scale > colDef.Scale {
+						return fmt.Errorf("column %s has too many digits after the decimal point", colName)
+					}
+
 				}
 
-			}
-
-			if colDef.Precision > 0 {
-				// Check precision
-				if precision > colDef.Precision {
-					return fmt.Errorf("column %s is too large", colName)
+				if colDef.Precision > 0 {
+					// Check precision
+					if precision > colDef.Precision {
+						return fmt.Errorf("column %s is too large", colName)
+					}
 				}
 			}
 

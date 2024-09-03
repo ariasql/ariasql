@@ -1694,6 +1694,11 @@ func (p *Parser) parseAggregateFunc() (*AggregateFunc, error) {
 
 				aggFunc.Args = append(aggFunc.Args, columnSpec)
 			}
+		} else if p.peek(0).tokenT == ASTERISK_TOK {
+			aggFunc.Args = append(aggFunc.Args, &Wildcard{})
+
+			p.consume()
+
 		} else {
 			return nil, errors.New("expected aggregate function, binary expression, or column spec")
 		}
