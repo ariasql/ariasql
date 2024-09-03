@@ -270,6 +270,10 @@ type IsPredicate struct {
 	Null bool
 }
 
+type ExistsPredicate struct {
+	SelectStmt *SelectStmt
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")

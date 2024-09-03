@@ -22,6 +22,7 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -1521,7 +1522,23 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		}, nil
 	}
 
+	log.Println(p.peek(0).value)
+
+	if p.peek(0).tokenT == LPAREN_TOK {
+		// Subquery
+		p.consume()
+		subquery, err := p.parseSubquery()
+		if err != nil {
+			return nil, err
+		}
+
+		return &ValueExpression{
+			Value: subquery,
+		}, nil
+	}
+
 	switch p.peek(0).tokenT {
+
 	case LITERAL_TOK:
 		lit, err := p.parseLiteral()
 		if err != nil {
@@ -1559,7 +1576,7 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		}, nil
 	default:
 
-		return nil, errors.New("expected column spec or aggregate function")
+		return nil, errors.New("expected column spec or aggregate function or subquery")
 	}
 
 }
