@@ -296,6 +296,107 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 				results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
 				columns = []string{"SUM"}
+
+			case "AVG":
+				// Average the values
+				var sum int
+				var count int
+
+				for _, row := range results {
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := row[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch row[arg.ColumnName.Value].(type) {
+							case int:
+								sum += row[arg.ColumnName.Value].(int)
+							case int64:
+								sum += int(row[arg.ColumnName.Value].(int64))
+							case float64:
+								sum += int(row[arg.ColumnName.Value].(float64))
+
+							}
+						}
+
+					}
+				}
+
+				count = len(results)
+
+				avg := sum / count
+
+				results = []map[string]interface{}{map[string]interface{}{"AVG": avg}}
+				columns = []string{"AVG"}
+
+			case "MAX":
+				// Find the maximum value
+				var mx int
+
+				for _, row := range results {
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := row[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch row[arg.ColumnName.Value].(type) {
+							case int:
+								if row[arg.ColumnName.Value].(int) > mx {
+									mx = row[arg.ColumnName.Value].(int)
+								}
+							case int64:
+								if int(row[arg.ColumnName.Value].(int64)) > mx {
+									mx = int(row[arg.ColumnName.Value].(int64))
+								}
+							case float64:
+								if int(row[arg.ColumnName.Value].(float64)) > mx {
+									mx = int(row[arg.ColumnName.Value].(float64))
+								}
+							}
+						}
+					}
+				}
+
+				results = []map[string]interface{}{map[string]interface{}{"MAX": mx}}
+				columns = []string{"MAX"}
+
+			case "MIN":
+				// Find the minimum value
+				var mn int
+				mn = int(^uint(0) >> 1)
+
+				for _, row := range results {
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := row[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch row[arg.ColumnName.Value].(type) {
+							case int:
+								if row[arg.ColumnName.Value].(int) < mn {
+									mn = row[arg.ColumnName.Value].(int)
+								}
+							case int64:
+								if int(row[arg.ColumnName.Value].(int64)) < mn {
+									mn = int(row[arg.ColumnName.Value].(int64))
+								}
+							case float64:
+								if int(row[arg.ColumnName.Value].(float64)) < mn {
+									mn = int(row[arg.ColumnName.Value].(float64))
+								}
+							}
+						}
+					}
+				}
+
+				results = []map[string]interface{}{map[string]interface{}{"MIN": mn}}
+				columns = []string{"MIN"}
 			}
 		}
 
