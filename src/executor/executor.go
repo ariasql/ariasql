@@ -273,6 +273,21 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 	var binaryExpr *parser.BinaryExpression // can be nil
 
 	switch leftCond.(type) {
+	case *parser.ExistsPredicate:
+
+		// Evaluate subquery
+		res, err := ex.executeSelectStmt(leftCond.(*parser.ExistsPredicate).Expr.Value.(*parser.SelectStmt), true)
+		if err != nil {
+			return nil, err
+
+		}
+
+		if len(res) > 0 {
+			filteredRows = res
+		}
+
+		return filteredRows, nil
+
 	case *parser.BetweenPredicate:
 		if _, ok := leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression); ok {
 			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value

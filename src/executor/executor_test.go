@@ -4854,7 +4854,7 @@ func TestStmt28(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT * FROM test WHERE EXISTS (SELECT * FROM test2 WHERE test.id = test2.id AND test2.name = 'Dog');
+	SELECT * FROM test WHERE EXISTS (SELECT * FROM test2 WHERE test.id = test2.id AND name = 'Dog');
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -4872,14 +4872,12 @@ func TestStmt28(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-	| test.id | test.name     |
-	+---------+---------------+
-	| 2       | 'Alex Padula' |
-	| 3       | 'John Smith'  |
-	| 4       | 'Alex Smith'  |
-	+---------+---------------+
-	`
+	expect := `+----+-------+----------+------------+
+| id | name  | test2.id | test2.name |
++----+-------+----------+------------+
+| 1  | 'Dog' | 1        | 'Dog'      |
++----+-------+----------+------------+
+`
 
 	if string(ex.resultSetBuffer) != expect {
 		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
