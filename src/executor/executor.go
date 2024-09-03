@@ -269,8 +269,52 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 	var binaryExpr *parser.BinaryExpression // can be nil
 
 	switch leftCond.(type) {
+	case *parser.BetweenPredicate:
+		if _, ok := leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression); ok {
+			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		}
+
+		switch leftCond.(*parser.BetweenPredicate).Left.Value.(type) {
+		case *parser.ColumnSpecification:
+			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+		case *parser.Literal:
+			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.Literal).Value
+		case *parser.BinaryExpression:
+
+			binaryExpr = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression)
+
+			// look for left table
+			if _, ok := leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+				leftTblName = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+			}
+
+			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+		default:
+			return nil, errors.New("unsupported search condition")
+		}
 	case *parser.NotExpr:
 		switch leftCond.(*parser.NotExpr).Expr.(type) {
+		case *parser.BetweenPredicate:
+			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression); ok {
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
+
+			switch leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(type) {
+			case *parser.ColumnSpecification:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+			case *parser.Literal:
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.Literal).Value
+			case *parser.BinaryExpression:
+
+				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression)
+
+				// look for left table
+				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
+					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
+				}
+
+				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
+			}
 		case *parser.InPredicate:
 			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
 				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
@@ -659,6 +703,50 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 	}
 
 	switch cond := cond.(type) {
+	case *parser.BetweenPredicate:
+		var left interface{}
+
+		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
+			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+		}
+
+		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
+			var val interface{}
+			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
+			if err != nil {
+				return false, nil
+			}
+
+			left = val
+		}
+
+		if _, ok := cond.Left.Value.(*parser.Literal); ok {
+			left = cond.Left.Value.(*parser.Literal).Value
+		}
+
+		for k, _ := range row {
+			// convert columnname to table.columnname
+			if len(strings.Split(k, ".")) == 1 {
+				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
+				delete(row, k)
+			}
+		}
+
+		if !isNot {
+
+			if left.(int) >= int(cond.Lower.Value.(*parser.Literal).Value.(uint64)) && left.(int) <= int(cond.Upper.Value.(*parser.Literal).Value.(uint64)) {
+				results[tbls[0].Name] = []map[string]interface{}{row}
+			}
+		} else {
+			if left.(int) < int(cond.Lower.Value.(*parser.Literal).Value.(uint64)) || left.(int) > int(cond.Upper.Value.(*parser.Literal).Value.(uint64)) {
+				results[tbls[0].Name] = []map[string]interface{}{row}
+			}
+		}
+
+		if len(results) > 0 {
+			return true, results
+		}
+
 	case *parser.IsPredicate:
 
 		var left interface{}
