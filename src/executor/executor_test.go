@@ -3710,11 +3710,11 @@ func TestStmt22(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-+---------+---------------+
+	expect := `+---------+------------+
+| test.id | test.name  |
++---------+------------+
+| 1       | 'John Doe' |
++---------+------------+
 `
 
 	if string(ex.resultSetBuffer) != expect {

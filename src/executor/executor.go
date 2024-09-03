@@ -242,11 +242,12 @@ func filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]inte
 		return nil, errors.New("no tables")
 	} else {
 
-		tbl = tbls[0]
+		tbl = tbls[0] // Set left table
 	}
 
 	var leftCond, rightCond interface{}
 	var logicalOp parser.LogicalOperator
+
 	var leftTblName *parser.Identifier
 
 	// Check if search condition is a logical condition
@@ -630,6 +631,11 @@ func evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[strin
 func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*catalog.Table) (bool, map[string][]map[string]interface{}) {
 	results := make(map[string][]map[string]interface{})
 
+	_, isNot := cond.(*parser.NotExpr)
+	if isNot {
+		cond = cond.(*parser.NotExpr).Expr
+	}
+
 	switch cond := cond.(type) {
 	case *parser.IsPredicate:
 
@@ -726,34 +732,67 @@ func evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*cat
 
 			pattern := cond.Pattern.Value
 
-			switch {
-			case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
-				// '%a%'
-				if strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
-				}
-			case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
-				// 'a%'
-				if strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
-				}
-			case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
-				// '%a'
-				if strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
-				}
-			case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
-				// 'a%b'
-				lStr := strings.TrimLeft(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[0], "'")
-				rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
+			if !isNot {
 
-				if strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
-					results[tbls[0].Name] = []map[string]interface{}{row}
+				switch {
+				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+					// '%a%'
+					if strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+					// 'a%'
+					if strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
+					// '%a'
+					if strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
+					// 'a%b'
+					lStr := strings.TrimLeft(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[0], "'")
+					rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
+
+					if strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+
+				default:
+					return false, nil
+
 				}
+			} else {
+				switch {
+				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+					// '%a%'
+					if !strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
+					// 'a%'
+					if !strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
+					// '%a'
+					if !strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
+				case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
+					// 'a%b'
+					lStr := strings.TrimLeft(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[0], "'")
+					rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
 
-			default:
-				return false, nil
+					if !strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && !strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
 
+				default:
+					return false, nil
+
+				}
 			}
 
 		} else {
