@@ -22,7 +22,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -1117,6 +1116,23 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 	}
 
+	if p.peek(1).value == "EXISTS" {
+		// Parse subquery
+
+		p.consume()
+		p.consume()
+		p.consume()
+
+		subquery, err := p.parseSubquery()
+		if err != nil {
+			return nil, err
+		}
+
+		return &ExistsPredicate{
+			Expr: subquery,
+		}, nil
+	}
+
 	if p.peek(1).tokenT == COMPARISON_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK || p.peek(1).tokenT == AT_TOK {
 		// Parse comparison expression
 		expr, err = p.parseComparisonExpr()
@@ -1521,8 +1537,6 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 			Value: expr,
 		}, nil
 	}
-
-	log.Println(p.peek(0).value)
 
 	if p.peek(0).tokenT == LPAREN_TOK {
 		// Subquery

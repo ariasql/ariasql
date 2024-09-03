@@ -270,8 +270,9 @@ type IsPredicate struct {
 	Null bool
 }
 
+// ExistsPredicate represents an EXISTS predicate
 type ExistsPredicate struct {
-	SelectStmt *SelectStmt
+	Expr *ValueExpression
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format

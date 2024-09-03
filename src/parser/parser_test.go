@@ -2189,4 +2189,40 @@ func TestNewParserSelect27(t *testing.T) {
 	//}
 	//
 	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ExistsPredicate).Expr.Value.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value)
+	}
 }
