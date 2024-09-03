@@ -7,6 +7,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -224,11 +225,30 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	results = rows
 
-	// Based on projection (select list), we can filter the columns
-	results, err = ex.selectListFilter(rows, stmt.SelectList)
-	if err != nil {
-		return nil, err
+	// Check for group by
+	if stmt.TableExpression.GroupByClause != nil {
+		grouped, err := ex.group(results, stmt.TableExpression.GroupByClause)
+		if err != nil {
+			return nil, err
+		}
 
+		log.Println("grouped after", grouped)
+		// Check for having clause
+		if stmt.TableExpression.HavingClause != nil {
+			results, err = ex.having(grouped, stmt.TableExpression.HavingClause)
+			if err != nil {
+				return nil, err
+			}
+
+		}
+	} else {
+
+		// Based on projection (select list), we can filter the columns
+		results, err = ex.selectListFilter(rows, stmt.SelectList)
+		if err != nil {
+			return nil, err
+
+		}
 	}
 
 	if subquery {
@@ -239,6 +259,297 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil
+}
+
+func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{}, having *parser.HavingClause) ([]map[string]interface{}, error) {
+	log.Println("HAVING")
+	var results []map[string]interface{}
+
+	for _, row := range groupedRows {
+		switch having.SearchCondition.(type) {
+		case *parser.ComparisonPredicate:
+			// left must be an aggregate function
+			// right must be a literal
+
+			// Get the aggregate function
+			aggFunc := having.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.AggregateFunc)
+
+			// Get the right value
+			rightVal := having.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value
+
+			// Get the aggregate function name
+			aggFuncName := aggFunc.FuncName
+
+			// Get the aggregate function arguments
+			aggFuncArgs := aggFunc.Args
+
+			// Get the column name
+			//colName := aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value
+
+			switch aggFuncName {
+			case "COUNT":
+				count := len(row)
+				if count == int(rightVal.(uint64)) {
+					results = append(results, row[0])
+				}
+
+			case "SUM":
+				// Sum the values
+				var sum int
+
+				for _, r := range row {
+					for _, arg := range aggFuncArgs {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := r[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch r[arg.ColumnName.Value].(type) {
+							case int:
+								sum += r[arg.ColumnName.Value].(int)
+							case int64:
+								sum += int(r[arg.ColumnName.Value].(int64))
+							case float64:
+								sum += int(r[arg.ColumnName.Value].(float64))
+
+							}
+						}
+
+					}
+				}
+
+				// check op
+				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
+				case parser.OP_EQ:
+					if sum == int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GT:
+					if sum > int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LT:
+					if sum < int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GTE:
+					if sum >= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LTE:
+					if sum <= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				default:
+					return nil, errors.New("unsupported operator")
+
+				}
+
+			case "AVG":
+				// Average the values
+				var sum int
+				var count int
+
+				for _, r := range row {
+					for _, arg := range aggFuncArgs {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := r[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch r[arg.ColumnName.Value].(type) {
+							case int:
+								sum += r[arg.ColumnName.Value].(int)
+							case int64:
+								sum += int(r[arg.ColumnName.Value].(int64))
+							case float64:
+								sum += int(r[arg.ColumnName.Value].(float64))
+
+							}
+						}
+
+					}
+				}
+
+				count = len(row)
+				avg := sum / count
+
+				// check op
+				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
+				case parser.OP_EQ:
+					if avg == int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GT:
+					if avg > int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LT:
+					if avg < int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GTE:
+					if avg >= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LTE:
+					if avg <= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				default:
+					return nil, errors.New("unsupported operator")
+
+				}
+
+			case "MAX":
+				// Find the maximum value
+
+				var mx int
+
+				for _, r := range row {
+					for _, arg := range aggFuncArgs {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := r[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch r[arg.ColumnName.Value].(type) {
+							case int:
+								if r[arg.ColumnName.Value].(int) > mx {
+									mx = r[arg.ColumnName.Value].(int)
+								}
+							case int64:
+								if int(r[arg.ColumnName.Value].(int64)) > mx {
+									mx = int(r[arg.ColumnName.Value].(int64))
+								}
+							case float64:
+								if int(r[arg.ColumnName.Value].(float64)) > mx {
+									mx = int(r[arg.ColumnName.Value].(float64))
+								}
+							}
+						}
+					}
+				}
+
+				// check op
+				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
+				case parser.OP_EQ:
+					if mx == int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GT:
+					if mx > int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LT:
+					if mx < int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GTE:
+					if mx >= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LTE:
+					if mx <= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				default:
+					return nil, errors.New("unsupported operator")
+
+				}
+
+			case "MIN":
+				// Find the minimum value
+
+				var mn int
+
+				mn = int(^uint(0) >> 1)
+
+				for _, r := range row {
+					for _, arg := range aggFuncArgs {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := r[arg.ColumnName.Value]; !ok {
+								return nil, errors.New("column does not exist")
+							}
+
+							switch r[arg.ColumnName.Value].(type) {
+							case int:
+								if r[arg.ColumnName.Value].(int) < mn {
+									mn = r[arg.ColumnName.Value].(int)
+								}
+							case int64:
+								if int(r[arg.ColumnName.Value].(int64)) < mn {
+									mn = int(r[arg.ColumnName.Value].(int64))
+								}
+							case float64:
+								if int(r[arg.ColumnName.Value].(float64)) < mn {
+									mn = int(r[arg.ColumnName.Value].(float64))
+								}
+							}
+						}
+					}
+				}
+
+				// check op
+				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
+				case parser.OP_EQ:
+					if mn == int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GT:
+					if mn > int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LT:
+					if mn < int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_GTE:
+					if mn >= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				case parser.OP_LTE:
+					if mn <= int(rightVal.(uint64)) {
+						results = append(results, row[0])
+					}
+				default:
+					return nil, errors.New("unsupported operator")
+
+				}
+			}
+
+		}
+	}
+
+	return results, nil
+}
+
+// group groups the results
+func (ex *Executor) group(results []map[string]interface{}, groupBy *parser.GroupByClause) (map[interface{}][]map[string]interface{}, error) {
+
+	grouped := make(map[interface{}][]map[string]interface{})
+	if groupBy == nil {
+		return grouped, nil
+	}
+
+	if len(groupBy.GroupByExpressions) == 0 {
+		return grouped, nil
+	}
+
+	// Iterate through the data
+	for _, entry := range results {
+		// Get the group key value
+		groupValue := entry[groupBy.GroupByExpressions[0].Value.(*parser.ColumnSpecification).ColumnName.Value]
+
+		// Append the entry to the slice corresponding to the group key value
+		grouped[groupValue] = append(grouped[groupValue], entry)
+	}
+
+	return grouped, nil
 }
 
 func (ex *Executor) selectListFilter(results []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
