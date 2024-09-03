@@ -1,5 +1,5 @@
 # todo
-- [ ] NOT expressions have to be handled in execution
+- [x] NOT expressions have to be handled in execution
 - [ ] Subqueries where applicable
 - [ ] Group by and having
 - [ ] Order by
