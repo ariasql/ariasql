@@ -964,7 +964,9 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 				switch left.(type) {
 				case int:
 					left = int(left.(int))
-					return left == r[leftCol].(int), results
+					if left == r[leftCol].(int) {
+						results[tbls[0].Name] = []map[string]interface{}{row}
+					}
 				case uint64:
 					if left.(uint64) == r[leftCol].(uint64) {
 						results[tbls[0].Name] = []map[string]interface{}{row}
@@ -990,7 +992,9 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 					switch left.(type) {
 					case int:
 						left = int(left.(int))
-						return left == int(val.Value.(*parser.Literal).Value.(uint64)), results
+						if left == int(val.Value.(*parser.Literal).Value.(uint64)) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
 					case uint64:
 						if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
 							results[tbls[0].Name] = []map[string]interface{}{row}
@@ -1014,7 +1018,9 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 					switch left.(type) {
 					case int:
 						left = int(left.(int))
-						return left != int(val.Value.(*parser.Literal).Value.(uint64)), results
+						if left != int(val.Value.(*parser.Literal).Value.(uint64)) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
 					case uint64:
 						if left.(uint64) != val.Value.(*parser.Literal).Value.(uint64) {
 							results[tbls[0].Name] = []map[string]interface{}{row}
