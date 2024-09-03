@@ -1072,8 +1072,76 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	// Look for GROUP BY
+	if p.peek(0).value == "GROUP" {
+		if p.peek(1).value != "BY" {
+			return nil, errors.New("expected BY")
+
+		} else {
+			p.consume()
+			p.consume()
+
+			groupByClause, err := p.parseGroupByClause()
+			if err != nil {
+				return nil, err
+			}
+
+			selectStmt.TableExpression.GroupByClause = groupByClause
+
+		}
+	}
+
+	if p.peek(0).value == "HAVING" {
+		havingClause, err := p.parseHavingClause()
+		if err != nil {
+			return nil, err
+		}
+
+		selectStmt.TableExpression.HavingClause = havingClause
+
+	}
+
 	return selectStmt, nil
 
+}
+
+// parseGroupByClause
+func (p *Parser) parseGroupByClause() (*GroupByClause, error) {
+
+	groupByClause := &GroupByClause{}
+
+	// Parse group by list
+	err := p.parseGroupByList(groupByClause)
+	if err != nil {
+		return nil, err
+	}
+
+	return groupByClause, nil
+}
+
+// parseGroupByList parses a group by list
+func (p *Parser) parseGroupByList(groupByClause *GroupByClause) error {
+	// Parse group by expression
+	expr, err := p.parseValueExpression()
+	if err != nil {
+		return err
+	}
+
+	groupByClause.GroupByExpressions = append(groupByClause.GroupByExpressions, expr)
+
+	// Look for ,
+	for p.peek(0).value == "," {
+		p.consume() // Consume ,
+
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return err
+		}
+
+		groupByClause.GroupByExpressions = append(groupByClause.GroupByExpressions, expr)
+	}
+
+	return nil
 }
 
 // parseWhereClause parses a WHERE clause
@@ -1440,7 +1508,7 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 			continue
 		}
 
-		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" || p.peek(0).tokenT == LPAREN_TOK || p.peek(0).tokenT == RPAREN_TOK {
+		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" || p.peek(0).tokenT == LPAREN_TOK || p.peek(0).tokenT == RPAREN_TOK || p.peek(0).value == "GROUP" || p.peek(0).value == "HAVING" || p.peek(0).value == "ORDER" || p.peek(0).value == "LIMIT" {
 			break
 		}
 
@@ -1833,4 +1901,24 @@ func (p *Parser) parseSubquery() (*ValueExpression, error) {
 		Value: selectStmt,
 	}, nil
 
+}
+
+// parseHavingClause parses a HAVING clause
+func (p *Parser) parseHavingClause() (*HavingClause, error) {
+	havingClause := &HavingClause{
+		SearchCondition: make([]interface{}, 0),
+	}
+
+	var err error
+
+	// Eat HAVING
+	p.consume()
+
+	// Parse search condition
+	havingClause.SearchCondition, err = p.parseSearchCondition()
+	if err != nil {
+		return nil, err
+	}
+
+	return havingClause, nil
 }

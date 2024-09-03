@@ -169,7 +169,7 @@ type LogicalCondition struct {
 
 // GroupByClause represents a GROUP BY clause in a SELECT statement
 type GroupByClause struct {
-	Columns []*ColumnSpecification
+	GroupByExpressions []*ValueExpression
 }
 
 // HavingClause represents a HAVING clause in a SELECT statement
