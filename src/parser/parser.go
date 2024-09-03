@@ -1116,10 +1116,9 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 	}
 
-	if p.peek(1).value == "EXISTS" {
+	if p.peek(0).value == "EXISTS" {
 		// Parse subquery
 
-		p.consume()
 		p.consume()
 		p.consume()
 

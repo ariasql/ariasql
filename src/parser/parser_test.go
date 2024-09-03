@@ -2153,7 +2153,7 @@ func TestNewParserSelect26(t *testing.T) {
 
 func TestNewParserSelect27(t *testing.T) {
 	statement := []byte(`
-	SELECT col1 FROM tbl1 WHERE col1 EXISTS (SELECT col2 FROM tbl2 WHERE tbl2.col2 = tbl1.col1);
+	SELECT col1 FROM tbl1 WHERE EXISTS (SELECT col2 FROM tbl2 WHERE tbl2.col2 = tbl1.col1);
 `)
 
 	lexer := NewLexer(statement)
