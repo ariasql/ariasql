@@ -960,28 +960,56 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 				return false, nil
 			}
 
-			for _, r := range res {
-				switch left.(type) {
-				case int:
-					left = int(left.(int))
-					if left == r[leftCol].(int) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
-					}
-				case uint64:
-					if left.(uint64) == r[leftCol].(uint64) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+			if !isNot {
+
+				for _, r := range res {
+					switch left.(type) {
+					case int:
+						left = int(left.(int))
+						if left == r[leftCol].(int) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
+					case uint64:
+						if left.(uint64) == r[leftCol].(uint64) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+
+						}
+					case float64:
+						if left.(float64) == r[leftCol].(float64) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
+					case string:
+						if left.(string) == r[leftCol].(string) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+
+						}
 
 					}
-				case float64:
-					if left.(float64) == r[leftCol].(float64) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
-					}
-				case string:
-					if left.(string) == r[leftCol].(string) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+				}
+			} else {
+				for _, r := range res {
+					switch left.(type) {
+					case int:
+						left = int(left.(int))
+						if left != r[leftCol].(int) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
+					case uint64:
+						if left.(uint64) != r[leftCol].(uint64) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+
+						}
+					case float64:
+						if left.(float64) != r[leftCol].(float64) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+						}
+					case string:
+						if left.(string) != r[leftCol].(string) {
+							results[tbls[0].Name] = []map[string]interface{}{row}
+
+						}
 
 					}
-
 				}
 			}
 		} else {
