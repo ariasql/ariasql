@@ -785,7 +785,7 @@ func TestTable_Insert(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},
@@ -855,7 +855,7 @@ func TestTable_GetRow(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},
@@ -924,7 +924,7 @@ func TestTable_RowCount(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},
@@ -990,7 +990,7 @@ func TestTable_NewIterator(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},
@@ -1066,7 +1066,7 @@ func TestTable_DeleteRow(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},
@@ -1142,7 +1142,7 @@ func TestTable_UpdateRow(t *testing.T) {
 	}
 
 	// Insert a row
-	err = table.Insert([]map[string]interface{}{
+	_, _, err = table.Insert([]map[string]interface{}{
 		{
 			"name": "John Doe",
 		},

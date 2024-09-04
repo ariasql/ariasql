@@ -54,6 +54,7 @@ type Rollback struct {
 	Rows []*Before
 }
 
+// Before represents the state of a row before a transaction
 type Before struct {
 	RowId int64
 	Row   map[string]interface{}
@@ -248,9 +249,24 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		err = tbl.Insert(rows)
+		rowIds, insertedRows, err := tbl.Insert(rows)
 		if err != nil {
 			return err
+		}
+
+		if ex.TransactionBegun {
+			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Stmt:     s,
+				Commited: false,
+				Rollback: &Rollback{Rows: []*Before{}},
+			})
+
+			for i, rowId := range rowIds {
+				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+					RowId: rowId,
+					Row:   insertedRows[i],
+				})
+			}
 		}
 
 		return nil
@@ -307,9 +323,24 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		err = ex.executeUpdateStmt(s)
+		rowIds, updatedRows, err := ex.executeUpdateStmt(s)
 		if err != nil {
 			return err
+		}
+
+		if ex.TransactionBegun {
+			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Stmt:     s,
+				Commited: false,
+				Rollback: &Rollback{Rows: []*Before{}},
+			})
+
+			for i, rowId := range rowIds {
+				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+					RowId: rowId,
+					Row:   updatedRows[i],
+				})
+			}
 		}
 
 		return nil
@@ -325,9 +356,24 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		err = ex.executeDeleteStmt(s)
+		rowIds, deletedRows, err := ex.executeDeleteStmt(s)
 		if err != nil {
 			return err
+		}
+
+		if ex.TransactionBegun {
+			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Stmt:     s,
+				Commited: false,
+				Rollback: &Rollback{Rows: []*Before{}},
+			})
+
+			for i, rowId := range rowIds {
+				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+					RowId: rowId,
+					Row:   deletedRows[i],
+				})
+			}
 		}
 
 		return nil
@@ -530,23 +576,24 @@ func (ex *Executor) rollback() error {
 }
 
 // executeDeleteStmt executes a delete statement
-func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) error {
+func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[string]interface{}, error) {
 	var tbles []*catalog.Table // Table list
+	var rowIds []int64         // Deleted row ids
 
 	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
 
 	// Check if there are any tables
 	if len(tbles) == 0 {
-		return errors.New("no tables")
+		return nil, nil, errors.New("no tables")
 	} // You can't do this!!
 
 	// For a 1 table query we can evaluate the search condition
 	// If the column is indexed, we can use the index to locate rows faster
 
 	// Filter the results
-	results, err := ex.filter(tbles, stmt.WhereClause, nil, true)
+	results, err := ex.filter(tbles, stmt.WhereClause, nil, true, &rowIds, nil)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	rowsAffected := len(results)
@@ -557,12 +604,14 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) error {
 	// Now we format the results
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
-	return nil
+	return nil, nil, nil
 
 }
 
 // executeUpdateStmt
-func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) error {
+func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[string]interface{}, error) {
+	var rowIds []int64                // Updated row ids
+	var rows []map[string]interface{} // Rows before update
 
 	var tbles []*catalog.Table // Table list
 
@@ -570,16 +619,16 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) error {
 
 	// Check if there are any tables
 	if len(tbles) == 0 {
-		return errors.New("no tables")
+		return nil, nil, errors.New("no tables")
 	} // You can't do this!!
 
 	// For a 1 table query we can evaluate the search condition
 	// If the column is indexed, we can use the index to locate rows faster
 
 	// Filter the results
-	results, err := ex.filter(tbles, stmt.WhereClause, &stmt.SetClause, false)
+	results, err := ex.filter(tbles, stmt.WhereClause, &stmt.SetClause, false, &rowIds, &rows)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	rowsAffected := len(results)
@@ -589,7 +638,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) error {
 	// Now we format the results
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
-	return nil
+	return nil, nil, nil
 
 }
 
@@ -661,7 +710,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	// If the column is indexed, we can use the index to locate rows faster
 
 	// Filter the results
-	rows, err := ex.filter(tbles, stmt.TableExpression.WhereClause, nil, false)
+	rows, err := ex.filter(tbles, stmt.TableExpression.WhereClause, nil, false, nil, nil)
 	if err != nil {
 		return nil, err
 	} // This one functions gathers the rows based on where clause.
@@ -1225,7 +1274,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 }
 
 // filter filters the tables
-func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool) ([]map[string]interface{}, error) {
+func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool, rowIds *[]int64, before *[]map[string]interface{}) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{}
 
 	var tbl *catalog.Table // The first table in from clause, the left table
@@ -2189,7 +2238,7 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
 									TableName:  &parser.Identifier{Value: tblName},
 									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false)
+								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false, nil, nil)
 					if err != nil {
 						return false, nil
 					}
@@ -2229,7 +2278,7 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
 									TableName:  &parser.Identifier{Value: tblName},
 									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false)
+								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false, nil, nil)
 					if err != nil {
 						return false, nil
 					}

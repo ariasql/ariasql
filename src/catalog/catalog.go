@@ -597,26 +597,33 @@ func (tbl *Table) GetIndex(name string) *Index {
 }
 
 // Insert inserts a row into the table
-func (tbl *Table) Insert(rows []map[string]interface{}) error {
+func (tbl *Table) Insert(rows []map[string]interface{}) ([]int64, []map[string]interface{}, error) {
+	rowIds := make([]int64, 0)                        // inserted row ids
+	insertedRows := make([]map[string]interface{}, 0) // inserted rows
+
 	for _, row := range rows {
 		// Insert row into table
-		err := tbl.insert(row)
+		rowId, err := tbl.insert(row)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
+
+		rowIds = append(rowIds, rowId)
+		insertedRows = append(insertedRows, row)
+
 	}
 
-	return nil
+	return rowIds, insertedRows, nil
 }
 
 // insert inserts a row into the table
-func (tbl *Table) insert(row map[string]interface{}) error {
+func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 	// Check row against schema
 	for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
 
 		if colDef.NotNull && !colDef.Sequence {
 			if _, ok := row[colName]; !ok {
-				return fmt.Errorf("column %s cannot be null", colName)
+				return -1, fmt.Errorf("column %s cannot be null", colName)
 			}
 		}
 
@@ -627,20 +634,20 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 				// if column can be null, check if it is null
 				if !colDef.NotNull {
 					if row[colName] != nil {
-						return fmt.Errorf("column %s is not a string", colName)
+						return -1, fmt.Errorf("column %s is not a string", colName)
 					}
 				}
 
 			} else {
 				// Check length
 				if len(row[colName].(string)) > colDef.Length {
-					return fmt.Errorf("column %s is too long", colName)
+					return -1, fmt.Errorf("column %s is too long", colName)
 				}
 			}
 
 		case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
 			if _, ok := row[colName].(float64); !ok {
-				return fmt.Errorf("column %s is not a float64", colName)
+				return -1, fmt.Errorf("column %s is not a float64", colName)
 			}
 
 			str := fmt.Sprintf("%.14g", row[colName].(float64))
@@ -660,7 +667,7 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 					// Check scale
 
 					if scale > colDef.Scale {
-						return fmt.Errorf("column %s has too many digits after the decimal point", colName)
+						return -1, fmt.Errorf("column %s has too many digits after the decimal point", colName)
 					}
 
 				}
@@ -668,7 +675,7 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 				if colDef.Precision > 0 {
 					// Check precision
 					if precision > colDef.Precision {
-						return fmt.Errorf("column %s is too large", colName)
+						return -1, fmt.Errorf("column %s is too large", colName)
 					}
 				}
 			}
@@ -679,13 +686,13 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 				// Check if sequence column is unique
 				idx := tbl.CheckIndexedColumn(colName, true)
 				if idx == nil {
-					return fmt.Errorf("sequence column %s must be unique", colName)
+					return -1, fmt.Errorf("sequence column %s must be unique", colName)
 				}
 
 				// Increment sequence
 				seq, err := tbl.IncrementSequence()
 				if err != nil {
-					return err
+					return -1, err
 				}
 
 				row[colName] = seq
@@ -693,7 +700,7 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 
 			if _, ok := row[colName].(int); !ok {
 				if _, ok := row[colName].(uint64); !ok {
-					return fmt.Errorf("column %s is not an int", colName)
+					return -1, fmt.Errorf("column %s is not an int", colName)
 				} else {
 					row[colName] = int(row[colName].(uint64))
 				}
@@ -705,38 +712,38 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 			// Check if value fits in INT/INTEGER
 			if strings.ToUpper(colDef.DataType) == "INT" || strings.ToUpper(colDef.DataType) == "INTEGER" {
 				if row[colName].(int) > 2147483647 {
-					return fmt.Errorf("column %s is too large for INT/INTEGER", colName)
+					return -1, fmt.Errorf("column %s is too large for INT/INTEGER", colName)
 				}
 			}
 
 			// Check if value fits in SMALLINT
 			if strings.ToUpper(colDef.DataType) == "SMALLINT" {
 				if row[colName].(int) > 32767 {
-					return fmt.Errorf("column %s is too large for SMALLINT", colName)
+					return -1, fmt.Errorf("column %s is too large for SMALLINT", colName)
 				}
 			}
 
 		default:
-			return fmt.Errorf("invalid data type %s", colDef.DataType)
+			return -1, fmt.Errorf("invalid data type %s", colDef.DataType)
 		}
 
 		if colDef.Unique {
 			// Check if unique key exists
 			if !colDef.Sequence {
 				if _, ok := row[colName]; !ok {
-					return fmt.Errorf("column %s cannot be null", colName)
+					return -1, fmt.Errorf("column %s cannot be null", colName)
 				}
 			}
 
 			idx := tbl.CheckIndexedColumn(colName, true)
 			if idx == nil {
-				return fmt.Errorf("problem getting unique rows for column %s", colName)
+				return -1, fmt.Errorf("problem getting unique rows for column %s", colName)
 			}
 
 			// Check if unique key exists
 			key, err := idx.btree.Get([]byte(fmt.Sprintf("%v", row[colName])))
 			if err != nil {
-				return fmt.Errorf("problem getting unique rows for column %s", colName)
+				return -1, fmt.Errorf("problem getting unique rows for column %s", colName)
 			}
 
 			if key != nil {
@@ -748,24 +755,24 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 					// Convert []byte to int64
 					id, err := strconv.ParseInt(string(rowId), 10, 64)
 					if err != nil {
-						return errors.New("problem getting unique rows")
+						return -1, errors.New("problem getting unique rows")
 					}
 
 					// Get row from table
 					r, err := tbl.Rows.GetPage(id)
 					if err != nil {
-						return errors.New("problem getting unique rows")
+						return -1, errors.New("problem getting unique rows")
 					}
 
 					// Decode row
 					decoded, err := decodeRow(r)
 					if err != nil {
-						return errors.New("problem getting unique rows")
+						return -1, errors.New("problem getting unique rows")
 					}
 
 					// Check if row exists
 					if decoded[colName] == row[colName] {
-						return fmt.Errorf("row with %s %v already exists", colName, row[colName])
+						return -1, fmt.Errorf("row with %s %v already exists", colName, row[colName])
 					}
 
 				}
@@ -778,7 +785,7 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 	// Write row to table
 	rowId, err := tbl.writeRow(row)
 	if err != nil {
-		return err
+		return -1, err
 	}
 
 	// Insert row into indexes
@@ -788,13 +795,13 @@ func (tbl *Table) insert(row map[string]interface{}) error {
 				// Insert into index
 				err := idx.btree.Put([]byte(fmt.Sprintf("%v", val)), []byte(fmt.Sprintf("%d", rowId)))
 				if err != nil {
-					return err
+					return -1, err
 				}
 			}
 		}
 	}
 
-	return nil
+	return rowId, nil
 }
 
 // GetBtree gets the btree for an index
