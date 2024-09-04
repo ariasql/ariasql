@@ -554,9 +554,31 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 			return nil
-
 		default:
 			return errors.New("unsupported show type")
+		}
+	case *parser.AlterUserStmt:
+		if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_ALTER}) {
+			return errors.New("user does not have the privilege to ALTER on system")
+		}
+
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
+		if s.SetType == parser.ALTER_USER_SET_PASSWORD {
+			err := ex.aria.Catalog.AlterUserPassword(s.Username.Value, s.Value.Value.(string))
+			if err != nil {
+				return err
+			}
+		} else if s.SetType == parser.ALTER_USER_SET_USERNAME {
+			err := ex.aria.Catalog.AlterUserUsername(s.Username.Value, s.Value.Value.(string))
+			if err != nil {
+				return err
+			}
+		} else {
+			return errors.New("unsupported set type for alter user")
+
 		}
 	default:
 		return errors.New("unsupported statement")

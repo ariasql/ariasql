@@ -1494,3 +1494,63 @@ func (cat *Catalog) GetDatabases() []string {
 
 	return dbs
 }
+
+// AlterUserUsername alters a user's username
+func (cat *Catalog) AlterUserUsername(oldUsername, newUsername string) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[oldUsername]; !ok {
+		return fmt.Errorf("user %s does not exist", oldUsername)
+	}
+
+	// Check if new username already exists
+	if _, ok := cat.Users[newUsername]; ok {
+		return fmt.Errorf("user %s already exists", newUsername)
+	}
+
+	// Create user
+	cat.Users[newUsername] = cat.Users[oldUsername]
+	cat.Users[newUsername].Username = newUsername
+
+	// Drop old user
+	delete(cat.Users, oldUsername)
+
+	err := cat.EncodeUsersToFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// AlterUserPassword alters a user's password
+func (cat *Catalog) AlterUserPassword(username, password string) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; !ok {
+		return fmt.Errorf("user %s does not exist", username)
+	}
+
+	// bcrypt password
+	hashedPassword, err := shared.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	// Create user
+	cat.Users[username].Password = hashedPassword
+
+	err = cat.EncodeUsersToFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
