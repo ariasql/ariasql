@@ -517,10 +517,46 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseSelectStmt()
 		case "UPDATE":
 			return p.parseUpdateStmt()
+		case "DELETE":
+			return p.parseDeleteStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseDeleteStmt parses a DELETE statement
+func (p *Parser) parseDeleteStmt() (Node, error) {
+	p.consume() // Consume DELETE
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "FROM" {
+		return nil, errors.New("expected FROM")
+	}
+
+	p.consume() // Consume FROM
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume table name
+
+	deleteStmt := &DeleteStmt{
+		TableName: &Identifier{Value: tableName},
+	}
+
+	if p.peek(0).tokenT == KEYWORD_TOK && p.peek(0).value == "WHERE" {
+		whereClause, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+
+		deleteStmt.WhereClause = whereClause
+	}
+
+	return deleteStmt, nil
 
 }
 

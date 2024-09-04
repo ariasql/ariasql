@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -2579,12 +2578,12 @@ func TestNewParserUpdate(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(updateStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(updateStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if updateStmt.TableName.Value != "tbl1" {
 		t.Fatalf("expected tbl1, got %s", updateStmt.TableName.Value)
@@ -2609,6 +2608,63 @@ func TestNewParserUpdate(t *testing.T) {
 
 	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(2) {
 		t.Fatalf("expected 2, got %d", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+}
+
+func TestNewParserDelete(t *testing.T) {
+	statement := []byte(`
+	DELETE FROM tbl1 WHERE col1 = 1;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	deleteStmt, ok := stmt.(*DeleteStmt)
+	if !ok {
+		t.Fatalf("expected *UpdateStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(deleteStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if deleteStmt.TableName.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", deleteStmt.TableName.Value)
+	}
+
+	if deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", deleteStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
 	}
 
 }
