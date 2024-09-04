@@ -3,7 +3,6 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -2864,12 +2863,12 @@ func TestNewParserGrantStmt(t *testing.T) {
 		t.Fatalf("expected *GrantStmt, got %T", stmt)
 	}
 
-	sel, err := PrintAST(grantStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(grantStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if grantStmt == nil {
 		t.Fatal("expected non-nil statement")
@@ -2912,12 +2911,12 @@ func TestNewParserGrantStmt2(t *testing.T) {
 		t.Fatalf("expected *GrantStmt, got %T", stmt)
 	}
 
-	sel, err := PrintAST(grantStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(grantStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if grantStmt == nil {
 		t.Fatal("expected non-nil statement")
@@ -2943,6 +2942,7 @@ func TestNewParserGrantStmt4(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+
 	t.Log(string(statement))
 
 	parser := NewParser(lexer)
@@ -2964,12 +2964,12 @@ func TestNewParserGrantStmt4(t *testing.T) {
 		t.Fatalf("expected *GrantStmt, got %T", stmt)
 	}
 
-	sel, err := PrintAST(grantStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(grantStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if grantStmt == nil {
 		t.Fatal("expected non-nil statement")

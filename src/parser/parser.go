@@ -22,6 +22,7 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -96,7 +97,7 @@ func NewLexer(input []byte) *Lexer {
 
 // isLetter returns true if r is a letter
 func isLetter(r rune) bool {
-	return (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || r == '_' || r == '.'
+	return (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || r == '_' || r == '.' || r == '*'
 }
 
 // isDigit returns true if r is a digit
@@ -537,6 +538,8 @@ func (p *Parser) Parse() (Node, error) {
 
 // parseGrantStmt parses a GRANT statement
 func (p *Parser) parseGrantStmt() (Node, error) {
+
+	log.Println(p.lexer.tokens)
 	p.consume() // Consume GRANT
 
 	if p.peek(0).tokenT != KEYWORD_TOK {
