@@ -20,7 +20,10 @@ import (
 	"bytes"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
+	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -175,21 +178,56 @@ func ComparePasswords(hashedPassword, password string) bool {
 	return true
 }
 
-func CopyFile(src, dst string) error {
-	// Copy entire file
-	srcFile, err := os.Open(src)
+// CopyFile copies a file from src to dest
+func CopyFile(srcPath, destPath string) error {
+	srcFile, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, srcFile)
+	return err
+}
+
+// CopyDir copies a directory from src to dest
+func CopyDir(srcDir, destDir string) error {
+	// Create the destination directory
+	err := os.MkdirAll(destDir, os.ModePerm)
 	if err != nil {
 		return err
 	}
 
-	dstFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
+	// Walk through the source directory
+	return filepath.WalkDir(srcDir, func(srcPath string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-	_, err = srcFile.WriteTo(dstFile)
+		// Calculate the destination path
+		relPath, err := filepath.Rel(srcDir, srcPath)
+		if err != nil {
+			return err
+		}
+		destPath := filepath.Join(destDir, relPath)
 
-	if err != nil {
-		return err
-	}
+		if entry.IsDir() {
+			// Create the directory
+			err := os.MkdirAll(destPath, os.ModePerm)
+			if err != nil {
+				return err
+			}
+		} else {
+			// Copy the file
+			return CopyFile(srcPath, destPath)
+		}
+
+		return nil
+	})
 }

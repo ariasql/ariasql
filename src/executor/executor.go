@@ -46,6 +46,7 @@ type Transaction struct {
 type TransactionStmt struct {
 	Stmt     interface{} // The statement
 	Commited bool        // Whether the statement has been commited
+	Before   interface{} // The state before the transaction
 }
 
 // New creates a new Executor
@@ -55,11 +56,6 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 
 // Execute executes a statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
-
-	if ex.TransactionBegun {
-		ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{Stmt: stmt, Commited: false})
-		return nil
-	}
 
 	switch s := stmt.(type) {
 	case *parser.RollbackStmt:
@@ -109,6 +105,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateDatabaseStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
 			return err
@@ -116,6 +116,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return ex.aria.Catalog.CreateDatabase(s.Name.Value)
 	case *parser.CreateTableStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
@@ -137,6 +141,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
 			return err
@@ -149,6 +157,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateIndexStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
@@ -176,6 +188,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.DropIndexStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
@@ -229,6 +245,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.UseStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		db := ex.aria.Catalog.GetDatabase(s.DatabaseName.Value)
 		if db == nil {
 			return errors.New("database does not exist")
@@ -302,18 +322,29 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateUserStmt:
+		if ex.TransactionBegun {
+			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
+		}
 		err := ex.aria.Catalog.CreateNewUser(s.Username.Value, s.Password.Value.(string))
 		if err != nil {
 			return err
 		}
 
 	case *parser.DropUserStmt:
+		if ex.TransactionBegun {
+			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
+		}
+
 		err := ex.aria.Catalog.DropUser(s.Username.Value)
 		if err != nil {
 			return err
 		}
 
 	case *parser.GrantStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
 			return errors.New("invalid object")
 		}
@@ -337,6 +368,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.RevokeStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
 			return errors.New("invalid object")
 		}
@@ -360,6 +395,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.ShowStmt:
+		if ex.TransactionBegun {
+			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+		}
+
 		switch s.ShowType {
 		case parser.SHOW_DATABASES:
 			databases := ex.aria.Catalog.GetDatabases()
@@ -411,7 +450,16 @@ func (ex *Executor) rollback() error {
 	}
 
 	ex.TransactionBegun = false
-	ex.Transaction = nil
+
+	for _, tx := range ex.Transaction.Statements {
+		if tx.Commited {
+			// If a transaction is commited we can rollback the transaction
+			// This allows for database consistency
+			switch stmt := tx.Stmt.(type) {
+
+			}
+		}
+	}
 
 	return nil
 }

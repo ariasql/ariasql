@@ -331,6 +331,12 @@ func (cat *Catalog) DropDatabase(name string) error {
 	return nil
 }
 
+func (db *Database) CopyEntireTable(tbl *Table) {
+	// Makes copy of entire table directory
+	// tablename_copy
+
+}
+
 // DropTable drops a table by name
 func (db *Database) DropTable(name string) error {
 	// Check if table exists
