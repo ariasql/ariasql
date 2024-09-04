@@ -624,6 +624,18 @@ func (p *Parser) parsePrivilegeStmt(revoke bool) (Node, error) {
 			if !all {
 				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALTER)
 			}
+		case "REVOKE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_REVOKE)
+			}
+		case "GRANT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_GRANT)
+			}
+		case "SHOW":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SHOW)
+			}
 
 		default:
 			return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE, ALL, DROP, CREATE, CONNECT, ALTER")

@@ -45,6 +45,9 @@ const (
 	PRIV_ALTER
 	PRIV_DROP
 	PRIV_CREATE
+	PRIV_GRANT
+	PRIV_REVOKE
+	PRIV_SHOW
 	PRIV_CONNECT // Connect to aria server
 	PRIV_ALL
 )
