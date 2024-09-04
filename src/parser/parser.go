@@ -1121,10 +1121,55 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	if p.peek(0).value == "LIMIT" {
+		limitClause, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+
+		selectStmt.TableExpression.LimitClause = limitClause
+	}
+
 	return selectStmt, nil
 
 }
 
+// parseLimitClause parses a LIMIT clause
+func (p *Parser) parseLimitClause() (*LimitClause, error) {
+	limitClause := &LimitClause{}
+
+	// Eat LIMIT
+	p.consume()
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return nil, errors.New("expected literal")
+	}
+
+	count := p.peek(0).value.(uint64)
+
+	p.consume()
+
+	// check for offset
+	if p.peek(0).value == "OFFSET" {
+		p.consume()
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		offset := p.peek(0).value.(uint64)
+		limitClause.Offset = &Literal{Value: offset}
+
+		p.consume()
+	}
+
+	limitClause.Count = &Literal{Value: count}
+
+	return limitClause, nil
+
+}
+
+// parseOrderByClause parses an ORDER BY clause
 func (p *Parser) parseOrderByClause() (*OrderByClause, error) {
 	orderByClause := &OrderByClause{}
 
