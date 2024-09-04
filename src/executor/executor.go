@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -249,6 +250,15 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		}
 	}
 
+	// Check for order by
+	if stmt.TableExpression.OrderByClause != nil {
+		results, err = ex.orderBy(results, stmt.TableExpression.OrderByClause)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
 	if subquery {
 		return results, nil
 	}
@@ -257,6 +267,68 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil
+}
+
+// orderBy orders the results
+func (ex *Executor) orderBy(results []map[string]interface{}, orderBy *parser.OrderByClause) ([]map[string]interface{}, error) {
+	if orderBy == nil {
+		return results, nil
+	}
+
+	if len(orderBy.OrderByExpressions) == 0 {
+		return results, nil
+	}
+
+	// Get the column name
+	colName := orderBy.OrderByExpressions[0].Value.(*parser.ColumnSpecification).ColumnName.Value
+
+	// Get the order
+	order := orderBy.Order
+
+	// Define a custom sort function
+	less := func(i, j int) bool {
+		// You may want to add error checking here
+		switch results[i][colName].(type) {
+		case int:
+			return results[i][colName].(int) < results[j][colName].(int)
+		case int64:
+			return results[i][colName].(int64) < results[j][colName].(int64)
+		case float64:
+			return results[i][colName].(float64) < results[j][colName].(float64)
+		case string:
+			return strings.Compare(results[i][colName].(string), results[j][colName].(string)) < 0
+		}
+		return false
+	}
+
+	// Sort the results
+	if order == parser.ASC {
+		sort.SliceStable(results, less)
+	} else {
+		// For descending order, we can use the same function but negate the result
+		switch results[0][colName].(type) {
+		case int:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case int64:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case float64:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case string:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		default:
+			return nil, errors.New("unsupported data type")
+		}
+	}
+
+	return results, nil
 }
 
 // having filters the results based on the having clause
