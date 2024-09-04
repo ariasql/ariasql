@@ -32,6 +32,36 @@ var DataTypes = []string{
 	"CHAR", "CHARACTER", "DEC", "DECIMAL", "DOUBLE", "FLOAT", "SMALLINT", "INT", "INTEGER", "REAL", "NUMERIC",
 }
 
+// PrivilegeAction represents a privilege action
+type PrivilegeAction int
+
+const (
+	_ PrivilegeAction = iota
+	PRIV_SELECT
+	PRIV_INSERT
+	PRIV_UPDATE
+	PRIV_DELETE
+	PRIV_CREATE_DATABASE
+	PRIV_DROP_DATABASE
+	PRIV_CREATE_TABLE
+	PRIV_DROP_TABLE
+	PRIV_CREATE_IDX
+	PRIV_DROP_IDX
+	PRIV_ALL
+)
+
+// You grant privileges to a user on a database or table
+// GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
+
+// PrivilegeObject represents a privilege object
+type PrivilegeObject int
+
+const (
+	_ PrivilegeObject = iota
+	PRIV_DATABASE
+	PRIV_TABLE
+)
+
 // GetDefaultDataDir returns the default data directory for the current OS
 func GetDefaultDataDir() string {
 	// A user of AriaSQL can set the data directory, if not set we use the default which would be preferred

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"ariasql/catalog"
+	"ariasql/shared"
 	"encoding/json"
 )
 
@@ -325,27 +326,11 @@ type CommitStmt struct{}
 // RollbackStmt represents a ROLLBACK statement
 type RollbackStmt struct{}
 
-type PrivilegeAction int
-
-const (
-	_ PrivilegeAction = iota
-	PRIV_SELECT
-	PRIV_INSERT
-	PRIV_UPDATE
-	PRIV_DELETE
-	PRIV_CREATE_DATABASE
-	PRIV_DROP_DATABASE
-	PRIV_CREATE_TABLE
-	PRIV_DROP_TABLE
-	PRIV_CREATE_IDX
-	PRIV_DROP_IDX
-	PRIV_ALL
-)
-
-// Privilege represents a privilege
+// PrivilegeDefinition Privilege represents a privilege
 type PrivilegeDefinition struct {
-	Privilege PrivilegeAction // The privilege
-	Grantee   *Identifier     // User
+	Actions []shared.PrivilegeAction
+	Object  shared.PrivilegeObject
+	Grantee *Identifier // User
 }
 
 // CreateUserStmt represents a CREATE USER statement

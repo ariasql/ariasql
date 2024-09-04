@@ -484,6 +484,7 @@ func (l *Lexer) stripComments() {
 
 }
 
+// Parse parses the input
 func (p *Parser) Parse() (Node, error) {
 	p.lexer.tokenize()      // Tokenize the input
 	p.lexer.stripComments() // Strip comments
@@ -908,9 +909,40 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 		return p.parseCreateIndexStmt()
 	case "TABLE":
 		return p.parseCreateTableStmt()
+	case "USER":
+		return p.parseCreateUserStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE or INDEX")
+
+}
+
+// parseCreateUserStmt
+func (p *Parser) parseCreateUserStmt() (Node, error) {
+	createUserStmt := &CreateUserStmt{}
+
+	// Eat USER
+	p.consume()
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	username := p.peek(0).value.(string)
+	createUserStmt.Username = &Identifier{Value: username}
+
+	p.consume() // Consume username
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return nil, errors.New("expected literal")
+	}
+
+	password := p.peek(0).value.(string)
+	createUserStmt.Password = &Literal{Value: password}
+
+	p.consume() // Consume password
+
+	return createUserStmt, nil
 
 }
 

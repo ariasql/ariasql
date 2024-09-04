@@ -17,7 +17,6 @@
 package catalog
 
 import (
-	"ariasql/parser"
 	"ariasql/shared"
 	"ariasql/storage/btree"
 	"bytes"
@@ -105,7 +104,13 @@ type Index struct {
 type User struct {
 	Username   string
 	Password   string
-	Privileges []*parser.PrivilegeDefinition
+	Privileges []*Privilege
+}
+
+// Privilege is a user privilege
+type Privilege struct {
+	PrivilegeObject  shared.PrivilegeObject
+	PrivilegeActions []shared.PrivilegeAction
 }
 
 // New creates a new catalog
