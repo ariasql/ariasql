@@ -997,3 +997,160 @@ func TestTable_NewIterator(t *testing.T) {
 	}
 
 }
+
+func TestTable_DeleteRow(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete the row
+	err = table.DeleteRow(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check if the row was deleted
+	row, err := table.GetRow(0)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if row != nil {
+		t.Fatalf("expected nil, got %v", row)
+	}
+
+}
+
+func TestTable_UpdateRow(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer c.Close()
+
+	err = c.CreateDatabase("db1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				NotNull:  true,
+				Unique:   true,
+				Sequence: true,
+			},
+			"name": {
+				Name:     "name",
+				DataType: "CHAR",
+				Length:   50,
+				NotNull:  true,
+				Unique:   true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	table := db.GetTable("table1")
+	if table == nil {
+		t.Fatal("expected non-nil table")
+	}
+
+	// Insert a row
+	err = table.Insert([]map[string]interface{}{
+		{
+			"name": "John Doe",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Update the row
+	err = table.UpdateRow(0, map[string]interface{}{
+		"name": "John Doe",
+	}, []*SetClause{&SetClause{
+
+		ColumnName: "name",
+		Value:      "Jane Doe",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check if the row was updated
+	row, err := table.GetRow(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if row["name"] != "Jane Doe" {
+		t.Fatalf("expected Jane Doe, got %s", row["name"])
+	}
+}

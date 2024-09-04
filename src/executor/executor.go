@@ -1171,7 +1171,7 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 			if ok {
 
 				if update != nil {
-					err = tbls[0].UpdateRow(rowId, row, update)
+					err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
 					if err != nil {
 						return err
 					}
@@ -1211,7 +1211,7 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		if ok {
 
 			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, update)
+				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
 				if err != nil {
 					return err
 				}
@@ -1250,7 +1250,7 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		if ok {
 
 			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, update)
+				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
 				if err != nil {
 					return err
 				}
@@ -1300,7 +1300,7 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		if ok {
 
 			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, update)
+				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
 				if err != nil {
 					return err
 				}
@@ -1977,4 +1977,19 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}) e
 	}
 
 	return nil
+}
+
+// convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
+func convertSetClauseToCatalogLike(setClause []*parser.SetClause) []*catalog.SetClause {
+	var setClauses []*catalog.SetClause
+
+	for _, set := range setClause {
+		setClauses = append(setClauses, &catalog.SetClause{
+			ColumnName: set.Column.Value,
+			Value:      set.Value.Value,
+		})
+	}
+
+	return setClauses
+
 }

@@ -17,7 +17,6 @@
 package catalog
 
 import (
-	"ariasql/parser"
 	"ariasql/shared"
 	"ariasql/storage/btree"
 	"bytes"
@@ -871,21 +870,27 @@ func (tbl *Table) DeleteRow(rowId int64) error {
 	return nil
 }
 
+// SetClause Set for update
+type SetClause struct {
+	ColumnName string
+	Value      interface{}
+}
+
 // UpdateRow updates a row in the table
-func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*parser.SetClause) error {
+func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*SetClause) error {
 
 	for _, set := range sets {
 
-		if _, ok := row[set.Column.Value]; !ok {
-			return fmt.Errorf("column %s does not exist", set.Column.Value)
+		if _, ok := row[set.ColumnName]; !ok {
+			return fmt.Errorf("column %s does not exist", set.ColumnName)
 		}
 
-		prevValue := row[set.Column.Value]
-		row[set.Column.Value] = set.Value.Value
+		prevValue := row[set.ColumnName]
+		row[set.ColumnName] = set.Value
 
 		// Check row against schema
 		for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
-			if colName == set.Column.Value {
+			if colName == set.ColumnName {
 				switch strings.ToUpper(colDef.DataType) {
 				case "CHARACTER", "CHAR":
 					if _, ok := row[colName].(string); !ok {
