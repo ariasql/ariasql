@@ -515,10 +515,89 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseInsertStmt()
 		case "SELECT":
 			return p.parseSelectStmt()
+		case "UPDATE":
+			return p.parseUpdateStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseUpdateStmt parses an UPDATE statement
+func (p *Parser) parseUpdateStmt() (Node, error) {
+	p.consume() // Consume UPDATE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName := p.peek(0).value.(string)
+	p.consume() // Consume table name
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "SET" {
+		return nil, errors.New("expected SET")
+	}
+
+	p.consume() // Consume SET
+
+	updateStmt := &UpdateStmt{
+		TableName: &Identifier{Value: tableName},
+		SetClause: make([]*SetClause, 0),
+	}
+
+	for p.peek(0).value != "WHERE" {
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT != COMPARISON_TOK || p.peek(0).value != "=" {
+			return nil, errors.New("expected =")
+		}
+
+		p.consume() // Consume =
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		literal := p.peek(0).value
+		p.consume() // Consume literal
+
+		setClause := &SetClause{
+			Column: &Identifier{Value: columnName},
+			Value:  &Literal{Value: literal},
+		}
+
+		updateStmt.SetClause = append(updateStmt.SetClause, setClause)
+
+		p.consume()
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			break
+		} else if p.peek(0).tokenT != COMMA_TOK {
+			break
+		}
+
+	}
+
+	p.rewind(1)
+
+	// Parse where
+	if p.peek(0).tokenT == KEYWORD_TOK || p.peek(0).value == "WHERE" {
+		whereClause, err := p.parseWhereClause()
+		if err != nil {
+			return nil, err
+		}
+
+		updateStmt.WhereClause = whereClause
+	}
+
+	return updateStmt, nil
 
 }
 
@@ -1063,6 +1142,7 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	// Check for WHERE
 	if p.peek(0).value == "WHERE" {
+
 		whereClause, err := p.parseWhereClause()
 		if err != nil {
 			return nil, err

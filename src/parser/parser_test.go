@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -2542,6 +2543,72 @@ func TestNewParserSelect31(t *testing.T) {
 
 	if selectStmt.TableExpression.LimitClause.Count.Value.(uint64) != uint64(1) {
 		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.LimitClause.Count.Value.(uint64))
+	}
+
+}
+
+func TestNewParserUpdate(t *testing.T) {
+	statement := []byte(`
+	UPDATE tbl1 SET col1 = 1 WHERE col2 = 2;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	updateStmt, ok := stmt.(*UpdateStmt)
+	if !ok {
+		t.Fatalf("expected *UpdateStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(updateStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if updateStmt.TableName.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", updateStmt.TableName.Value)
+	}
+
+	if updateStmt.SetClause[0].Column.Value != "col1" {
+		t.Fatalf("expected col1, got %s", updateStmt.SetClause[0].Column.Value)
+	}
+
+	if updateStmt.SetClause[0].Value.Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", updateStmt.SetClause[0].Value.Value.(uint64))
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
 	}
 
 }
