@@ -1,3 +1,19 @@
+// Package parser ast
+// AriaSQL parser ast package
+// Copyright (C) Alex Gaetano Padula
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package parser
 
 import (
@@ -54,6 +70,7 @@ type CreateTableStmt struct {
 	TableSchema *catalog.TableSchema
 }
 
+// DropTableStmt represents a DROP TABLE statement
 type DropTableStmt struct {
 	TableName *Identifier
 }
@@ -121,6 +138,7 @@ type WhereClause struct {
 	SearchCondition interface{}
 }
 
+// ComparisonOperator represents a comparison operator
 type ComparisonOperator int
 
 const (
@@ -226,6 +244,7 @@ type BinaryExpression struct {
 	Right interface{}
 }
 
+// BinaryExpressionOperator represents a binary expression operator
 type BinaryExpressionOperator int
 
 const (
@@ -297,6 +316,7 @@ type ExistsPredicate struct {
 	Expr *ValueExpression
 }
 
+// OrderByOrder represents the order of an ORDER BY clause
 type OrderByOrder int
 
 const (
@@ -326,7 +346,13 @@ type CommitStmt struct{}
 // RollbackStmt represents a ROLLBACK statement
 type RollbackStmt struct{}
 
+// GrantStmt represents a GRANT statement
 type GrantStmt struct {
+	PrivilegeDefinition *PrivilegeDefinition
+}
+
+// RevokeStmt represents a REVOKE statement
+type RevokeStmt struct {
 	PrivilegeDefinition *PrivilegeDefinition
 }
 
