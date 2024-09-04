@@ -2,7 +2,7 @@
 - [x] NOT expressions have to be handled in execution
 - [x] Subqueries-EXISTS where applicable
 - [x] Group by and having
-- [ ] Order by
+- [x] Order by
 - [ ] Limit
 - [ ] Offset
 - [ ] update statement
