@@ -23,6 +23,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -1335,4 +1336,24 @@ func (cat *Catalog) GetUser(username string) *User {
 	cat.UsersLock.Lock()
 	defer cat.UsersLock.Unlock()
 	return cat.Users[username]
+}
+
+// AuthenticateUser authenticates a user
+func (cat *Catalog) AuthenticateUser(username, password string) error {
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; !ok {
+		return fmt.Errorf("user %s does not exist", username)
+	}
+
+	// Check password
+	ok := shared.ComparePasswords(cat.Users[username].Password, password)
+	if !ok {
+		log.Println(ok)
+		return errors.New("authentication failed")
+	}
+
+	return nil
 }

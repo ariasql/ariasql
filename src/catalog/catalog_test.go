@@ -1220,3 +1220,32 @@ func TestCatalog_DropUser(t *testing.T) {
 		t.Fatal("expected nil user")
 	}
 }
+
+func TestCatalog_AuthenticateUser(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.CreateNewUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.AuthenticateUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.AuthenticateUser("user1", "password1")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	if err.Error() != "authentication failed" {
+		t.Fatalf("expected authentication failed, got %s", err.Error())
+	}
+}
