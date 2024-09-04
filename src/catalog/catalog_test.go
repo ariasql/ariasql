@@ -1173,6 +1173,50 @@ func TestTable_UpdateRow(t *testing.T) {
 	}
 }
 
-func TestCatalog_Open3(t *testing.T) {
+func TestCatalog_CreateNewUser(t *testing.T) {
+	defer os.RemoveAll("test/")
 
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.CreateNewUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	usr := c.GetUser("user1")
+
+	if usr == nil {
+		t.Fatal("expected non-nil user")
+	}
+
+}
+
+func TestCatalog_DropUser(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.CreateNewUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.DropUser("user1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	usr := c.GetUser("user1")
+
+	if usr != nil {
+		t.Fatal("expected nil user")
+	}
 }

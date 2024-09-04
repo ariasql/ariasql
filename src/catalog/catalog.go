@@ -1329,3 +1329,10 @@ func (cat *Catalog) ReadUsersFromFile() error {
 
 	return nil
 }
+
+// GetUser gets a user by username
+func (cat *Catalog) GetUser(username string) *User {
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+	return cat.Users[username]
+}
