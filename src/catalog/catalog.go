@@ -23,6 +23,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -150,14 +151,15 @@ func (cat *Catalog) Open() error {
 		for _, databaseDir := range databaseDirs {
 			if databaseDir.IsDir() {
 				db := &Database{
-					Directory: fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), databaseDir.Name()),
+					Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), databaseDir.Name()),
 				}
 
 				cat.Databases[databaseDir.Name()] = db
 
 				// Within databases directory there are table directories
-				tblDirs, err := os.ReadDir(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), databaseDir.Name()))
+				tblDirs, err := os.ReadDir(fmt.Sprintf("%s", db.Directory))
 				if err != nil {
+					log.Println("here?")
 					return err
 				}
 
@@ -227,7 +229,7 @@ func (cat *Catalog) Open() error {
 							}
 
 							// Open btree
-							bt, err := btree.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", idx.Name), ".bt"), os.O_RDWR, 0755, 6)
+							bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", idx.Name), ".bt"), os.O_RDWR, 0755, 6)
 							if err != nil {
 								return err
 							}
@@ -244,6 +246,18 @@ func (cat *Catalog) Open() error {
 		}
 
 	}
+
+	// Open users file
+	cat.Users = make(map[string]*User)
+
+	cat.UsersFile, err = os.OpenFile(fmt.Sprintf("%s%susers%s", cat.Directory, shared.GetOsPathSeparator(), SYS_USERS_EXTENSION), os.O_CREATE|os.O_RDWR, 0755)
+	if err != nil {
+		return err
+
+	}
+
+	cat.UsersLock = &sync.Mutex{}
+	cat.UsersFileLock = &sync.Mutex{}
 
 	err = cat.ReadUsersFromFile()
 	if err != nil {
@@ -1286,17 +1300,18 @@ func (cat *Catalog) EncodeUsersToFile() error {
 
 // ReadUsersFromFile reads users from file
 func (cat *Catalog) ReadUsersFromFile() error {
-	// Check if users file exists
-	_, err := os.Stat(fmt.Sprintf("%s%susers%s", cat.Directory, shared.GetOsPathSeparator(), SYS_USERS_EXTENSION))
-	if os.IsNotExist(err) {
-		// Create users file
-		cat.UsersFile, err = os.Create(fmt.Sprintf("%s%susers%s", cat.Directory, shared.GetOsPathSeparator(), SYS_USERS_EXTENSION))
-		if err != nil {
-			return err
-		}
 
-		cat.Users = make(map[string]*User)
+	if _, err := cat.UsersFile.Seek(0, 0); err != nil {
+		return err
+	}
 
+	// Check size
+	fi, err := cat.UsersFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fi.Size() == 0 {
 		return nil
 	}
 

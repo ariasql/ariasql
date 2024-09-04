@@ -1154,3 +1154,7 @@ func TestTable_UpdateRow(t *testing.T) {
 		t.Fatalf("expected Jane Doe, got %s", row["name"])
 	}
 }
+
+func TestCatalog_Open3(t *testing.T) {
+
+}
