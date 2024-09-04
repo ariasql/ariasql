@@ -42,7 +42,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT",
 	}, shared.DataTypes...)
 )
 
@@ -526,10 +526,123 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseCommitStmt()
 		case "ROLLBACK":
 			return p.parseRollbackStmt()
+		case "GRANT":
+			return p.parseGrantStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseGrantStmt parses a GRANT statement
+func (p *Parser) parseGrantStmt() (Node, error) {
+	p.consume() // Consume GRANT
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "ALL", "DROP", "CREATE", "CONNECT", "ALTER":
+		return p.parsePrivilegeStmt()
+	}
+
+	return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE")
+
+}
+
+// parsePrivilegeStmt parses a privilege statement
+func (p *Parser) parsePrivilegeStmt() (Node, error) {
+	//  GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
+
+	grantStmt := &GrantStmt{}
+
+	privilegeDefinition := &PrivilegeDefinition{
+		Actions: make([]shared.PrivilegeAction, 0),
+	}
+
+	for {
+		switch p.peek(0).value {
+		case "SELECT":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SELECT)
+		case "INSERT":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_INSERT)
+		case "UPDATE":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_UPDATE)
+		case "DELETE":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DELETE)
+		case "ALL":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALL)
+		case "DROP":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DROP)
+		case "CREATE":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CREATE)
+		case "CONNECT":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CONNECT)
+		case "ALTER":
+			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALTER)
+		default:
+			return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE, ALL, DROP, CREATE, CONNECT, ALTER")
+		}
+
+		p.consume()
+
+		if p.peek(0).tokenT == COMMA_TOK {
+			p.consume()
+			continue
+		} else {
+			break
+		}
+
+	}
+
+	if p.peek(0).value != "TO" {
+
+		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "ON" {
+			return nil, errors.New("expected ON")
+		}
+
+		p.consume() // Consume ON
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		object := p.peek(0).value.(string)
+
+		if len(strings.Split(object, ".")) != 2 {
+			// Check if *
+			if object != "*" {
+
+				return nil, errors.New("expected database.table, *, or database.*")
+			}
+
+		}
+
+		p.consume() // Consume table name
+
+		privilegeDefinition.Object = &Identifier{Value: object}
+
+		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "TO" {
+			return nil, errors.New("expected TO")
+		}
+
+	}
+
+	p.consume() // Consume TO
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	user := p.peek(0).value.(string)
+
+	privilegeDefinition.Grantee = &Identifier{Value: user}
+
+	grantStmt.PrivilegeDefinition = privilegeDefinition
+
+	return grantStmt, nil
 
 }
 

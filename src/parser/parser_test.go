@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"ariasql/shared"
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -2857,28 +2859,140 @@ func TestNewParserGrantStmt(t *testing.T) {
 		t.Fatal("expected non-nil statement")
 	}
 
-	createUserStmt, ok := stmt.(*CreateUserStmt)
+	grantStmt, ok := stmt.(*GrantStmt)
 	if !ok {
-		t.Fatalf("expected *CreateUserStmt, got %T", stmt)
+		t.Fatalf("expected *GrantStmt, got %T", stmt)
 	}
 
-	//sel, err := PrintAST(createUserStmt)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//log.Println(sel)
+	sel, err := PrintAST(grantStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	if createUserStmt == nil {
+	log.Println(sel)
+
+	if grantStmt == nil {
 		t.Fatal("expected non-nil statement")
 	}
 
-	if createUserStmt.Username.Value != "username" {
-		t.Fatalf("expected username, got %s", createUserStmt.Username.Value)
+	if grantStmt.PrivilegeDefinition.Actions[0] != shared.PRIV_CONNECT {
+		t.Fatalf("expected CONNECT, got %d", grantStmt.PrivilegeDefinition.Actions[0])
 	}
 
-	if createUserStmt.Password.Value != "password" {
-		t.Fatalf("expected password, got %s", createUserStmt.Password.Value)
+	if grantStmt.PrivilegeDefinition.Grantee.Value != "username" {
+		t.Fatalf("expected username, got %s", grantStmt.PrivilegeDefinition.Grantee.Value)
+	}
+
+}
+
+func TestNewParserGrantStmt2(t *testing.T) {
+	statement := []byte(`
+	GRANT SELECT ON db1.tbl1 TO username;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	grantStmt, ok := stmt.(*GrantStmt)
+	if !ok {
+		t.Fatalf("expected *GrantStmt, got %T", stmt)
+	}
+
+	sel, err := PrintAST(grantStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if grantStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if grantStmt.PrivilegeDefinition.Actions[0] != shared.PRIV_SELECT {
+		t.Fatalf("expected SELECT, got %d", grantStmt.PrivilegeDefinition.Actions[0])
+	}
+
+	if grantStmt.PrivilegeDefinition.Grantee.Value != "username" {
+		t.Fatalf("expected username, got %s", grantStmt.PrivilegeDefinition.Grantee.Value)
+	}
+
+	if grantStmt.PrivilegeDefinition.Object.Value != "db1.tbl1" {
+		t.Fatalf("expected db1.tbl1, got %s", grantStmt.PrivilegeDefinition.Object.Value)
+	}
+
+}
+
+func TestNewParserGrantStmt4(t *testing.T) {
+	statement := []byte(`
+	GRANT SELECT, CREATE, DROP ON db1.* TO username;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	grantStmt, ok := stmt.(*GrantStmt)
+	if !ok {
+		t.Fatalf("expected *GrantStmt, got %T", stmt)
+	}
+
+	sel, err := PrintAST(grantStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if grantStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if grantStmt.PrivilegeDefinition.Actions[0] != shared.PRIV_SELECT {
+		t.Fatalf("expected SELECT, got %d", grantStmt.PrivilegeDefinition.Actions[0])
+	}
+
+	if grantStmt.PrivilegeDefinition.Actions[1] != shared.PRIV_CREATE {
+		t.Fatalf("expected SELECT, got %d", grantStmt.PrivilegeDefinition.Actions[1])
+	}
+
+	if grantStmt.PrivilegeDefinition.Actions[2] != shared.PRIV_DROP {
+		t.Fatalf("expected SELECT, got %d", grantStmt.PrivilegeDefinition.Actions[2])
+	}
+
+	if grantStmt.PrivilegeDefinition.Grantee.Value != "username" {
+		t.Fatalf("expected username, got %s", grantStmt.PrivilegeDefinition.Grantee.Value)
+	}
+
+	if grantStmt.PrivilegeDefinition.Object.Value != "db1.*" {
+		t.Fatalf("expected db1.*, got %s", grantStmt.PrivilegeDefinition.Object.Value)
 	}
 
 }

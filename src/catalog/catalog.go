@@ -109,7 +109,8 @@ type User struct {
 
 // Privilege is a user privilege
 type Privilege struct {
-	PrivilegeObject  shared.PrivilegeObject
+	DatabaseName     string // name or *
+	TableName        string // name or *
 	PrivilegeActions []shared.PrivilegeAction
 }
 

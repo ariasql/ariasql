@@ -326,10 +326,14 @@ type CommitStmt struct{}
 // RollbackStmt represents a ROLLBACK statement
 type RollbackStmt struct{}
 
+type GrantStmt struct {
+	PrivilegeDefinition *PrivilegeDefinition
+}
+
 // PrivilegeDefinition Privilege represents a privilege
 type PrivilegeDefinition struct {
 	Actions []shared.PrivilegeAction
-	Object  shared.PrivilegeObject
+	Object  *Identifier // can be dbname.* or dbname.tablename, or *
 	Grantee *Identifier // User
 }
 

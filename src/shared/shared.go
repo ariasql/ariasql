@@ -41,28 +41,15 @@ const (
 	PRIV_INSERT
 	PRIV_UPDATE
 	PRIV_DELETE
-	PRIV_CREATE_DATABASE
-	PRIV_DROP_DATABASE
-	PRIV_CREATE_TABLE
-	PRIV_DROP_TABLE
-	PRIV_CREATE_IDX
-	PRIV_DROP_IDX
+	PRIV_ALTER
+	PRIV_DROP
+	PRIV_CREATE
 	PRIV_CONNECT // Connect to aria server
 	PRIV_ALL
 )
 
 // You grant privileges to a user on a database or table
 // GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
-
-// PrivilegeObject represents a privilege object
-type PrivilegeObject int
-
-const (
-	_ PrivilegeObject = iota
-	PRIV_DATABASE
-	PRIV_TABLE
-	PRIV_ALL_OBJECTS
-)
 
 // GetDefaultDataDir returns the default data directory for the current OS
 func GetDefaultDataDir() string {
