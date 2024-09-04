@@ -807,7 +807,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// Write row to table
 
 	// encode row to bytes
-	encoded, err := encodeRow(row)
+	encoded, err := EncodeRow(row)
 	if err != nil {
 		return -1, err
 	}
@@ -820,8 +820,8 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	return rowId, nil
 }
 
-// encodeRow encodes a row to a byte slice
-func encodeRow(n map[string]interface{}) ([]byte, error) {
+// EncodeRow encodes a row to a byte slice
+func EncodeRow(n map[string]interface{}) ([]byte, error) {
 	// use gob
 	buff := new(bytes.Buffer)
 
@@ -1134,7 +1134,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 	}
 
 	// Encode row
-	encoded, err := encodeRow(row)
+	encoded, err := EncodeRow(row)
 	if err != nil {
 		return err
 	}

@@ -44,9 +44,19 @@ type Transaction struct {
 
 // TransactionStmt represents a transaction statement
 type TransactionStmt struct {
-	Stmt     interface{} // The statement
+	Stmt     interface{} // The statement, (insert, update, delete)
 	Commited bool        // Whether the statement has been commited
-	Before   interface{} // The state before the transaction
+	Rollback *Rollback   // Rollback data
+}
+
+// Rollback represents a transaction rollback
+type Rollback struct {
+	Rows []*Before
+}
+
+type Before struct {
+	RowId int64
+	Row   map[string]interface{}
 }
 
 // New creates a new Executor
@@ -455,8 +465,63 @@ func (ex *Executor) rollback() error {
 		if tx.Commited {
 			// If a transaction is commited we can rollback the transaction
 			// This allows for database consistency
-			switch stmt := tx.Stmt.(type) {
+			switch stmt := tx.Stmt.(type) { // only Insert, Update, Delete, statements can be rolled back
+			case *parser.InsertStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
 
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for insert we have the row ids that were inserted, thus making it easy to remove them
+				for _, row := range tx.Rollback.Rows {
+					err := tbl.Rows.DeletePage(row.RowId)
+					if err != nil {
+						return err
+					}
+				}
+			case *parser.UpdateStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for update we have the row ids and their previous entire rows thus making it easy to write back the previous value
+
+				for _, row := range tx.Rollback.Rows {
+					// en
+					encoded, err := catalog.EncodeRow(row.Row)
+					if err != nil {
+						return err
+					}
+
+					err = tbl.Rows.WriteTo(row.RowId, encoded)
+					if err != nil {
+						return err
+					}
+				}
+			case *parser.DeleteStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for delete we have the row ids and their previous entire rows thus making it easy to write back the previous value
+				for _, row := range tx.Rollback.Rows {
+					// en
+					encoded, err := catalog.EncodeRow(row.Row)
+					if err != nil {
+						return err
+					}
+
+					err = tbl.Rows.WriteTo(row.RowId, encoded)
+					if err != nil {
+						return err
+					}
+
+				}
 			}
 		}
 	}
