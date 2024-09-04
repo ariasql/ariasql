@@ -19,7 +19,6 @@ AriaSQL is still in the beginning stages of development and is not ready for pro
 - [x] Subqueries
 
 # todo
-- [ ] users and permissions
 - [ ] server authentication
 - [ ] more and more tests
 - [ ] documentation

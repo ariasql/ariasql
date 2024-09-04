@@ -301,8 +301,50 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.GrantStmt:
+		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
+			return errors.New("invalid object")
+		}
+
+		databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
+		tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+
+		priv := &catalog.Privilege{
+			DatabaseName:     databaseName,
+			TableName:        tableName,
+			PrivilegeActions: nil,
+		}
+
+		for _, action := range s.PrivilegeDefinition.Actions {
+			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+		}
+
+		err := ex.aria.Catalog.GrantPrivilegeToUser(s.PrivilegeDefinition.Grantee.Value, priv)
+		if err != nil {
+			return err
+		}
 
 	case *parser.RevokeStmt:
+		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
+			return errors.New("invalid object")
+		}
+
+		databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
+		tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+
+		priv := &catalog.Privilege{
+			DatabaseName:     databaseName,
+			TableName:        tableName,
+			PrivilegeActions: nil,
+		}
+
+		for _, action := range s.PrivilegeDefinition.Actions {
+			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+		}
+
+		err := ex.aria.Catalog.RevokePrivilegeFromUser(s.PrivilegeDefinition.Revokee.Value, priv)
+		if err != nil {
+			return err
+		}
 
 	// case *parser.ShowDatabasesStmt:
 	// case *parser.ShowTablesStmt:
