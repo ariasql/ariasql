@@ -316,6 +316,15 @@ type LimitClause struct {
 	Count  *Literal
 }
 
+// BeginStmt represents a BEGIN statement
+type BeginStmt struct{}
+
+// CommitStmt represents a COMMIT statement
+type CommitStmt struct{}
+
+// RollbackStmt represents a ROLLBACK statement
+type RollbackStmt struct{}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
