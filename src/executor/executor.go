@@ -288,7 +288,25 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		return nil
+	case *parser.CreateUserStmt:
+		err := ex.aria.Catalog.CreateNewUser(s.Username.Value, s.Password.Value.(string))
+		if err != nil {
+			return err
+		}
 
+	case *parser.DropUserStmt:
+		err := ex.aria.Catalog.DropUser(s.Username.Value)
+		if err != nil {
+			return err
+		}
+
+	case *parser.GrantStmt:
+
+	case *parser.RevokeStmt:
+
+	// case *parser.ShowDatabasesStmt:
+	// case *parser.ShowTablesStmt:
+	// case *parser.AlterTableStmt:
 	default:
 		return errors.New("unsupported statement")
 

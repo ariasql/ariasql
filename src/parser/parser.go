@@ -840,9 +840,28 @@ func (p *Parser) parseDropStmt() (Node, error) {
 		return p.parseDropTableStmt()
 	case "INDEX":
 		return p.parseDropIndexStmt()
+	case "USER":
+		return p.parseDropUserStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE")
+
+}
+
+// parseDropUserStmt parses a DROP USER statement
+func (p *Parser) parseDropUserStmt() (Node, error) {
+	p.consume() // Consume USER
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	user := p.peek(0).value.(string)
+	p.consume() // Consume user
+
+	return &DropUserStmt{
+		Username: &Identifier{Value: user},
+	}, nil
 
 }
 

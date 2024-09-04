@@ -370,6 +370,11 @@ type CreateUserStmt struct {
 	Password *Literal
 }
 
+// DropUserStmt represents a DROP USER statement
+type DropUserStmt struct {
+	Username *Identifier
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")

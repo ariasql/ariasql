@@ -3069,3 +3069,41 @@ func TestNewParserRevokeStmt(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDropUserStmt(t *testing.T) {
+	statement := []byte(`
+	DROP USER username;
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropUserStmt, ok := stmt.(*DropUserStmt)
+	if !ok {
+		t.Fatalf("expected *DropDatabaseStmt, got %T", stmt)
+	}
+
+	if dropUserStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if dropUserStmt.Username.Value != "username" {
+		t.Fatalf("expected username, got %s", dropUserStmt.Username.Value)
+	}
+
+}
