@@ -56,7 +56,7 @@ func TestTCPServer_Start(t *testing.T) {
 		DataDir: "./",
 	})
 
-	err := aria.Catalog.Initialize()
+	err := aria.Catalog.Open()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,7 +42,7 @@ The server listens on port `3695` for incoming connections.
 You must encode the username and password in base64 similar to SMTP.
 
 ```
-echo -n "admin:admin" | base64
+echo -n "admin\0admin" | base64
 
 Above for example would be your base64 encoded auth string.
 

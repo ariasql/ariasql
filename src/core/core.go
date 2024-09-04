@@ -90,11 +90,12 @@ func New(config *Config) *AriaSQL {
 }
 
 // OpenChannel opens a new channel to database
-func (ariasql *AriaSQL) OpenChannel() *Channel {
+func (ariasql *AriaSQL) OpenChannel(user *catalog.User) *Channel {
 	ariasql.ChannelsLock.Lock()
 	defer ariasql.ChannelsLock.Unlock()
 	channel := &Channel{
 		ChannelID: uint64(len(ariasql.Channels) + 1),
+		User:      user,
 	}
 
 	ariasql.Channels = append(ariasql.Channels, channel)

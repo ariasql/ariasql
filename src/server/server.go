@@ -21,10 +21,12 @@ import (
 	"ariasql/executor"
 	"ariasql/parser"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"net"
 	"os"
+	"strings"
 )
 
 // TCPServer is the main AriaSQL Server structure
@@ -151,9 +153,38 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	// Create a new buffer to read from the connection
 	buf := make([]byte, s.BufferSize)
 
+	// Read authentication string
+	// The first line of a connection to AriaSQL must be a base64 encoded username\0password
+	n, err := conn.Read(buf)
+	if err != nil {
+		return
+	}
+
+	// Get the authentication string
+	auth := buf[:n]
+
+	// Decode the authentication string
+	decodedAuth, err := base64.StdEncoding.DecodeString(string(auth))
+	if err != nil {
+		return
+	}
+
+	username := strings.Split(string(decodedAuth), "\\0")[0]
+	password := strings.Split(string(decodedAuth), "\\0")[1]
+
+	// Authenticate the user
+	user, err := s.aria.Catalog.AuthenticateUser(username, password)
+	if err != nil {
+		conn.Write([]byte("ERR: Authentication failed\n"))
+		return
+	}
+
 	// Open a new channel
-	channel := s.aria.OpenChannel()
+	channel := s.aria.OpenChannel(user)
 	defer s.aria.CloseChannel(channel)
+
+	// Write the OK response to the connection
+	conn.Write([]byte("OK\n"))
 
 	for {
 		// Read from the connection

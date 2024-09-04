@@ -1369,22 +1369,22 @@ func (cat *Catalog) GetUser(username string) *User {
 }
 
 // AuthenticateUser authenticates a user
-func (cat *Catalog) AuthenticateUser(username, password string) error {
+func (cat *Catalog) AuthenticateUser(username, password string) (*User, error) {
 	cat.UsersLock.Lock()
 	defer cat.UsersLock.Unlock()
 
 	// Check if user exists
 	if _, ok := cat.Users[username]; !ok {
-		return fmt.Errorf("user %s does not exist", username)
+		return nil, fmt.Errorf("user %s does not exist", username)
 	}
 
 	// Check password
 	ok := shared.ComparePasswords(cat.Users[username].Password, password)
 	if !ok {
-		return errors.New("authentication failed")
+		return nil, errors.New("authentication failed")
 	}
 
-	return nil
+	return cat.Users[username], nil
 }
 
 // HasPrivilege checks if a user has a privilege
