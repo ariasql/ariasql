@@ -615,6 +615,18 @@ func (p *Parser) parsePrivilegeStmt(revoke bool) (Node, error) {
 			if !all {
 				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SELECT)
 			}
+		case "BEGIN":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_BEGIN)
+			}
+		case "COMMIT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_COMMIT)
+			}
+		case "ROLLBACK":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ROLLBACK)
+			}
 		case "INSERT":
 			if !all {
 				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_INSERT)

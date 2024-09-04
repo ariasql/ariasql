@@ -53,6 +53,9 @@ const (
 	PRIV_SHOW
 	PRIV_CONNECT // Connect to aria server
 	PRIV_ALL
+	PRIV_COMMIT
+	PRIV_ROLLBACK
+	PRIV_BEGIN
 )
 
 // You grant privileges to a user on a database or table

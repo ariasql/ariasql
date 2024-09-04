@@ -70,6 +70,13 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 	switch s := stmt.(type) {
 	case *parser.RollbackStmt:
+		// Check if the database is the system database
+
+		// Check user has the privilege to rollback
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_ROLLBACK}) {
+			return errors.New("user does not have the privilege to ROLLBACK on system") // Transactions are system wide
+		}
+
 		if !ex.TransactionBegun {
 			return errors.New("no transaction begun")
 		}
@@ -82,6 +89,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CommitStmt:
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
+			return errors.New("user does not have the privilege to COMMIT on system") // Transactions are system wide
+		}
+
 		if !ex.TransactionBegun {
 			return errors.New("no transaction begun")
 		}
@@ -106,6 +117,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.BeginStmt:
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
+			return errors.New("user does not have the privilege to BEGIN on system") // Transactions are system wide
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("transaction already begun")
 		}
@@ -116,6 +131,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateDatabaseStmt:
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to CREATE on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
@@ -127,6 +146,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return ex.aria.Catalog.CreateDatabase(s.Name.Value)
 	case *parser.CreateTableStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
@@ -148,6 +171,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.DropTableStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to DROP on system for database " + ex.ch.Database.Name)
+		}
+
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
@@ -168,12 +195,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateIndexStmt:
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
 
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
+		}
+
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
 		}
 
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
@@ -207,6 +239,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to DRP{ on system for database " + ex.ch.Database.Name)
+		}
+
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
@@ -231,6 +267,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
+		}
+
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name + " and table " + s.TableName.Value)
 		}
 
 		var rows []map[string]interface{}
@@ -288,6 +328,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		ex.ch.Database = db
 		return nil
 	case *parser.DropDatabaseStmt:
+
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name)
+		}
+
 		err := ex.aria.Catalog.DropDatabase(s.Name.Value)
 		if err != nil {
 			return err
@@ -378,6 +423,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateUserStmt:
+
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to CREATE on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
@@ -387,6 +437,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.DropUserStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to DROP on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
@@ -397,6 +451,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.GrantStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_GRANT}) {
+			return errors.New("user does not have the privilege to GRANT on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
@@ -424,6 +482,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.RevokeStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
+			return errors.New("user does not have the privilege to REVOKE on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
@@ -451,6 +513,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.ShowStmt:
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_SHOW}) {
+			return errors.New("user does not have the privilege to SHOW on system")
+		}
+
 		if ex.TransactionBegun {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}

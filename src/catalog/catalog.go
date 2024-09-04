@@ -67,6 +67,7 @@ type Catalog struct {
 
 // Database is a database object
 type Database struct {
+	Name       string            // Name is the database name
 	Tables     map[string]*Table // Tables within database
 	TablesLock *sync.Mutex       // Tables mutex
 	Directory  string            // Directory is the directory where database data is stored
@@ -156,7 +157,7 @@ func (cat *Catalog) Open() error {
 				}
 
 				db.TablesLock = &sync.Mutex{}
-
+				db.Name = databaseDir.Name()
 				cat.Databases[databaseDir.Name()] = db
 
 				// Within databases directory there are table directories
@@ -298,6 +299,7 @@ func (cat *Catalog) CreateDatabase(name string) error {
 
 	// Create database
 	cat.Databases[name] = &Database{
+		Name:      name,
 		Tables:    make(map[string]*Table),
 		Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), name),
 	}
@@ -1414,6 +1416,12 @@ func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bo
 		} else {
 
 			if p.DatabaseName == db && p.TableName == tbl {
+				for _, a := range actions {
+					if slices.Contains(p.PrivilegeActions, a) {
+						has = append(has, true)
+					}
+				}
+			} else if slices.Contains(p.PrivilegeActions, shared.PRIV_ROLLBACK) || slices.Contains(p.PrivilegeActions, shared.PRIV_COMMIT) || slices.Contains(p.PrivilegeActions, shared.PRIV_BEGIN) {
 				for _, a := range actions {
 					if slices.Contains(p.PrivilegeActions, a) {
 						has = append(has, true)
