@@ -1236,12 +1236,12 @@ func TestCatalog_AuthenticateUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = c.AuthenticateUser("user1", "password")
+	_, err = c.AuthenticateUser("user1", "password")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = c.AuthenticateUser("user1", "password1")
+	_, err = c.AuthenticateUser("user1", "password1")
 	if err == nil {
 		t.Fatal("expected error")
 	}
