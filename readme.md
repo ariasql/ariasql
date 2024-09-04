@@ -182,7 +182,7 @@ INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
 ROLLBACK;
 ```
 
-For further examples, please see the `tests` directory or ANSI SQL1 standard.
+For further examples, please see executor tests or ANSI SQL1 standard.
 
 
 
