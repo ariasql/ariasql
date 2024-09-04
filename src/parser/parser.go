@@ -29,7 +29,7 @@ import (
 
 var (
 	keywords = append([]string{
-		"ALL", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "AVG",
+		"ALL", "AND", "ANY", "AS", "ASC", "AUTHORIZATION", "AVG", "ALTER",
 		"BEGIN", "BETWEEN", "BY", "CHECK", "CLOSE", "COBOL", "COMMIT",
 		"CONTINUE", "COUNT", "CREATE", "CURRENT", "CURSOR", "DECLARE", "DELETE", "DROP", "DESC", "DISTINCT", "DATABASE",
 		"END", "ESCAPE", "EXEC", "EXISTS",
@@ -533,11 +533,75 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseRevokeStmt()
 		case "SHOW":
 			return p.parseShowStmt()
+		case "ALTER":
+			return p.parseAlterStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
 
+}
+
+// parseAlterStmt parses an ALTER statement
+func (p *Parser) parseAlterStmt() (Node, error) {
+	p.consume() // Consume ALTER
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "USER":
+		return p.parseAlterUserStmt()
+		//case "TABLE":
+		//	return p.parseAlterTableStmt()
+	}
+
+	return nil, errors.New("expected USER or TABLE")
+
+}
+
+// parseAlterUserStmt parses an ALTER USER statement
+func (p *Parser) parseAlterUserStmt() (Node, error) {
+	alterUserStmt := &AlterUserStmt{}
+	p.consume() // Consume USER
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	alterUserStmt.Username = &Identifier{Value: p.peek(0).value.(string)}
+	p.consume() // Consume username
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "SET":
+		p.consume() // Consume SET
+		switch p.peek(0).value {
+		case "PASSWORD":
+			alterUserStmt.SetType = ALTER_USER_SET_PASSWORD
+		case "USERNAME":
+			alterUserStmt.SetType = ALTER_USER_SET_USERNAME
+		default:
+			return nil, errors.New("expected PASSWORD or USERNAME")
+
+		}
+	default:
+		return nil, errors.New("expected SET")
+	}
+
+	p.consume() // Consume PASSWORD or USERNAME
+
+	if p.peek(0).tokenT != LITERAL_TOK {
+		return nil, errors.New("expected literal")
+	}
+
+	alterUserStmt.Value = &Literal{Value: strings.TrimSuffix(strings.TrimPrefix(p.peek(0).value.(string), "'"), "'")}
+
+	return alterUserStmt, nil
 }
 
 // parseShowStmt parses a SHOW statement

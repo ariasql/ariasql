@@ -389,6 +389,20 @@ type ShowStmt struct {
 	ShowType ShowType
 }
 
+type AlterUserSetType int
+
+const (
+	_ AlterUserSetType = iota
+	ALTER_USER_SET_PASSWORD
+	ALTER_USER_SET_USERNAME
+)
+
+type AlterUserStmt struct {
+	SetType  AlterUserSetType
+	Username *Identifier
+	Value    *Literal
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")

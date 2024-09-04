@@ -3218,3 +3218,109 @@ func TestNewParserShowStmt3(t *testing.T) {
 		t.Fatalf("expected SHOW USERS, got %d", showStmt.ShowType)
 	}
 }
+
+func TestNewParserAlterUser(t *testing.T) {
+	statement := []byte(`
+	ALTER USER admin SET PASSWORD 'newpassword';
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	alterUserStmt, ok := stmt.(*AlterUserStmt)
+	if !ok {
+		t.Fatalf("expected *AlterUserStmt, got %T", stmt)
+	}
+
+	if alterUserStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	//sel, err := PrintAST(alterUserStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if alterUserStmt.Username.Value != "admin" {
+		t.Fatalf("expected admin, got %s", alterUserStmt.Username.Value)
+	}
+
+	if alterUserStmt.Value.Value != "newpassword" {
+		t.Fatalf("expected newpassword, got %s", alterUserStmt.Value.Value)
+	}
+
+	if alterUserStmt.SetType != ALTER_USER_SET_PASSWORD {
+		t.Fatalf("expected PASSWORD, got %d", alterUserStmt.SetType)
+	}
+
+}
+
+func TestNewParserAlterUser2(t *testing.T) {
+	statement := []byte(`
+	ALTER USER admin SET USERNAME 'newusername';
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	alterUserStmt, ok := stmt.(*AlterUserStmt)
+	if !ok {
+		t.Fatalf("expected *AlterUserStmt, got %T", stmt)
+	}
+
+	if alterUserStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	//sel, err := PrintAST(alterUserStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if alterUserStmt.Username.Value != "admin" {
+		t.Fatalf("expected admin, got %s", alterUserStmt.Username.Value)
+	}
+
+	if alterUserStmt.Value.Value != "newusername" {
+		t.Fatalf("expected newpassword, got %s", alterUserStmt.Value.Value)
+	}
+
+	if alterUserStmt.SetType != ALTER_USER_SET_USERNAME {
+		t.Fatalf("expected USERNAME, got %d", alterUserStmt.SetType)
+	}
+
+}
