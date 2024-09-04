@@ -83,6 +83,7 @@ type TableExpression struct {
 	GroupByClause *GroupByClause
 	HavingClause  *HavingClause
 	OrderByClause *OrderByClause
+	LimitClause   *LimitClause
 }
 
 // FromClause represents a FROM clause in a SELECT statement
@@ -288,6 +289,12 @@ const (
 type OrderByClause struct {
 	OrderByExpressions []*ValueExpression
 	Order              OrderByOrder
+}
+
+// LimitClause represents a LIMIT clause in a SELECT statement
+type LimitClause struct {
+	Offset *Literal
+	Count  *Literal
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format
