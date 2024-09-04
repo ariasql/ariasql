@@ -1125,6 +1125,53 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 }
 
+func (p *Parser) parseOrderByClause() (*OrderByClause, error) {
+	orderByClause := &OrderByClause{}
+
+	// Parse order by list
+	err := p.parseOrderByList(orderByClause)
+	if err != nil {
+		return nil, err
+	}
+
+	return orderByClause, nil
+}
+
+// parseOrderByList parses an order by list
+func (p *Parser) parseOrderByList(orderByClause *OrderByClause) error {
+	for p.peek(0).tokenT != EOF_TOK {
+		// Parse order by expression
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return err
+		}
+
+		orderByClause.OrderByExpressions = append(orderByClause.OrderByExpressions, expr)
+
+		// Look for ,
+		if p.peek(0).value == "," {
+			p.consume() // Consume ,
+
+			continue
+		}
+
+		break
+
+	}
+
+	if p.peek(0).value == "ASC" {
+		orderByClause.Order = ASC
+		p.consume()
+
+	} else {
+		orderByClause.Order = DESC
+		p.consume()
+	}
+
+	return nil
+
+}
+
 // parseGroupByClause
 func (p *Parser) parseGroupByClause() (*GroupByClause, error) {
 

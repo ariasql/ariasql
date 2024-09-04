@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -2349,4 +2350,65 @@ func TestNewParserSelect29(t *testing.T) {
 	if selectStmt.TableExpression.HavingClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(1) {
 		t.Fatalf("expected 1, got %d", selectStmt.TableExpression.HavingClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
 	}
+}
+
+func TestNewParserSelect30(t *testing.T) {
+	statement := []byte(`
+	SELECT COUNT(col1) FROM tbl1 ORDER BY col1 DESC;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).FuncName)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).Args[0].(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).Args[0].(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.OrderByClause.OrderByExpressions[0].Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.OrderByClause.OrderByExpressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.OrderByClause.Order == ASC {
+		t.Fatalf("expected DESC, got %d", selectStmt.TableExpression.OrderByClause.Order)
+	}
+
 }
