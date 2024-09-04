@@ -772,6 +772,10 @@ func (tbl *Table) NewIterator() *Iterator {
 	}
 }
 
+func (ri *Iterator) Current() int64 {
+	return ri.row
+}
+
 // Next returns the next row in the table
 func (ri *Iterator) Next() (map[string]interface{}, error) {
 	// Read row from table

@@ -135,18 +135,62 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.SelectStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+
+		}
+
 		_, err := ex.executeSelectStmt(stmt, false)
 		if err != nil {
 			return err
 		}
 
 		return nil
+	case *parser.UpdateStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+
+		}
+
+		_, err := ex.executeUpdateStmt(stmt)
+		if err != nil {
+			return err
+		}
+
 	default:
 		return errors.New("unsupported statement")
 
 	}
 
 	return errors.New("unsupported statement")
+}
+
+func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]map[string]interface{}, error) {
+
+	var tbles []*catalog.Table // Table list
+
+	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
+
+	// Check if there are any tables
+	if len(tbles) == 0 {
+		return nil, errors.New("no tables")
+	} // You can't do this!!
+
+	// For a 1 table query we can evaluate the search condition
+	// If the column is indexed, we can use the index to locate rows faster
+
+	// Filter the results
+	results, err := ex.filter(tbles, stmt.WhereClause, stmt.SetClause)
+	if err != nil {
+		return nil, err
+	}
+
+	rowsAffected := len(results)
+	rA := map[string]interface{}{"RowsAffected": rowsAffected}
+	results = append(results, rA)
+
+	return results, nil
+
 }
 
 // GetResultSet returns the result set buffer
@@ -217,7 +261,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	// If the column is indexed, we can use the index to locate rows faster
 
 	// Filter the results
-	rows, err := ex.filter(tbles, stmt.TableExpression.WhereClause)
+	rows, err := ex.filter(tbles, stmt.TableExpression.WhereClause, nil)
 	if err != nil {
 		return nil, err
 	} // This one functions gathers the rows based on where clause.
@@ -781,8 +825,9 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 }
 
 // filter filters the tables
-func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]map[string]interface{}, error) {
+func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update []*parser.SetClause) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{}
+	var rowIds []int64
 
 	var tbl *catalog.Table // The first table in from clause, the left table
 	// Every other table is the right table
@@ -809,6 +854,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 			}
 
 			filteredRows = append(filteredRows, row)
+			rowIds = append(rowIds, iter.Current())
 		}
 
 		return filteredRows, nil
@@ -1073,7 +1119,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 					return nil, err
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls)
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, rowId)
 				if err != nil {
 					return nil, err
 				}
@@ -1090,7 +1136,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 				continue
 			}
 
-			err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls)
+			err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current())
 			if err != nil {
 				return nil, err
 			}
@@ -1102,7 +1148,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause) ([]
 	return filteredRows, nil
 }
 
-func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table) error {
+func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update []*parser.SetClause, rowId int64) error {
 	var err error
 	if binaryExpr != nil {
 		var val interface{}
@@ -1123,6 +1169,14 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		if ok {
 			ok, _ := ex.evaluatePredicate(rightCond, row, tbls)
 			if ok {
+
+				if update != nil {
+					err = tbls[0].UpdateRow(rowId, row, update)
+					if err != nil {
+						return err
+					}
+				}
+
 				var resTbls []string
 
 				for t, _ := range res {
@@ -1155,6 +1209,14 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 	} else if logicalOp == parser.OP_OR {
 		ok, res := ex.evaluatePredicate(leftCond, row, tbls)
 		if ok {
+
+			if update != nil {
+				err = tbls[0].UpdateRow(rowId, row, update)
+				if err != nil {
+					return err
+				}
+			}
+
 			var resTbls []string
 
 			for t, _ := range res {
@@ -1186,6 +1248,14 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 
 		ok, res = ex.evaluatePredicate(rightCond, row, tbls)
 		if ok {
+
+			if update != nil {
+				err = tbls[0].UpdateRow(rowId, row, update)
+				if err != nil {
+					return err
+				}
+			}
+
 			var resTbls []string
 
 			for t, _ := range res {
@@ -1228,6 +1298,13 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 	} else {
 		ok, res := ex.evaluatePredicate(where.SearchCondition, row, tbls)
 		if ok {
+
+			if update != nil {
+				err = tbls[0].UpdateRow(rowId, row, update)
+				if err != nil {
+					return err
+				}
+			}
 
 			var resTbls []string
 
@@ -1703,7 +1780,7 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
 									TableName:  &parser.Identifier{Value: tblName},
 									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}})
+								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil)
 					if err != nil {
 						return false, nil
 					}
@@ -1743,7 +1820,7 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
 									TableName:  &parser.Identifier{Value: tblName},
 									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}})
+								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil)
 					if err != nil {
 						return false, nil
 					}
