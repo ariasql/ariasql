@@ -46,6 +46,8 @@ const DB_SCHEMA_TABLE_DATA_FILE_EXTENSION = ".dat" // Table data
 // The index file is used to store the index data
 const DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION = ".idx" // Index file extension
 
+const SYS_USERS_EXTENSION = ".usrs" // Users file extension
+
 // DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION Table count file extension
 // The table count file is used to store the number of rows in a table
 // Used for sequence columns (there can only be one sequence column per table)
@@ -54,8 +56,12 @@ const DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION = ".seq" // Table seq file extension
 
 // Catalog is the root of the database catalog
 type Catalog struct {
-	Databases map[string]*Database // Databases is a map of database names to database objects
-	Directory string               // Directory is the directory where database catalog data is stored
+	Databases     map[string]*Database // Databases is a map of database names to database objects
+	Directory     string               // Directory is the directory where database catalog data is stored
+	Users         map[string]*User     // Users is a map of user names to user objects
+	UsersFile     *os.File             // Users file
+	UsersFileLock *sync.Mutex          // Users file lock
+	UsersLock     *sync.Mutex          // Users lock
 }
 
 // Database is a database object
@@ -154,6 +160,11 @@ func (cat *Catalog) Open() error {
 			}
 		}
 
+	}
+
+	err = cat.ReadUsersFromFile()
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -1048,4 +1059,175 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 
 	return nil
 
+}
+
+// RevokePrivilegeFromUser revokes a privilege from a user
+func (cat *Catalog) RevokePrivilegeToUser(username string, priv *Privilege) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; !ok {
+		return fmt.Errorf("user %s does not exist", username)
+	}
+
+	// Check if privilege exists
+	for _, p := range cat.Users[username].Privileges {
+		if p.DatabaseName == priv.DatabaseName && p.TableName == priv.TableName {
+
+			// Revoke privilege
+			for i, l := range cat.Users[username].Privileges {
+				if l.DatabaseName == l.DatabaseName && l.TableName == l.TableName {
+					cat.Users[username].Privileges = append(cat.Users[username].Privileges[:i], cat.Users[username].Privileges[i+1:]...)
+					break
+				}
+			}
+
+			err := cat.EncodeUsersToFile()
+
+			if err != nil {
+				return err
+			}
+
+			return nil
+
+		}
+
+	}
+
+	return fmt.Errorf("privilege does not exist for user %s", username)
+}
+
+// GrantPrivilegeToUser grants a privilege to a user
+func (cat *Catalog) GrantPrivilegeToUser(username string, priv *Privilege) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; !ok {
+		return fmt.Errorf("user %s does not exist", username)
+	}
+
+	// Check if privilege exists
+	for _, p := range cat.Users[username].Privileges {
+		if p.DatabaseName == priv.DatabaseName && p.TableName == priv.TableName {
+			return fmt.Errorf(fmt.Sprintf("privilege already exists for user %s", username))
+		}
+	}
+
+	cat.Users[username].Privileges = append(cat.Users[username].Privileges, priv)
+
+	err := cat.EncodeUsersToFile()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// DropUser removes a user
+func (cat *Catalog) DropUser(username string) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; !ok {
+		return fmt.Errorf("user %s does not exist", username)
+	}
+
+	// Drop user
+	delete(cat.Users, username)
+
+	err := cat.EncodeUsersToFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// CreateNewUser creates a new user
+func (cat *Catalog) CreateNewUser(username, password string) error {
+	// Lock users map
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	// Check if user exists
+	if _, ok := cat.Users[username]; ok {
+		return fmt.Errorf("user %s already exists", username)
+	}
+
+	// bcrypt password
+	hashedPassword, err := shared.HashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	// Create user
+	cat.Users[username] = &User{
+		Username: username,
+		Password: hashedPassword,
+	}
+
+	err = cat.EncodeUsersToFile()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// EncodeUsersToFile encodes users to file
+func (cat *Catalog) EncodeUsersToFile() error {
+	// Lock users file
+	cat.UsersFileLock.Lock()
+	defer cat.UsersFileLock.Unlock()
+
+	// Encode users to file
+	enc := gob.NewEncoder(cat.UsersFile)
+
+	err := enc.Encode(cat.Users)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReadUsersFromFile reads users from file
+func (cat *Catalog) ReadUsersFromFile() error {
+	// Check if users file exists
+	_, err := os.Stat(fmt.Sprintf("%s%susers%s", cat.Directory, shared.GetOsPathSeparator(), SYS_USERS_EXTENSION))
+	if os.IsNotExist(err) {
+		// Create users file
+		cat.UsersFile, err = os.Create(fmt.Sprintf("%s%susers%s", cat.Directory, shared.GetOsPathSeparator(), SYS_USERS_EXTENSION))
+		if err != nil {
+			return err
+		}
+
+		cat.Users = make(map[string]*User)
+
+		return nil
+	}
+
+	// Lock users file
+	cat.UsersFileLock.Lock()
+	defer cat.UsersFileLock.Unlock()
+
+	// Read users from file
+	dec := gob.NewDecoder(cat.UsersFile)
+
+	err = dec.Decode(&cat.Users)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

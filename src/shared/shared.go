@@ -19,6 +19,7 @@ package shared
 import (
 	"bytes"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"os"
 	"runtime"
 	"sort"
@@ -149,4 +150,24 @@ func CreateTableByteArray(data []map[string]interface{}, headers []string) []byt
 	buffer.WriteString(border + "\n")
 
 	return buffer.Bytes()
+}
+
+// HashPassword hashes the password using bcrypt
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashedPassword), nil
+
+}
+
+// ComparePasswords compares the hashed password with the password
+func ComparePasswords(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	if err != nil {
+		return false
+	}
+	return true
 }
