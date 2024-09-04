@@ -76,6 +76,25 @@ type SelectStmt struct {
 	TableExpression *TableExpression
 }
 
+// UpdateStmt represents an UPDATE statement
+type UpdateStmt struct {
+	TableName   *Identifier
+	SetClause   []*SetClause
+	WhereClause *WhereClause
+}
+
+// SetClause represents a SET clause in an UPDATE statement
+type SetClause struct {
+	Column *Identifier
+	Value  *Literal
+}
+
+// DeleteStmt represents a DELETE statement
+type DeleteStmt struct {
+	TableName   *Identifier
+	WhereClause *WhereClause
+}
+
 // TableExpression represents a table expression in a SELECT statement
 type TableExpression struct {
 	FromClause    *FromClause
