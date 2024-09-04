@@ -40,6 +40,7 @@ type AriaSQL struct {
 type Channel struct {
 	ChannelID uint64
 	Database  *catalog.Database // Current database, this would be a result of using the USE command
+	User      *catalog.User     // Current user, this would be a result of using the USE command
 }
 
 // Config is the configuration for AriaSQL
@@ -51,7 +52,7 @@ type Config struct {
 // New creates a new AriaSQL object
 // Can pass nil to use default configuration
 func New(config *Config) *AriaSQL {
-	
+
 	if config == nil {
 		config = &Config{}
 		config.DataDir = shared.GetDefaultDataDir()

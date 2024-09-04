@@ -325,6 +325,29 @@ type CommitStmt struct{}
 // RollbackStmt represents a ROLLBACK statement
 type RollbackStmt struct{}
 
+type PrivilegeAction int
+
+const (
+	_ PrivilegeAction = iota
+	PRIV_SELECT
+	PRIV_INSERT
+	PRIV_UPDATE
+	PRIV_DELETE
+	PRIV_CREATE_DATABASE
+	PRIV_DROP_DATABASE
+	PRIV_CREATE_TABLE
+	PRIV_DROP_TABLE
+	PRIV_CREATE_IDX
+	PRIV_DROP_IDX
+	PRIV_ALL
+)
+
+// Privilege represents a privilege
+type PrivilegeDefinition struct {
+	Privilege PrivilegeAction // The privilege
+	Grantee   *Identifier     // User
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
