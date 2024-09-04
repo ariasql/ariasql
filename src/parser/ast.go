@@ -82,6 +82,7 @@ type TableExpression struct {
 	WhereClause   *WhereClause
 	GroupByClause *GroupByClause
 	HavingClause  *HavingClause
+	OrderByClause *OrderByClause
 }
 
 // FromClause represents a FROM clause in a SELECT statement
@@ -273,6 +274,20 @@ type IsPredicate struct {
 // ExistsPredicate represents an EXISTS predicate
 type ExistsPredicate struct {
 	Expr *ValueExpression
+}
+
+type OrderByOrder int
+
+const (
+	_ OrderByOrder = iota
+	ASC
+	DESC
+)
+
+// OrderByClause represents an ORDER BY clause in a SELECT statement
+type OrderByClause struct {
+	OrderByExpressions []*ValueExpression
+	Order              OrderByOrder
 }
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format

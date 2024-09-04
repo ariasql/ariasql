@@ -1101,6 +1101,26 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	// Look for ORDER BY
+	if p.peek(0).value == "ORDER" {
+		if p.peek(1).value != "BY" {
+			return nil, errors.New("expected BY")
+
+		} else {
+			p.consume()
+			p.consume()
+
+			orderByClause, err := p.parseOrderByClause()
+			if err != nil {
+				return nil, err
+			}
+
+			selectStmt.TableExpression.OrderByClause = orderByClause
+
+		}
+
+	}
+
 	return selectStmt, nil
 
 }
