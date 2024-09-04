@@ -42,7 +42,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET",
 	}, shared.DataTypes...)
 )
 

@@ -256,9 +256,34 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
+	// Check for limit and offset
+	if stmt.TableExpression.LimitClause != nil {
+		offset := 0
+		count := len(results)
+
+		if stmt.TableExpression.LimitClause.Offset != nil {
+			// Type assertion to uint64
+			offset = int(stmt.TableExpression.LimitClause.Offset.Value.(uint64))
+		}
+		if stmt.TableExpression.LimitClause.Count != nil {
+			// Type assertion to uint64
+			count = int(stmt.TableExpression.LimitClause.Count.Value.(uint64))
+		}
+
+		// Ensure offset and count are within bounds
+		if offset > len(results) {
+			// If offset is beyond the length of results, return an empty slice
+			results = []map[string]interface{}{}
+		} else {
+			end := offset + count
+			if end > len(results) {
+				end = len(results) // Adjust end if it exceeds the length of results
+			}
+			results = results[offset:end]
+		}
+	}
 	if subquery {
 		return results, nil
 	}
