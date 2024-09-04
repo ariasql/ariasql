@@ -348,6 +348,12 @@ type PrivilegeDefinition struct {
 	Grantee   *Identifier     // User
 }
 
+// CreateUserStmt represents a CREATE USER statement
+type CreateUserStmt struct {
+	Username *Identifier
+	Password *Literal
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")
