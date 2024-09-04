@@ -19,7 +19,11 @@ package core
 import (
 	"ariasql/catalog"
 	"ariasql/shared"
+	"ariasql/wal"
 	"errors"
+	"fmt"
+	"log"
+	"os"
 	"sync"
 )
 
@@ -29,6 +33,7 @@ type AriaSQL struct {
 	Catalog      *catalog.Catalog // Catalog is the root of the database catalog
 	Channels     []*Channel       // Channel to the database, could be through shell or network
 	ChannelsLock *sync.Mutex      // Channels lock
+	WAL          *wal.WAL         // Write ahead log
 }
 
 // Channel is a connection to the database
@@ -52,11 +57,25 @@ func New(config *Config) *AriaSQL {
 		config.DataDir = shared.GetDefaultDataDir()
 	}
 
+	// check if data directory exists
+	if _, err := os.Stat(config.DataDir); os.IsNotExist(err) {
+		os.Mkdir(config.DataDir, os.ModePerm)
+
+	}
+
+	wal, err := wal.OpenWAL(fmt.Sprintf("%swal.dat", config.DataDir), os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		log.Println(err)
+		return nil
+
+	}
+
 	return &AriaSQL{
 		Config: config,
 		Catalog: &catalog.Catalog{
 			Directory: config.DataDir,
 		},
+		WAL:          wal,
 		ChannelsLock: &sync.Mutex{},
 	}
 }

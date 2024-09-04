@@ -48,12 +48,14 @@ func main() {
 			fmt.Println("Received SIGINT, shutting down...")
 			server.Stop()
 			aria.Catalog.Close()
+			aria.WAL.Close()
 			os.Exit(0)
 		case syscall.SIGTERM:
 			// Handling SIGTERM signal
 			fmt.Println("Received SIGTERM, shutting down...")
 			server.Stop()
 			aria.Catalog.Close()
+			aria.WAL.Close()
 			os.Exit(0)
 		}
 	}()

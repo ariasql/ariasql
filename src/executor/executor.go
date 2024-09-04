@@ -15,9 +15,10 @@ import (
 
 // Executor is the main executor structure
 type Executor struct {
-	aria            *core.AriaSQL // AriaSQL instance pointer
-	ch              *core.Channel // Channel pointer
-	resultSetBuffer []byte        // Result set buffer
+	aria            *core.AriaSQL       // AriaSQL instance pointer
+	ch              *core.Channel       // Channel pointer
+	Transaction     []*parser.Statement // Transaction statements
+	resultSetBuffer []byte              // Result set buffer
 }
 
 // New creates a new Executor
@@ -27,15 +28,26 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 
 // Execute executes a statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
-	switch stmt := stmt.(type) {
+
+	switch s := stmt.(type) {
 	case *parser.CreateDatabaseStmt:
-		return ex.aria.Catalog.CreateDatabase(stmt.Name.Value)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		return ex.aria.Catalog.CreateDatabase(s.Name.Value)
 	case *parser.CreateTableStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
-		err := ex.ch.Database.CreateTable(stmt.TableName.Value, stmt.TableSchema)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.ch.Database.CreateTable(s.TableName.Value, s.TableSchema)
 		if err != nil {
 			return err
 		}
@@ -47,7 +59,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		err := ex.ch.Database.DropTable(stmt.TableName.Value)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.ch.Database.DropTable(s.TableName.Value)
 		if err != nil {
 			return err
 		}
@@ -58,18 +75,23 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
 		}
 
 		// convert *parser.Identifier to []string
 		var columns []string
-		for _, col := range stmt.ColumnNames {
+		for _, col := range s.ColumnNames {
 			columns = append(columns, col.Value)
 		}
 
-		err := tbl.CreateIndex(stmt.IndexName.Value, columns, stmt.Unique)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = tbl.CreateIndex(s.IndexName.Value, columns, s.Unique)
 		if err != nil {
 			return err
 		}
@@ -80,12 +102,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
 		}
 
-		err := tbl.DropIndex(stmt.IndexName.Value)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = tbl.DropIndex(s.IndexName.Value)
 		if err != nil {
 			return err
 		}
@@ -96,38 +123,53 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
 		}
 
 		rows := []map[string]interface{}{}
 
-		for _, row := range stmt.Values {
+		for _, row := range s.Values {
 			data := map[string]interface{}{}
-			for i, col := range stmt.ColumnNames {
+			for i, col := range s.ColumnNames {
 				data[col.Value] = row[i].Value
 			}
 			rows = append(rows, data)
 
 		}
 
-		err := tbl.Insert(rows)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = tbl.Insert(rows)
 		if err != nil {
 			return err
 		}
 
 		return nil
 	case *parser.UseStmt:
-		db := ex.aria.Catalog.GetDatabase(stmt.DatabaseName.Value)
+		db := ex.aria.Catalog.GetDatabase(s.DatabaseName.Value)
 		if db == nil {
 			return errors.New("database does not exist")
+		}
+
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
 		}
 
 		ex.ch.Database = db
 		return nil
 	case *parser.DropDatabaseStmt:
-		err := ex.aria.Catalog.DropDatabase(stmt.Name.Value)
+		err := ex.aria.Catalog.DropDatabase(s.Name.Value)
+		if err != nil {
+			return err
+		}
+
+		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
 			return err
 		}
@@ -140,7 +182,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		_, err := ex.executeSelectStmt(stmt, false)
+		_, err := ex.executeSelectStmt(s, false)
 		if err != nil {
 			return err
 		}
@@ -152,7 +194,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		err := ex.executeUpdateStmt(stmt)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.executeUpdateStmt(s)
 		if err != nil {
 			return err
 		}
@@ -165,7 +212,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		err := ex.executeDeleteStmt(stmt)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.executeDeleteStmt(s)
 		if err != nil {
 			return err
 		}

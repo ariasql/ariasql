@@ -24,6 +24,8 @@ func TestStmt(t *testing.T) {
 		DataDir: "./test/", // For now, can be set in aria config file
 	})
 
+
+
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
 	if err := aria.Catalog.Open(); err != nil {
