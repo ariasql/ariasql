@@ -23,7 +23,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -1382,7 +1381,6 @@ func (cat *Catalog) AuthenticateUser(username, password string) error {
 	// Check password
 	ok := shared.ComparePasswords(cat.Users[username].Password, password)
 	if !ok {
-		log.Println(ok)
 		return errors.New("authentication failed")
 	}
 

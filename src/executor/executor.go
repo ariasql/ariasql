@@ -579,7 +579,6 @@ func (ex *Executor) rollback() error {
 func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[string]interface{}, error) {
 	var tbles []*catalog.Table // Table list
 	var rowIds []int64         // Deleted row ids
-
 	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
 
 	// Check if there are any tables
@@ -1567,7 +1566,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 					return nil, err
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, nil, rowId, false)
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, nil, rowId, false, rowIds, before)
 				if err != nil {
 					return nil, err
 				}
@@ -1588,7 +1587,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 					continue
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current(), del)
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current(), del, rowIds, before)
 				if err != nil {
 					return nil, err
 				}
@@ -1605,7 +1604,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 					continue
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current()-1, del)
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current()-1, del, rowIds, before)
 				if err != nil {
 					return nil, err
 				}
@@ -1622,7 +1621,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 	return filteredRows, nil
 }
 
-func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update *[]*parser.SetClause, rowId int64, del bool) error {
+func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update *[]*parser.SetClause, rowId int64, del bool, rowIds *[]int64, before *[]map[string]interface{}) error {
 	var err error
 	if binaryExpr != nil {
 		var val interface{}
@@ -1761,15 +1760,22 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 
 			if len(res) == 1 {
 				for _, r := range res[resTbls[0]] {
-					if update != nil {
-						err := tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-						if err != nil {
-							return err
-						}
-					} else if del {
-						err := tbls[0].DeleteRow(rowId)
-						if err != nil {
-							return err
+					if rowIds != nil || before != nil {
+
+						if update != nil {
+							*rowIds = append(*rowIds, rowId)
+							*before = append(*before, row)
+
+							err := tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
+							if err != nil {
+								return err
+							}
+						} else if del {
+							*rowIds = append(*rowIds, rowId)
+							err := tbls[0].DeleteRow(rowId)
+							if err != nil {
+								return err
+							}
 						}
 					}
 
@@ -1779,9 +1785,28 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 
 				newRow := map[string]interface{}{}
 				for _, tblName := range resTbls {
-					for _, rows := range res[tblName] {
+					for _, r := range res[tblName] {
 
-						for k, v := range rows {
+						if rowIds != nil || before != nil {
+							if update != nil {
+								*rowIds = append(*rowIds, rowId)
+								*before = append(*before, row)
+
+								err := tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
+								if err != nil {
+									return err
+								}
+							} else if del {
+								*rowIds = append(*rowIds, rowId)
+
+								err := tbls[0].DeleteRow(rowId)
+								if err != nil {
+									return err
+								}
+							}
+						}
+
+						for k, v := range r {
 							if leftTblName != nil {
 								if len(strings.Split(k, ".")) == 1 {
 									newRow[fmt.Sprintf("%s.%s", leftTblName.Value, k)] = v
