@@ -50,7 +50,9 @@ func TestStmt(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -97,8 +99,8 @@ func TestStmt2(t *testing.T) {
 
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
-
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -172,7 +174,8 @@ func TestStmt3(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -272,7 +275,8 @@ func TestStmt4(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -430,7 +434,8 @@ func TestStmt5(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -588,7 +593,8 @@ func TestStmt6(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -799,7 +805,8 @@ func TestStmt7(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -960,7 +967,8 @@ func TestStmt8(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -1170,7 +1178,8 @@ func TestStmt9(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -1380,7 +1389,8 @@ func TestStmt10(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -1538,7 +1548,8 @@ func TestStmt11(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -1750,7 +1761,8 @@ func TestStmt12(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -1908,7 +1920,8 @@ func TestStmt13(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -2119,7 +2132,8 @@ func TestStmt14(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -2329,7 +2343,8 @@ func TestStmt15(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -2539,7 +2554,8 @@ func TestStmt16(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -2697,7 +2713,8 @@ func TestStmt17(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -2855,7 +2872,8 @@ func TestStmt18(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3013,7 +3031,8 @@ func TestStmt19(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3171,7 +3190,8 @@ func TestStmt20(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3381,7 +3401,8 @@ func TestStmt21(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3592,7 +3613,8 @@ func TestStmt22(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3750,7 +3772,8 @@ func TestStmt23(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -3908,7 +3931,8 @@ func TestStmt24(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -4067,7 +4091,8 @@ func TestStmt25(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -4277,7 +4302,8 @@ func TestStmt26(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -4489,7 +4515,8 @@ func TestStmt27(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -4702,7 +4729,8 @@ func TestStmt28(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -4912,7 +4940,8 @@ func TestStmt29(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5123,7 +5152,8 @@ func TestStmt30(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5333,7 +5363,8 @@ func TestStmt31(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5491,7 +5522,8 @@ func TestStmt32(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5649,7 +5681,8 @@ func TestStmt33(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5807,7 +5840,8 @@ func TestStmt34(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -5965,7 +5999,8 @@ func TestStmt35(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -6119,7 +6154,8 @@ func TestStmt36(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -6292,7 +6328,8 @@ func TestStmt37(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -6451,7 +6488,8 @@ func TestStmt38(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`
@@ -6656,7 +6694,8 @@ func TestStmt39(t *testing.T) {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	ch := aria.OpenChannel()
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
 	ex := New(aria, ch)
 
 	stmt := []byte(`

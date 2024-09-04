@@ -268,6 +268,20 @@ func (cat *Catalog) Open() error {
 
 	err = cat.ReadUsersFromFile()
 	if err != nil {
+		if err.Error() == "users file is empty" {
+			// Create default user
+			err = cat.CreateNewUser("admin", "admin")
+			if err != nil {
+				return err
+			}
+
+			cat.GrantPrivilegeToUser("admin", &Privilege{
+				DatabaseName:     "*",
+				TableName:        "*",
+				PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_ALL},
+			})
+
+		}
 		return err
 	}
 
@@ -1346,7 +1360,8 @@ func (cat *Catalog) ReadUsersFromFile() error {
 	}
 
 	if fi.Size() == 0 {
-		return nil
+
+		return errors.New("users file is empty")
 	}
 
 	// Lock users file
