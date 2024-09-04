@@ -361,6 +361,7 @@ type PrivilegeDefinition struct {
 	Actions []shared.PrivilegeAction
 	Object  *Identifier // can be dbname.* or dbname.tablename, or *
 	Grantee *Identifier // User
+	Revokee *Identifier // User
 }
 
 // CreateUserStmt represents a CREATE USER statement

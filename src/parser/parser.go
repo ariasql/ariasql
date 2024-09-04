@@ -43,7 +43,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE",
 	}, shared.DataTypes...)
 )
 
@@ -529,10 +529,29 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseRollbackStmt()
 		case "GRANT":
 			return p.parseGrantStmt()
+		case "REVOKE":
+			return p.parseRevokeStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseRevokeStmt parses a REVOKE statement
+func (p *Parser) parseRevokeStmt() (Node, error) {
+	p.consume() // Consume REVOKE
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "SELECT", "INSERT", "UPDATE", "DELETE", "ALL", "DROP", "CREATE", "CONNECT", "ALTER":
+		return p.parsePrivilegeStmt(true)
+	}
+
+	return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE")
 
 }
 
@@ -548,7 +567,7 @@ func (p *Parser) parseGrantStmt() (Node, error) {
 
 	switch p.peek(0).value {
 	case "SELECT", "INSERT", "UPDATE", "DELETE", "ALL", "DROP", "CREATE", "CONNECT", "ALTER":
-		return p.parsePrivilegeStmt()
+		return p.parsePrivilegeStmt(false)
 	}
 
 	return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE")
@@ -556,35 +575,56 @@ func (p *Parser) parseGrantStmt() (Node, error) {
 }
 
 // parsePrivilegeStmt parses a privilege statement
-func (p *Parser) parsePrivilegeStmt() (Node, error) {
+func (p *Parser) parsePrivilegeStmt(revoke bool) (Node, error) {
 	//  GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
 
 	grantStmt := &GrantStmt{}
+	revokeStmt := &RevokeStmt{}
 
 	privilegeDefinition := &PrivilegeDefinition{
 		Actions: make([]shared.PrivilegeAction, 0),
 	}
 
+	all := false
+
 	for {
 		switch p.peek(0).value {
-		case "SELECT":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SELECT)
-		case "INSERT":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_INSERT)
-		case "UPDATE":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_UPDATE)
-		case "DELETE":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DELETE)
 		case "ALL":
 			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALL)
+			all = true
+		case "SELECT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SELECT)
+			}
+		case "INSERT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_INSERT)
+			}
+		case "UPDATE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_UPDATE)
+			}
+		case "DELETE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DELETE)
+			}
 		case "DROP":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DROP)
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DROP)
+			}
 		case "CREATE":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CREATE)
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CREATE)
+			}
 		case "CONNECT":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CONNECT)
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CONNECT)
+			}
 		case "ALTER":
-			privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALTER)
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_ALTER)
+			}
+
 		default:
 			return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE, ALL, DROP, CREATE, CONNECT, ALTER")
 		}
@@ -641,8 +681,14 @@ func (p *Parser) parsePrivilegeStmt() (Node, error) {
 
 	user := p.peek(0).value.(string)
 
-	privilegeDefinition.Grantee = &Identifier{Value: user}
+	if revoke {
+		privilegeDefinition.Revokee = &Identifier{Value: user}
+		revokeStmt.PrivilegeDefinition = privilegeDefinition
 
+		return revokeStmt, nil
+
+	}
+	privilegeDefinition.Grantee = &Identifier{Value: user}
 	grantStmt.PrivilegeDefinition = privilegeDefinition
 
 	return grantStmt, nil

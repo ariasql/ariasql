@@ -3012,3 +3012,60 @@ func TestNewParserGrantStmt4(t *testing.T) {
 	}
 
 }
+
+func TestNewParserRevokeStmt(t *testing.T) {
+	statement := []byte(`
+	REVOKE CREATE, DROP ON db1.* TO username;
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	revokeStmt, ok := stmt.(*RevokeStmt)
+	if !ok {
+		t.Fatalf("expected *RevokeStmt, got %T", stmt)
+	}
+
+	//sel, err := PrintAST(revokeStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if revokeStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if revokeStmt.PrivilegeDefinition.Actions[0] != shared.PRIV_CREATE {
+		t.Fatalf("expected CREATE, got %d", revokeStmt.PrivilegeDefinition.Actions[0])
+	}
+
+	if revokeStmt.PrivilegeDefinition.Actions[1] != shared.PRIV_DROP {
+		t.Fatalf("expected DROP, got %d", revokeStmt.PrivilegeDefinition.Actions[1])
+	}
+
+	if revokeStmt.PrivilegeDefinition.Revokee.Value != "username" {
+		t.Fatalf("expected username, got %s", revokeStmt.PrivilegeDefinition.Revokee.Value)
+	}
+
+	if revokeStmt.PrivilegeDefinition.Object.Value != "db1.*" {
+		t.Fatalf("expected db1.*, got %s", revokeStmt.PrivilegeDefinition.Object.Value)
+	}
+
+}
