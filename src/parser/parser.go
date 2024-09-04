@@ -43,7 +43,8 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "DATABASES",
+		"TABLES", "USERS", "SHOW",
 	}, shared.DataTypes...)
 )
 
@@ -531,10 +532,33 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseGrantStmt()
 		case "REVOKE":
 			return p.parseRevokeStmt()
+		case "SHOW":
+			return p.parseShowStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseShowStmt parses a SHOW statement
+func (p *Parser) parseShowStmt() (Node, error) {
+	p.consume() // Consume SHOW
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "DATABASES":
+		return &ShowStmt{ShowType: SHOW_DATABASES}, nil
+	case "TABLES":
+		return &ShowStmt{ShowType: SHOW_TABLES}, nil
+	case "USERS":
+		return &ShowStmt{ShowType: SHOW_USERS}, nil
+	}
+
+	return nil, errors.New("expected DATABASES, TABLES, or USERS")
 
 }
 

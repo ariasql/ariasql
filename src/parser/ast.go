@@ -375,6 +375,20 @@ type DropUserStmt struct {
 	Username *Identifier
 }
 
+type ShowType int
+
+const (
+	_ ShowType = iota
+	SHOW_DATABASES
+	SHOW_TABLES
+	SHOW_USERS
+)
+
+// ShowStmt represents a SHOW statement
+type ShowStmt struct {
+	ShowType ShowType
+}
+
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
 	marshalled, err := json.MarshalIndent(node, "", "  ")

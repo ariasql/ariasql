@@ -346,9 +346,43 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-	// case *parser.ShowDatabasesStmt:
-	// case *parser.ShowTablesStmt:
-	// case *parser.AlterTableStmt:
+	case *parser.ShowStmt:
+		switch s.ShowType {
+		case parser.SHOW_DATABASES:
+			databases := ex.aria.Catalog.GetDatabases()
+			results := []map[string]interface{}{
+				{"Databases": databases},
+			}
+
+			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			return nil
+		case parser.SHOW_TABLES:
+			if ex.ch.Database == nil {
+				return errors.New("no database selected")
+			}
+
+			tables := ex.ch.Database.GetTables()
+			results := []map[string]interface{}{
+				{"Tables": tables},
+			}
+
+			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+
+			return nil
+
+		case parser.SHOW_USERS:
+			users := ex.aria.Catalog.GetUsers()
+			results := []map[string]interface{}{
+				{"Users": users},
+			}
+
+			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+
+			return nil
+
+		default:
+			return errors.New("unsupported show type")
+		}
 	default:
 		return errors.New("unsupported statement")
 

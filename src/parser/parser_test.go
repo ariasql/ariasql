@@ -3107,3 +3107,114 @@ func TestNewParserDropUserStmt(t *testing.T) {
 	}
 
 }
+
+func TestNewParserShowStmt(t *testing.T) {
+	statement := []byte(`
+	SHOW DATABASES;
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	showStmt, ok := stmt.(*ShowStmt)
+	if !ok {
+		t.Fatalf("expected *ShowStmt, got %T", stmt)
+	}
+
+	if showStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if showStmt.ShowType != SHOW_DATABASES {
+		t.Fatalf("expected SHOW DATABASES, got %d", showStmt.ShowType)
+	}
+}
+
+func TestNewParserShowStmt2(t *testing.T) {
+	statement := []byte(`
+	SHOW TABLES;
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	showStmt, ok := stmt.(*ShowStmt)
+	if !ok {
+		t.Fatalf("expected *ShowStmt, got %T", stmt)
+	}
+
+	if showStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if showStmt.ShowType != SHOW_TABLES {
+		t.Fatalf("expected SHOW TABLES, got %d", showStmt.ShowType)
+	}
+}
+
+func TestNewParserShowStmt3(t *testing.T) {
+	statement := []byte(`
+	SHOW USERS;
+`)
+
+	lexer := NewLexer(statement)
+
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	showStmt, ok := stmt.(*ShowStmt)
+	if !ok {
+		t.Fatalf("expected *ShowStmt, got %T", stmt)
+	}
+
+	if showStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if showStmt.ShowType != SHOW_USERS {
+		t.Fatalf("expected SHOW USERS, got %d", showStmt.ShowType)
+	}
+}
