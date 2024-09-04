@@ -66,8 +66,8 @@ type Catalog struct {
 
 // Database is a database object
 type Database struct {
-	Tables    map[string]*Table
-	Directory string // Directory is the directory where database data is stored
+	Tables    map[string]*Table // Tables within database
+	Directory string            // Directory is the directory where database data is stored
 }
 
 // Table is a table object
@@ -156,6 +156,89 @@ func (cat *Catalog) Open() error {
 				cat.Databases[databaseDir.Name()] = db
 
 				// Within databases directory there are table directories
+				tblDirs, err := os.ReadDir(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), databaseDir.Name()))
+				if err != nil {
+					return err
+				}
+
+				db.Tables = make(map[string]*Table)
+
+				for _, tblDir := range tblDirs {
+					tbl := &Table{
+						Name:      tblDir.Name(),
+						Directory: fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), tblDir.Name()),
+					}
+
+					// Within each table there is a schema file, index files , sequence file, and data file
+
+					// Read schema file
+					schemaFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION)))
+					if err != nil {
+						return err
+					}
+
+					// Decode schema
+					dec := gob.NewDecoder(schemaFile)
+					tblSchema := &TableSchema{}
+					err = dec.Decode(tblSchema)
+
+					if err != nil {
+						return err
+					}
+
+					tbl.TableSchema = tblSchema
+
+					// Read data file
+					rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_DATA_FILE_EXTENSION)), os.O_RDWR, 0755)
+					if err != nil {
+						return err
+					}
+
+					tbl.Rows = rowFile
+
+					// Read sequence file
+					seqFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION)))
+					if err != nil {
+						return err
+					}
+
+					tbl.SequenceFile = seqFile
+
+					tblFiles, err := os.ReadDir(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tblDir.Name()))
+					if err != nil {
+						return err
+					}
+
+					for _, tblFile := range tblFiles {
+						if strings.HasSuffix(tblFile.Name(), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION) {
+							// Read index file
+							indexFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tblFile.Name()))
+							if err != nil {
+								return err
+							}
+
+							// Decode index
+							dec := gob.NewDecoder(indexFile)
+							idx := &Index{}
+							err = dec.Decode(idx)
+
+							if err != nil {
+								return err
+							}
+
+							// Open btree
+							bt, err := btree.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", idx.Name), ".bt"), os.O_RDWR, 0755, 6)
+							if err != nil {
+								return err
+							}
+
+							idx.btree = bt
+
+							tbl.Indexes[idx.Name] = idx
+
+						}
+					}
+				}
 
 			}
 		}
