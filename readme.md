@@ -1,7 +1,7 @@
 # todo
 - [x] NOT expressions have to be handled in execution
 - [x] Subqueries-EXISTS where applicable
-- [ ] Group by and having
+- [x] Group by and having
 - [ ] Order by
 - [ ] Limit
 - [ ] Offset

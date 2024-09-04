@@ -7,7 +7,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -232,7 +231,6 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			return nil, err
 		}
 
-		log.Println("grouped after", grouped)
 		// Check for having clause
 		if stmt.TableExpression.HavingClause != nil {
 			results, err = ex.having(grouped, stmt.TableExpression.HavingClause)
@@ -261,12 +259,41 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	return nil, nil
 }
 
+// having filters the results based on the having clause
 func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{}, having *parser.HavingClause) ([]map[string]interface{}, error) {
-	log.Println("HAVING")
 	var results []map[string]interface{}
 
 	for _, row := range groupedRows {
 		switch having.SearchCondition.(type) {
+		case *parser.LogicalCondition:
+			// left and right must be comparison predicates
+
+			// we will recursively evaluate the left and right conditions
+
+			leftHaving := having.SearchCondition.(*parser.LogicalCondition).Left.(*parser.ComparisonPredicate)
+			rightHaving := having.SearchCondition.(*parser.LogicalCondition).Right.(*parser.ComparisonPredicate)
+
+			i, err := ex.having(groupedRows, &parser.HavingClause{SearchCondition: leftHaving})
+			if err != nil {
+				return nil, err
+			}
+
+			j, err := ex.having(groupedRows, &parser.HavingClause{SearchCondition: rightHaving})
+			if err != nil {
+				return nil, err
+			}
+
+			switch having.SearchCondition.(*parser.LogicalCondition).Op {
+			case parser.OP_AND:
+				if len(i) > 0 && len(j) > 0 {
+					results = append(results, row[0])
+				}
+			case parser.OP_OR:
+				if len(i) > 0 || len(j) > 0 {
+					results = append(results, row[0])
+				}
+			}
+
 		case *parser.ComparisonPredicate:
 			// left must be an aggregate function
 			// right must be a literal
@@ -275,7 +302,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 			aggFunc := having.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.AggregateFunc)
 
 			// Get the right value
-			rightVal := having.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value
+			//rightVal := having.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value
 
 			// Get the aggregate function name
 			aggFuncName := aggFunc.FuncName
@@ -289,7 +316,13 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 			switch aggFuncName {
 			case "COUNT":
 				count := len(row)
-				if count == int(rightVal.(uint64)) {
+
+				having.SearchCondition.(*parser.ComparisonPredicate).Left.Value = &parser.Literal{Value: count}
+
+				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
+					"COUNT": count,
+				}, nil)
+				if ok {
 					results = append(results, row[0])
 				}
 
@@ -319,31 +352,15 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					}
 				}
 
-				// check op
-				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
-				case parser.OP_EQ:
-					if sum == int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GT:
-					if sum > int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LT:
-					if sum < int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GTE:
-					if sum >= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LTE:
-					if sum <= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				default:
-					return nil, errors.New("unsupported operator")
+				newComparisonPredicate := parser.ComparisonPredicate{
+					Left: &parser.ValueExpression{Value: &parser.Literal{Value: sum}},
+				}
 
+				ok, _ := ex.evaluatePredicate(newComparisonPredicate, map[string]interface{}{
+					"SUM": sum,
+				}, nil)
+				if ok {
+					results = append(results, row[0])
 				}
 
 			case "AVG":
@@ -376,31 +393,11 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				count = len(row)
 				avg := sum / count
 
-				// check op
-				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
-				case parser.OP_EQ:
-					if avg == int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GT:
-					if avg > int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LT:
-					if avg < int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GTE:
-					if avg >= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LTE:
-					if avg <= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				default:
-					return nil, errors.New("unsupported operator")
-
+				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
+					"AVG": avg,
+				}, nil)
+				if ok {
+					results = append(results, row[0])
 				}
 
 			case "MAX":
@@ -434,31 +431,11 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					}
 				}
 
-				// check op
-				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
-				case parser.OP_EQ:
-					if mx == int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GT:
-					if mx > int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LT:
-					if mx < int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GTE:
-					if mx >= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LTE:
-					if mx <= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				default:
-					return nil, errors.New("unsupported operator")
-
+				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
+					"MAX": mx,
+				}, nil)
+				if ok {
+					results = append(results, row[0])
 				}
 
 			case "MIN":
@@ -494,31 +471,11 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					}
 				}
 
-				// check op
-				switch having.SearchCondition.(*parser.ComparisonPredicate).Op {
-				case parser.OP_EQ:
-					if mn == int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GT:
-					if mn > int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LT:
-					if mn < int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_GTE:
-					if mn >= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				case parser.OP_LTE:
-					if mn <= int(rightVal.(uint64)) {
-						results = append(results, row[0])
-					}
-				default:
-					return nil, errors.New("unsupported operator")
-
+				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
+					"MIN": mn,
+				}, nil)
+				if ok {
+					results = append(results, row[0])
 				}
 			}
 
@@ -1225,11 +1182,13 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 	_, isNot := cond.(*parser.NotExpr)
 	if isNot {
 		cond = cond.(*parser.NotExpr).Expr
+
 	}
+
+	var left interface{}
 
 	switch cond := cond.(type) {
 	case *parser.BetweenPredicate:
-		var left interface{}
 
 		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
 			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
@@ -1274,8 +1233,6 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 
 	case *parser.IsPredicate:
 
-		var left interface{}
-
 		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
 			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
 		}
@@ -1318,8 +1275,6 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 		}
 
 	case *parser.LikePredicate:
-
-		var left interface{}
 
 		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
 			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
@@ -1441,7 +1396,6 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 
 	case *parser.InPredicate:
 
-		var left interface{}
 		var leftCol string
 
 		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
@@ -1596,7 +1550,7 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 
 	case *parser.ComparisonPredicate: // Joins are only supported with comparison predicates
 
-		var left, right interface{}
+		var right interface{}
 		var ok bool
 
 		if _, ok = cond.Left.Value.(*parser.ColumnSpecification); ok {
@@ -1633,6 +1587,8 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 			left = val
 
 			results[tbls[0].Name] = []map[string]interface{}{row}
+		} else if _, ok = cond.Left.Value.(*parser.Literal); ok {
+			left = cond.Left.Value.(*parser.Literal).Value
 		}
 
 		if _, ok = cond.Right.Value.(*parser.Literal); ok {
