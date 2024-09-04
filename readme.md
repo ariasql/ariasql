@@ -116,41 +116,51 @@ UPDATE test SET name = 'test3' WHERE id = 1;
 ```
 
 #### Delete
+
 ```
 DELETE FROM test WHERE id = 1;
 ```
 
 #### Drop
+
 ```
 DROP TABLE test;
+DROP DATABASE test;
+DROP INDEX test_id;
 ```
 
 #### Grant
+
 ```
 GRANT SELECT, INSERT, UPDATE, DELETE ON dbname.tablename TO user;
 ``
 
 All
+
 ```
 GRANT ALL ON *.* TO someusername;
 ```
 
 #### Revoke
+
 ```
 REVOKE SELECT, INSERT, UPDATE, DELETE ON dbname.tablename FROM user;
 ```
 
 All
+
 ```
 REVOKE ALL ON test FROM someusername;
 ```
 
 #### Users
+
 ```
 CREATE USER someusername WITH PASSWORD 'test';
 ```
 
 #### Privileges
+
 ```
 GRANT ALL ON dbname.* TO someusername;
 ```
@@ -165,6 +175,7 @@ COMMIT;
 ```
 
 #### Rollback
+
 ```
 BEGIN;
 INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
