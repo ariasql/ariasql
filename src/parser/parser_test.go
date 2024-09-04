@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -2790,7 +2789,7 @@ func TestNewParserCommit(t *testing.T) {
 
 func TestNewParserCreateUserStmt(t *testing.T) {
 	statement := []byte(`
-	CREATE USER username IDENTIFIED BY password;
+	CREATE USER username IDENTIFIED BY 'password';
 `)
 
 	lexer := NewLexer(statement)
@@ -2815,11 +2814,23 @@ func TestNewParserCreateUserStmt(t *testing.T) {
 		t.Fatalf("expected *CreateUserStmt, got %T", stmt)
 	}
 
-	sel, err := PrintAST(createUserStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(createUserStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if createUserStmt == nil {
+		t.Fatal("expected non-nil statement")
 	}
 
-	log.Println(sel)
+	if createUserStmt.Username.Value != "username" {
+		t.Fatalf("expected username, got %s", createUserStmt.Username.Value)
+	}
+
+	if createUserStmt.Password.Value != "password" {
+		t.Fatalf("expected password, got %s", createUserStmt.Password.Value)
+	}
 
 }

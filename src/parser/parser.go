@@ -42,7 +42,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED",
 	}, shared.DataTypes...)
 )
 
@@ -933,12 +933,26 @@ func (p *Parser) parseCreateUserStmt() (Node, error) {
 
 	p.consume() // Consume username
 
+	// Eat IDENTIFIED
+	if p.peek(0).value != "IDENTIFIED" {
+		return nil, errors.New("expected IDENTIFIED")
+	}
+
+	p.consume() // Consume IDENTIFIED
+
+	// Eat BY
+	if p.peek(0).value != "BY" {
+		return nil, errors.New("expected BY")
+	}
+
+	p.consume() // Consume BY
+
 	if p.peek(0).tokenT != LITERAL_TOK {
 		return nil, errors.New("expected literal")
 	}
 
 	password := p.peek(0).value.(string)
-	createUserStmt.Password = &Literal{Value: password}
+	createUserStmt.Password = &Literal{Value: strings.TrimSuffix(strings.TrimPrefix(password, "'"), "'")}
 
 	p.consume() // Consume password
 
