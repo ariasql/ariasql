@@ -493,7 +493,7 @@ func (p *Parser) Parse() (Node, error) {
 		return nil, errors.New("empty statement")
 	}
 
-	if len(p.lexer.tokens) < 3 {
+	if len(p.lexer.tokens) < 1 {
 		return nil, errors.New("invalid statement")
 	}
 
@@ -519,10 +519,35 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseUpdateStmt()
 		case "DELETE":
 			return p.parseDeleteStmt()
+		case "BEGIN":
+			return p.parseBeginStmt()
+		case "COMMIT":
+			return p.parseCommitStmt()
+		case "ROLLBACK":
+			return p.parseRollbackStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseBeginStmt parses a BEGIN statement
+func (p *Parser) parseBeginStmt() (Node, error) {
+	p.consume() // Consume BEGIN
+	return &BeginStmt{}, nil
+}
+
+// parseCommitStmt parses a COMMIT statement
+func (p *Parser) parseCommitStmt() (Node, error) {
+	p.consume() // Consume COMMIT
+	return &CommitStmt{}, nil
+}
+
+// parseRollbackStmt parses a ROLLBACK statement
+func (p *Parser) parseRollbackStmt() (Node, error) {
+	p.consume() // Consume ROLLBACK
+	return &RollbackStmt{}, nil
 
 }
 

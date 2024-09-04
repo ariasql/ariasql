@@ -2668,3 +2668,121 @@ func TestNewParserDelete(t *testing.T) {
 	}
 
 }
+
+func TestNewParserBegin(t *testing.T) {
+	statement := []byte(`
+	BEGIN;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	beginStmt, ok := stmt.(*BeginStmt)
+	if !ok {
+		t.Fatalf("expected *UpdateStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(beginStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if beginStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+}
+
+func TestNewParserRollback(t *testing.T) {
+	statement := []byte(`
+	ROLLBACK;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	rollbackStmt, ok := stmt.(*RollbackStmt)
+	if !ok {
+		t.Fatalf("expected *RollbackStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if rollbackStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+}
+
+func TestNewParserCommit(t *testing.T) {
+	statement := []byte(`
+	COMMIT;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	commitStmt, ok := stmt.(*CommitStmt)
+	if !ok {
+		t.Fatalf("expected *CommitStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if commitStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+}
