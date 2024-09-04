@@ -17,6 +17,7 @@
 package catalog
 
 import (
+	"ariasql/parser"
 	"ariasql/shared"
 	"ariasql/storage/btree"
 	"bytes"
@@ -824,6 +825,136 @@ func (tbl *Table) GetUniqueIndex() *Index {
 		if idx.Unique {
 			return idx
 		}
+	}
+
+	return nil
+
+}
+
+// UpdateRow updates a row in the table
+func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*parser.SetClause) error {
+
+	for _, set := range sets {
+
+		if _, ok := row[set.Column.Value]; !ok {
+			return fmt.Errorf("column %s does not exist", set.Column.Value)
+		}
+
+		prevValue := row[set.Column.Value]
+		row[set.Column.Value] = set.Value.Value
+
+		// Check row against schema
+		for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
+			if colName == set.Column.Value {
+				switch strings.ToUpper(colDef.DataType) {
+				case "CHARACTER", "CHAR":
+					if _, ok := row[colName].(string); !ok {
+						if !colDef.NotNull {
+							if row[colName] != nil {
+								return fmt.Errorf("column %s is not a string", colName)
+							}
+						}
+					} else {
+						// Check length
+						if len(row[colName].(string)) > colDef.Length {
+							return fmt.Errorf("column %s is too long", colName)
+						}
+					}
+
+				case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
+					if _, ok := row[colName].(float64); !ok {
+						return fmt.Errorf("column %s is not a float64", colName)
+					}
+
+					str := fmt.Sprintf("%.14g", row[colName].(float64))
+
+					// Split the string on the decimal point
+					parts := strings.Split(str, ".")
+
+					if len(parts) > 1 {
+
+						// The scale is the number of digits after the decimal point
+						scale := len(parts[1])
+
+						// The precision is the total number of digits
+						precision := len(parts[0]) + len(parts[1])
+
+						if colDef.Scale > 0 {
+							// Check scale
+
+							if scale > colDef.Scale {
+								return fmt.Errorf("column %s has too many digits after the decimal point", colName)
+							}
+
+						}
+
+						if colDef.Precision > 0 {
+							// Check precision
+							if precision > colDef.Precision {
+								return fmt.Errorf("column %s is too large", colName)
+							}
+						}
+					}
+
+				case "INT", "INTEGER", "SMALLINT":
+
+					if _, ok := row[colName].(int); !ok {
+						if _, ok := row[colName].(uint64); !ok {
+							return fmt.Errorf("column %s is not an int", colName)
+						} else {
+							row[colName] = int(row[colName].(uint64))
+						}
+					}
+
+					// Check if value fits in INT/INTEGER
+					if strings.ToUpper(colDef.DataType) == "INT" || strings.ToUpper(colDef.DataType) == "INTEGER" {
+						if row[colName].(int) > 2147483647 {
+							return fmt.Errorf("column %s is too large for INT/INTEGER", colName)
+						}
+					}
+
+					// Check if value fits in SMALLINT
+					if strings.ToUpper(colDef.DataType) == "SMALLINT" {
+						if row[colName].(int) > 32767 {
+							return fmt.Errorf("column %s is too large for SMALLINT", colName)
+						}
+					}
+
+				}
+
+				// We must check if column has any indexes
+				// If so we must update the index
+
+				for _, idx := range tbl.Indexes {
+					if slices.Contains(idx.Columns, colName) {
+						// Remove old value from index
+						err := idx.btree.Remove([]byte(fmt.Sprintf("%v", prevValue)), []byte(fmt.Sprintf("%d", rowId)))
+						if err != nil {
+							return err
+						}
+
+						// Insert into index
+						err = idx.btree.Put([]byte(fmt.Sprintf("%v", row[colName])), []byte(fmt.Sprintf("%d", rowId)))
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+
+	}
+
+	// Encode row
+	encoded, err := encodeRow(row)
+	if err != nil {
+		return err
+	}
+
+	// Write row to table
+	err = tbl.Rows.WriteTo(rowId, encoded)
+	if err != nil {
+		return err
 	}
 
 	return nil
