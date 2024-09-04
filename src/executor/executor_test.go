@@ -6560,4 +6560,64 @@ func TestStmt38(t *testing.T) {
 		return
 	}
 
+	expect := `+--------------+
+| RowsAffected |
++--------------+
+| 1            |
++--------------+
+`
+
+	if string(ex.resultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
+		return
+	}
+
+	ex.Clear()
+
+	stmt = []byte(`
+	SELECT * FROM users;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect = `+---------+--------------------+
+| user_id | username           |
++---------+--------------------+
+| 1       | 'updated_username' |
+| 2       | 'adoe'             |
+| 3       | 'bdoe'             |
+| 4       | 'cdoe'             |
+| 5       | 'ddoe'             |
+| 6       | 'edoe'             |
+| 7       | 'fdoe'             |
+| 8       | 'gdoe'             |
+| 9       | 'hdoe'             |
+| 10      | 'idoe'             |
+| 11      | 'jdoe'             |
+| 12      | 'kdoe'             |
+| 13      | 'ldoe'             |
+| 14      | 'mdoe'             |
+| 15      | 'ndoe'             |
+| 16      | 'odo'              |
++---------+--------------------+
+`
+
+	if string(ex.resultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
+		return
+	}
+
 }

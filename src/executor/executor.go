@@ -152,7 +152,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		_, err := ex.executeUpdateStmt(stmt)
+		err := ex.executeUpdateStmt(stmt)
 		if err != nil {
 			return err
 		}
@@ -167,7 +167,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	return errors.New("unsupported statement")
 }
 
-func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]map[string]interface{}, error) {
+func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) error {
 
 	var tbles []*catalog.Table // Table list
 
@@ -175,7 +175,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]map[string]int
 
 	// Check if there are any tables
 	if len(tbles) == 0 {
-		return nil, errors.New("no tables")
+		return errors.New("no tables")
 	} // You can't do this!!
 
 	// For a 1 table query we can evaluate the search condition
@@ -184,14 +184,17 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]map[string]int
 	// Filter the results
 	results, err := ex.filter(tbles, stmt.WhereClause, &stmt.SetClause)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	rowsAffected := len(results)
 	rA := map[string]interface{}{"RowsAffected": rowsAffected}
-	results = append(results, rA)
+	results = []map[string]interface{}{rA}
 
-	return results, nil
+	// Now we format the results
+	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+
+	return nil
 
 }
 
@@ -829,7 +832,6 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 // filter filters the tables
 func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{}
-	var rowIds []int64
 
 	var tbl *catalog.Table // The first table in from clause, the left table
 	// Every other table is the right table
@@ -856,7 +858,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 			}
 
 			filteredRows = append(filteredRows, row)
-			rowIds = append(rowIds, iter.Current())
+
 		}
 
 		return filteredRows, nil
@@ -1121,10 +1123,11 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 					return nil, err
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, rowId)
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, nil, rowId)
 				if err != nil {
 					return nil, err
 				}
+
 			}
 
 		}
@@ -1132,18 +1135,42 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 	} else {
 
 		iter := tbl.NewIterator()
-		for iter.Valid() {
-			row, err = iter.Next()
-			if err != nil {
-				continue
+
+		if update == nil {
+
+			for iter.Valid() {
+				row, err = iter.Next()
+				if err != nil {
+					continue
+				}
+
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current())
+				if err != nil {
+					return nil, err
+				}
+
+				if !iter.Valid() {
+					break
+				}
+
 			}
+		} else {
+			for iter.ValidUpdateIter() {
+				row, err = iter.Next()
+				if err != nil {
+					continue
+				}
 
-			err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current())
-			if err != nil {
-				return nil, err
+				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current()-1)
+				if err != nil {
+					return nil, err
+				}
+
+				if !iter.ValidUpdateIter() {
+					break
+				}
+
 			}
-
-
 		}
 
 	}
@@ -1172,13 +1199,6 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		if ok {
 			ok, _ := ex.evaluatePredicate(rightCond, row, tbls)
 			if ok {
-
-				if update != nil {
-					err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-					if err != nil {
-						return err
-					}
-				}
 
 				var resTbls []string
 
@@ -1213,13 +1233,6 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		ok, res := ex.evaluatePredicate(leftCond, row, tbls)
 		if ok {
 
-			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-				if err != nil {
-					return err
-				}
-			}
-
 			var resTbls []string
 
 			for t, _ := range res {
@@ -1251,13 +1264,6 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 
 		ok, res = ex.evaluatePredicate(rightCond, row, tbls)
 		if ok {
-
-			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-				if err != nil {
-					return err
-				}
-			}
 
 			var resTbls []string
 
@@ -1302,16 +1308,6 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 		ok, res := ex.evaluatePredicate(where.SearchCondition, row, tbls)
 		if ok {
 
-			if update != nil {
-				err = tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-				if err != nil {
-					return err
-				}
-
-				update = nil
-
-			}
-
 			var resTbls []string
 
 			for t, _ := range res {
@@ -1320,15 +1316,22 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 			}
 
 			if len(res) == 1 {
-				for _, rows := range res[resTbls[0]] {
+				for _, r := range res[resTbls[0]] {
+					if update != nil {
+						err := tbls[0].UpdateRow(rowId, r, convertSetClauseToCatalogLike(update))
+						if err != nil {
+							return err
+						}
+					}
 
-					*filteredRows = append(*filteredRows, rows)
+					*filteredRows = append(*filteredRows, r)
 				}
 			} else if len(res) > 1 {
 
 				newRow := map[string]interface{}{}
 				for _, tblName := range resTbls {
 					for _, rows := range res[tblName] {
+
 						for k, v := range rows {
 							if leftTblName != nil {
 								if len(strings.Split(k, ".")) == 1 {

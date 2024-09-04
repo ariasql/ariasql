@@ -777,6 +777,17 @@ func (ri *Iterator) Current() int64 {
 
 // Next returns the next row in the table
 func (ri *Iterator) Next() (map[string]interface{}, error) {
+	for {
+		if slices.Contains(ri.table.Rows.GetDeletedPages(), ri.row) {
+			ri.row++
+			continue
+
+		} else {
+			break
+		}
+
+	}
+
 	// Read row from table
 	row, err := ri.table.Rows.GetPage(ri.row)
 	if err != nil {
@@ -798,7 +809,12 @@ func (ri *Iterator) Next() (map[string]interface{}, error) {
 
 // Valid returns true if the iterator is valid
 func (ri *Iterator) Valid() bool {
-	return ri.row < ri.table.Rows.CountWD()
+	return ri.row < ri.table.Rows.Count()
+
+}
+
+func (ri *Iterator) ValidUpdateIter() bool {
+	return ri.row+1 < ri.table.Rows.Count()
 
 }
 
@@ -989,14 +1005,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 		return err
 	}
 
-	// Write row to table
-	// We actually create a new row and delete the old one
-	err = tbl.Rows.DeletePage(rowId)
-	if err != nil {
-		return err
-	}
-
-	rowId, err = tbl.Rows.Write(encoded)
+	err = tbl.Rows.WriteTo(rowId, encoded)
 	if err != nil {
 		return err
 	}
