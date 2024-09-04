@@ -1,3 +1,18 @@
+// Package wal
+// Copyright (C) Alex Gaetano Padula
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package wal
 
 import (
@@ -10,6 +25,7 @@ import (
 	"sync"
 )
 
+// WAL is a write-ahead log file
 type WAL struct {
 	// The file descriptor for the WAL file
 	file *btree.Pager
@@ -19,6 +35,7 @@ type WAL struct {
 	// Every WAL contains ASTs to recover the database
 }
 
+// OpenWAL opens a new WAL file
 func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 
 	log.Println("done", filePath, flags, perm)
@@ -34,12 +51,13 @@ func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 	}, nil
 }
 
+// Close the WAL file
 func (w *WAL) Close() error {
 	return w.file.Close()
 }
 
+// Append data to the WAL file
 func (w *WAL) Append(data []byte) error {
-
 
 	w.lock.Lock()
 	defer w.lock.Unlock()
@@ -50,6 +68,7 @@ func (w *WAL) Append(data []byte) error {
 	return err
 }
 
+// Entry is a single entry in the WAL file
 type Entry struct {
 	Statement *parser.Statement
 }
