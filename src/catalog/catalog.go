@@ -831,6 +831,42 @@ func (tbl *Table) GetUniqueIndex() *Index {
 
 }
 
+// DeleteRow deletes a row from the table
+func (tbl *Table) DeleteRow(rowId int64) error {
+	// Read row from table
+	row, err := tbl.Rows.GetPage(rowId)
+	if err != nil {
+		return err
+	}
+
+	// decode row
+	decoded, err := decodeRow(row)
+	if err != nil {
+		return err
+	}
+
+	// Delete row from indexes
+	for col, val := range decoded {
+		for _, idx := range tbl.Indexes {
+			if slices.Contains(idx.Columns, col) {
+				// Remove from index
+				err := idx.btree.Remove([]byte(fmt.Sprintf("%v", val)), []byte(fmt.Sprintf("%d", rowId)))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Delete row from table
+	err = tbl.Rows.DeletePage(rowId)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // UpdateRow updates a row in the table
 func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*parser.SetClause) error {
 
