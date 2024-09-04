@@ -174,3 +174,22 @@ func ComparePasswords(hashedPassword, password string) bool {
 	}
 	return true
 }
+
+func CopyFile(src, dst string) error {
+	// Copy entire file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	_, err = srcFile.WriteTo(dstFile)
+
+	if err != nil {
+		return err
+	}
+}

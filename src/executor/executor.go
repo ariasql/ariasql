@@ -32,9 +32,20 @@ import (
 type Executor struct {
 	aria             *core.AriaSQL // AriaSQL instance pointer
 	ch               *core.Channel // Channel pointer
-	Transaction      []interface{} // Transaction statements
+	Transaction      *Transaction  // Transaction statements
 	TransactionBegun bool          // Transaction begun
 	resultSetBuffer  []byte        // Result set buffer
+}
+
+// Transaction represents a transaction
+type Transaction struct {
+	Statements []*TransactionStmt
+}
+
+// TransactionStmt represents a transaction statement
+type TransactionStmt struct {
+	Stmt     interface{} // The statement
+	Commited bool        // Whether the statement has been commited
 }
 
 // New creates a new Executor
@@ -46,55 +57,57 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 func (ex *Executor) Execute(stmt parser.Statement) error {
 
 	if ex.TransactionBegun {
-		ex.Transaction = append(ex.Transaction, &stmt)
+		ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{Stmt: stmt, Commited: false})
 		return nil
 	}
 
 	switch s := stmt.(type) {
+	case *parser.RollbackStmt:
+		if !ex.TransactionBegun {
+			return errors.New("no transaction begun")
+		}
+
+		err := ex.rollback()
+		if err != nil {
+			return err
+
+		}
+
+		return nil
 	case *parser.CommitStmt:
 		if !ex.TransactionBegun {
 			return errors.New("no transaction begun")
 		}
 
-		for i, tx := range ex.Transaction {
+		for i, tx := range ex.Transaction.Statements {
+
 			err := ex.Execute(tx)
 			if err != nil {
-				// if there is an error, we rollback the previous statements
-				for j := i - 1; j >= 0; j-- {
-					switch txx := ex.Transaction[j].(type) {
-					case *parser.CreateTableStmt:
-						ex.ch.Database.DropTable(txx.TableName.Value)
-					case *parser.DropDatabaseStmt:
-						ex.aria.Catalog.CreateDatabase(txx.Name.Value)
-					case *parser.DropIndexStmt:
-					// @ todo
-					// should create index
-					case *parser.InsertStmt:
-						// @ todo
-						// should delete rows
-					case *parser.UpdateStmt:
-						// @ todo
-						// should update rows back to original
-					case *parser.DeleteStmt:
-					// @ todo
-					// should insert rows back
-					case *parser.CreateIndexStmt:
-						// @ todo
-						// should drop index
-
-					}
-				}
+				err = ex.rollback()
+				if err != nil {
+					return err
+				} // Rollback the transaction
 
 				return err
 			}
 
+			ex.Transaction.Statements[i].Commited = true
+
 		}
+
+		ex.TransactionBegun = false
+
+		return nil
 	case *parser.BeginStmt:
 		if ex.TransactionBegun {
 			return errors.New("transaction already begun")
 		}
 
 		ex.TransactionBegun = true
+
+		ex.Transaction = &Transaction{Statements: []*TransactionStmt{}} // Initialize the transaction
+
+		return nil
 	case *parser.CreateDatabaseStmt:
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
@@ -193,7 +206,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("table does not exist")
 		}
 
-		rows := []map[string]interface{}{}
+		var rows []map[string]interface{}
 
 		for _, row := range s.Values {
 			data := map[string]interface{}{}
@@ -389,6 +402,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	}
 
 	return errors.New("unsupported statement")
+}
+
+// rollback rolls back the transaction
+func (ex *Executor) rollback() error {
+	if !ex.TransactionBegun {
+		return errors.New("no transaction begun")
+	}
+
+	ex.TransactionBegun = false
+	ex.Transaction = nil
+
+	return nil
 }
 
 // executeDeleteStmt executes a delete statement

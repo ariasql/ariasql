@@ -43,8 +43,7 @@ var (
 		"SCHEMA", "SECTION", "SELECT", "SET", "SOME",
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
-		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "DATABASES",
-		"TABLES", "USERS", "SHOW",
+		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "SHOW",
 	}, shared.DataTypes...)
 )
 
@@ -544,10 +543,6 @@ func (p *Parser) Parse() (Node, error) {
 // parseShowStmt parses a SHOW statement
 func (p *Parser) parseShowStmt() (Node, error) {
 	p.consume() // Consume SHOW
-
-	if p.peek(0).tokenT != KEYWORD_TOK {
-		return nil, errors.New("expected keyword")
-	}
 
 	switch p.peek(0).value {
 	case "DATABASES":
