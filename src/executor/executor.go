@@ -30,10 +30,11 @@ import (
 
 // Executor is the main executor structure
 type Executor struct {
-	aria            *core.AriaSQL       // AriaSQL instance pointer
-	ch              *core.Channel       // Channel pointer
-	Transaction     []*parser.Statement // Transaction statements
-	resultSetBuffer []byte              // Result set buffer
+	aria             *core.AriaSQL // AriaSQL instance pointer
+	ch               *core.Channel // Channel pointer
+	Transaction      []interface{} // Transaction statements
+	TransactionBegun bool          // Transaction begun
+	resultSetBuffer  []byte        // Result set buffer
 }
 
 // New creates a new Executor
@@ -44,7 +45,56 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 // Execute executes a statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
 
+	if ex.TransactionBegun {
+		ex.Transaction = append(ex.Transaction, &stmt)
+		return nil
+	}
+
 	switch s := stmt.(type) {
+	case *parser.CommitStmt:
+		if !ex.TransactionBegun {
+			return errors.New("no transaction begun")
+		}
+
+		for i, tx := range ex.Transaction {
+			err := ex.Execute(tx)
+			if err != nil {
+				// if there is an error, we rollback the previous statements
+				for j := i - 1; j >= 0; j-- {
+					switch txx := ex.Transaction[j].(type) {
+					case *parser.CreateTableStmt:
+						ex.ch.Database.DropTable(txx.TableName.Value)
+					case *parser.DropDatabaseStmt:
+						ex.aria.Catalog.CreateDatabase(txx.Name.Value)
+					case *parser.DropIndexStmt:
+					// @ todo
+					// should create index
+					case *parser.InsertStmt:
+						// @ todo
+						// should delete rows
+					case *parser.UpdateStmt:
+						// @ todo
+						// should update rows back to original
+					case *parser.DeleteStmt:
+					// @ todo
+					// should insert rows back
+					case *parser.CreateIndexStmt:
+						// @ todo
+						// should drop index
+
+					}
+				}
+
+				return err
+			}
+
+		}
+	case *parser.BeginStmt:
+		if ex.TransactionBegun {
+			return errors.New("transaction already begun")
+		}
+
+		ex.TransactionBegun = true
 	case *parser.CreateDatabaseStmt:
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
