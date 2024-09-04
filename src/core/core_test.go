@@ -1,6 +1,7 @@
 // Package core tests
 // AriaSQL core package tests
-// Copyright (C) Alex Gaetano Padula
+// Copyright (C) AriaSQL
+// Author(s): Alex Gaetano Padula
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -37,7 +38,7 @@ func TestAriaSQL_OpenChannel(t *testing.T) {
 		DataDir: "./",
 	})
 
-	channel := aria.OpenChannel()
+	channel := aria.OpenChannel(nil)
 	if channel == nil {
 		t.Fatal("expected non-nil channel")
 	}
@@ -60,7 +61,7 @@ func TestAriaSQL_RemoveChannel(t *testing.T) {
 		DataDir: "./",
 	})
 
-	channel := aria.OpenChannel()
+	channel := aria.OpenChannel(nil)
 	err := aria.CloseChannel(channel)
 	if err != nil {
 		t.Fatal(err)

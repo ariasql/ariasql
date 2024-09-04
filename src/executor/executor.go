@@ -1,5 +1,6 @@
 // Package executor
-// Copyright (C) Alex Gaetano Padula
+// Copyright (C) AriaSQL
+// Author(s): Alex Gaetano Padula
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -1687,6 +1688,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 	return filteredRows, nil
 }
 
+// evaluateFinalCondition evaluates the final condition
 func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update *[]*parser.SetClause, rowId int64, del bool, rowIds *[]int64, before *[]map[string]interface{}) error {
 	var err error
 	if binaryExpr != nil {
