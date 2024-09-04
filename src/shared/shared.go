@@ -47,6 +47,7 @@ const (
 	PRIV_DROP_TABLE
 	PRIV_CREATE_IDX
 	PRIV_DROP_IDX
+	PRIV_CONNECT // Connect to aria server
 	PRIV_ALL
 )
 
@@ -60,6 +61,7 @@ const (
 	_ PrivilegeObject = iota
 	PRIV_DATABASE
 	PRIV_TABLE
+	PRIV_ALL_OBJECTS
 )
 
 // GetDefaultDataDir returns the default data directory for the current OS

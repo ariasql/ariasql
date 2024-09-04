@@ -2834,3 +2834,51 @@ func TestNewParserCreateUserStmt(t *testing.T) {
 	}
 
 }
+
+func TestNewParserGrantStmt(t *testing.T) {
+	statement := []byte(`
+	GRANT CONNECT TO username;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createUserStmt, ok := stmt.(*CreateUserStmt)
+	if !ok {
+		t.Fatalf("expected *CreateUserStmt, got %T", stmt)
+	}
+
+	//sel, err := PrintAST(createUserStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if createUserStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if createUserStmt.Username.Value != "username" {
+		t.Fatalf("expected username, got %s", createUserStmt.Username.Value)
+	}
+
+	if createUserStmt.Password.Value != "password" {
+		t.Fatalf("expected password, got %s", createUserStmt.Password.Value)
+	}
+
+}
