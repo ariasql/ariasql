@@ -114,6 +114,24 @@ func TestCatalog_Open2(t *testing.T) {
 		}
 	}
 
+	// Get a database
+	db := c.GetDatabase("db1")
+	if db == nil {
+		t.Fatal("expected non-nil database")
+	}
+
+	// Create a table
+	err = db.CreateTable("table1", &TableSchema{
+		ColumnDefinitions: map[string]*ColumnDefinition{
+			"id": {
+				Name:     "id",
+				DataType: "INT",
+				Unique:   true,
+				NotNull:  true,
+			},
+		},
+	})
+
 	c.Close()
 
 	// Reopen the catalog

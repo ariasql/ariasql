@@ -23,7 +23,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -159,7 +158,6 @@ func (cat *Catalog) Open() error {
 				// Within databases directory there are table directories
 				tblDirs, err := os.ReadDir(fmt.Sprintf("%s", db.Directory))
 				if err != nil {
-					log.Println("here?")
 					return err
 				}
 
@@ -206,10 +204,12 @@ func (cat *Catalog) Open() error {
 
 					tbl.SequenceFile = seqFile
 
-					tblFiles, err := os.ReadDir(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tblDir.Name()))
+					tblFiles, err := os.ReadDir(fmt.Sprintf("%s", tbl.Directory))
 					if err != nil {
 						return err
 					}
+
+					tbl.Indexes = make(map[string]*Index)
 
 					for _, tblFile := range tblFiles {
 						if strings.HasSuffix(tblFile.Name(), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION) {
