@@ -13,20 +13,12 @@ AriaSQL is still in the beginning stages of development and is not ready for pro
 - [x] Execution engine
 - [x] TCP Server
 - [x] User authentication and privileges
-- [x] Transactions with WAL
+- [x] Transactions
+- [x] WAL
 - [x] Recovery
 - [x] Subqueries
 
 # todo
-- [x] NOT expressions have to be handled in execution
-- [x] Subqueries-EXISTS where applicable
-- [x] Group by and having
-- [x] Order by
-- [x] Limit
-- [x] Offset
-- [x] update statement
-- [x] delete statement
-- [ ] transactions parsing, execution, and logic with WAL, and recover
 - [ ] users and permissions
 - [ ] server authentication
 - [ ] more and more tests

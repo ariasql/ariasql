@@ -51,7 +51,7 @@ type Config struct {
 // New creates a new AriaSQL object
 // Can pass nil to use default configuration
 func New(config *Config) *AriaSQL {
-
+	
 	if config == nil {
 		config = &Config{}
 		config.DataDir = shared.GetDefaultDataDir()
@@ -69,6 +69,14 @@ func New(config *Config) *AriaSQL {
 		return nil
 
 	}
+
+	//gob.Register(parser.ShowStmt{})
+	//gob.Register(parser.DescribeStmt{})
+	//gob.Register(parser.BeginStmt{})
+	//gob.Register(parser.CommitStmt{})
+	//gob.Register(parser.RollbackStmt{})
+	//gob.Register(parser.AlterTableStmt{})
+	//gob.Register(parser.DropColumnStmt{})
 
 	return &AriaSQL{
 		Config: config,
