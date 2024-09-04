@@ -184,5 +184,9 @@ ROLLBACK;
 
 For further examples, please see executor tests or ANSI SQL1 standard.
 
+## Issues & Requests
 
+Please report any issues or feature requests as an issue on this repository.
 
+## License
+AriaSQL is licensed under the AGPL-3.0 license.
