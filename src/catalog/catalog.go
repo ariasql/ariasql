@@ -63,12 +63,14 @@ type Catalog struct {
 	UsersFile     *os.File             // Users file
 	UsersFileLock *sync.Mutex          // Users file lock
 	UsersLock     *sync.Mutex          // Users lock
+	DatabasesLock *sync.Mutex          // Databases lock
 }
 
 // Database is a database object
 type Database struct {
-	Tables    map[string]*Table // Tables within database
-	Directory string            // Directory is the directory where database data is stored
+	Tables     map[string]*Table // Tables within database
+	TablesLock *sync.Mutex       // Tables mutex
+	Directory  string            // Directory is the directory where database data is stored
 }
 
 // Table is a table object
@@ -153,6 +155,8 @@ func (cat *Catalog) Open() error {
 				db := &Database{
 					Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), databaseDir.Name()),
 				}
+
+				db.TablesLock = &sync.Mutex{}
 
 				cat.Databases[databaseDir.Name()] = db
 
@@ -259,6 +263,7 @@ func (cat *Catalog) Open() error {
 
 	cat.UsersLock = &sync.Mutex{}
 	cat.UsersFileLock = &sync.Mutex{}
+	cat.DatabasesLock = &sync.Mutex{}
 
 	err = cat.ReadUsersFromFile()
 	if err != nil {
@@ -1413,4 +1418,44 @@ func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bo
 	}
 
 	return false
+}
+
+// GetUsers gets all users
+func (cat *Catalog) GetUsers() []string {
+	cat.UsersLock.Lock()
+	defer cat.UsersLock.Unlock()
+
+	var users []string
+	for k := range cat.Users {
+		users = append(users, k)
+	}
+
+	return users
+}
+
+// GetTables gets all tables in a database
+func (db *Database) GetTables() []string {
+
+	db.TablesLock.Lock()
+	defer db.TablesLock.Unlock()
+
+	var tables []string
+	for k := range db.Tables {
+		tables = append(tables, k)
+	}
+
+	return tables
+}
+
+// GetDatabases gets all databases
+func (cat *Catalog) GetDatabases() []string {
+	cat.DatabasesLock.Lock()
+	defer cat.DatabasesLock.Unlock()
+
+	var dbs []string
+	for k := range cat.Databases {
+		dbs = append(dbs, k)
+	}
+
+	return dbs
 }
