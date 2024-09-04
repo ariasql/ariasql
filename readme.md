@@ -47,7 +47,131 @@ echo -n "admin\0admin" | base64
 Above for example would be your base64 encoded auth string.
 
 If you're using netcat simply pass the base64 encoded string as the first line.
+```
 
+### SQL
+AriaSQL Supports SQL1
+
+#### Data Types
+- INT
+- INTEGER
+- SMALLINT
+- CHAR
+- CHARACTER
+- FLOAT
+- DOUBLE
+- DECIMAL
+- DEC
+- REAL
+- NUMERIC
+
+#### Constraints
+- UNIQUE
+- NOT NULL
+
+#### Aggregates
+- COUNT
+- SUM
+- AVG
+- MIN
+- MAX
+
+#### Create
+
+##### Create Database
+```
+CREATE DATABASE test;
+```
+
+##### Create Table
+```
+CREATE TABLE test (id INT NOT NULL UNIQUE, name CHAR(255));
+```
+
+##### Create Index
+```
+CREATE INDEX test_id ON test (id);
+```
+
+#### Show
+```
+SHOW DATABASES;
+SHOW TABLES;
+SHOW USERS;
+```
+
+#### Insert
+```
+INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
+```
+
+#### Select
+```
+SELECT * FROM test;
+```
+
+#### Update
+```
+UPDATE test SET name = 'test3' WHERE id = 1;
+```
+
+#### Delete
+```
+DELETE FROM test WHERE id = 1;
+```
+
+#### Drop
+```
+DROP TABLE test;
+```
+
+#### Grant
+```
+GRANT SELECT, INSERT, UPDATE, DELETE ON dbname.tablename TO user;
+``
+
+All
+```
+GRANT ALL ON *.* TO someusername;
+```
+
+#### Revoke
+```
+REVOKE SELECT, INSERT, UPDATE, DELETE ON dbname.tablename FROM user;
+```
+
+All
+```
+REVOKE ALL ON test FROM someusername;
+```
+
+#### Users
+```
+CREATE USER someusername WITH PASSWORD 'test';
+```
+
+#### Privileges
+```
+GRANT ALL ON dbname.* TO someusername;
+```
+
+#### Transactions
+If a statement within a transaction fails, the transaction will be rolled back.
 
 ```
+BEGIN;
+INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
+COMMIT;
+```
+
+#### Rollback
+```
+BEGIN;
+INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
+ROLLBACK;
+```
+
+For further examples, please see the `tests` directory or ANSI SQL1 standard.
+
+
 
