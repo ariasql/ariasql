@@ -133,7 +133,7 @@ DROP INDEX test_id;
 
 ```
 GRANT SELECT, INSERT, UPDATE, DELETE ON dbname.tablename TO user;
-``
+```
 
 All
 
