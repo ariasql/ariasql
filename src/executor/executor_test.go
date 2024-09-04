@@ -6416,3 +6416,148 @@ func TestStmt37(t *testing.T) {
 	}
 
 }
+
+func TestStmt38(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria := core.New(&core.Config{
+		DataDir: "./test/", // For now, can be set in aria config file
+	})
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	ch := aria.OpenChannel()
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.resultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.resultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE users (user_id INT, username CHAR(255));
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.resultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO users (user_id, username) VALUES (1, 'jdoe'), (2, 'adoe'), (3, 'bdoe'), (4, 'cdoe'), (5, 'ddoe'), (6, 'edoe'), (7, 'fdoe'), (8, 'gdoe'), (9, 'hdoe'), (10, 'idoe'), (11, 'jdoe'), (12, 'kdoe'), (13, 'ldoe'), (14, 'mdoe'), (15, 'ndoe'), (16, 'odo');
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.resultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.resultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	UPDATE users SET username = 'updated_username' WHERE user_id = 1;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+}

@@ -157,6 +157,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		return nil
+
 	default:
 		return errors.New("unsupported statement")
 
@@ -180,7 +182,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]map[string]int
 	// If the column is indexed, we can use the index to locate rows faster
 
 	// Filter the results
-	results, err := ex.filter(tbles, stmt.WhereClause, stmt.SetClause)
+	results, err := ex.filter(tbles, stmt.WhereClause, &stmt.SetClause)
 	if err != nil {
 		return nil, err
 	}
@@ -825,7 +827,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 }
 
 // filter filters the tables
-func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update []*parser.SetClause) ([]map[string]interface{}, error) {
+func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{}
 	var rowIds []int64
 
@@ -1141,6 +1143,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 				return nil, err
 			}
 
+
 		}
 
 	}
@@ -1148,7 +1151,7 @@ func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, upd
 	return filteredRows, nil
 }
 
-func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update []*parser.SetClause, rowId int64) error {
+func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update *[]*parser.SetClause, rowId int64) error {
 	var err error
 	if binaryExpr != nil {
 		var val interface{}
@@ -1304,6 +1307,9 @@ func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRo
 				if err != nil {
 					return err
 				}
+
+				update = nil
+
 			}
 
 			var resTbls []string
@@ -1980,10 +1986,10 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}) e
 }
 
 // convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
-func convertSetClauseToCatalogLike(setClause []*parser.SetClause) []*catalog.SetClause {
+func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause) []*catalog.SetClause {
 	var setClauses []*catalog.SetClause
 
-	for _, set := range setClause {
+	for _, set := range *setClause {
 		setClauses = append(setClauses, &catalog.SetClause{
 			ColumnName: set.Column.Value,
 			Value:      set.Value.Value,

@@ -876,8 +876,19 @@ type SetClause struct {
 	Value      interface{}
 }
 
+// CopyRow copies a row
+func CopyRow(row *map[string]interface{}) map[string]interface{} {
+	newRow := make(map[string]interface{})
+	for k, v := range *row {
+		newRow[k] = v
+	}
+	return newRow
+}
+
 // UpdateRow updates a row in the table
 func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*SetClause) error {
+
+	var prevRow map[string]interface{}
 
 	for _, set := range sets {
 
@@ -885,7 +896,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 			return fmt.Errorf("column %s does not exist", set.ColumnName)
 		}
 
-		prevValue := row[set.ColumnName]
+		prevRow = CopyRow(&row)
 		row[set.ColumnName] = set.Value
 
 		// Check row against schema
@@ -967,13 +978,36 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 
 				}
 
-				// We must check if column has any indexes
-				// If so we must update the index
+			}
+		}
 
+	}
+
+	// Encode row
+	encoded, err := encodeRow(row)
+	if err != nil {
+		return err
+	}
+
+	// Write row to table
+	// We actually create a new row and delete the old one
+	err = tbl.Rows.DeletePage(rowId)
+	if err != nil {
+		return err
+	}
+
+	rowId, err = tbl.Rows.Write(encoded)
+	if err != nil {
+		return err
+	}
+
+	for _, set := range sets {
+		for colName, _ := range tbl.TableSchema.ColumnDefinitions {
+			if colName == set.ColumnName {
 				for _, idx := range tbl.Indexes {
 					if slices.Contains(idx.Columns, colName) {
 						// Remove old value from index
-						err := idx.btree.Remove([]byte(fmt.Sprintf("%v", prevValue)), []byte(fmt.Sprintf("%d", rowId)))
+						err := idx.btree.Remove([]byte(fmt.Sprintf("%v", prevRow[colName])), []byte(fmt.Sprintf("%d", rowId)))
 						if err != nil {
 							return err
 						}
@@ -987,19 +1021,6 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 				}
 			}
 		}
-
-	}
-
-	// Encode row
-	encoded, err := encodeRow(row)
-	if err != nil {
-		return err
-	}
-
-	// Write row to table
-	err = tbl.Rows.WriteTo(rowId, encoded)
-	if err != nil {
-		return err
 	}
 
 	return nil

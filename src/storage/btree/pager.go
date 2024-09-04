@@ -151,17 +151,21 @@ func splitDataIntoChunks(data []byte) [][]byte {
 
 // WriteTo writes data to a specific page
 func (p *Pager) WriteTo(pageID int64, data []byte) error {
+	// lock the page
+	p.getPageLock(pageID).Lock()
+	defer p.getPageLock(pageID).Unlock()
+
 	p.DeletePage(pageID)
-	// remove from deleted pages
-	p.deletedPagesLock.Lock()
-	defer p.deletedPagesLock.Unlock()
-
-	for i, page := range p.deletedPages {
-		if page == pageID {
-			p.deletedPages = append(p.deletedPages[:i], p.deletedPages[i+1:]...)
-		}
-
-	}
+	//// remove from deleted pages
+	//p.deletedPagesLock.Lock()
+	//defer p.deletedPagesLock.Unlock()
+	//
+	//for i, page := range p.deletedPages {
+	//	if page == pageID {
+	//		p.deletedPages = append(p.deletedPages[:i], p.deletedPages[i+1:]...)
+	//	}
+	//
+	//}
 	// the reason we are doing this is because we are going to write to the page thus having any overflowed pages which are linked to the page may not be needed
 
 	// check if data is larger than the page size
