@@ -1160,7 +1160,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 }
 
 // RevokePrivilegeFromUser revokes a privilege from a user
-func (cat *Catalog) RevokePrivilegeToUser(username string, priv *Privilege) error {
+func (cat *Catalog) RevokePrivilegeFromUser(username string, priv *Privilege) error {
 	// Lock users map
 	cat.UsersLock.Lock()
 	defer cat.UsersLock.Unlock()
@@ -1177,7 +1177,20 @@ func (cat *Catalog) RevokePrivilegeToUser(username string, priv *Privilege) erro
 			// Revoke privilege
 			for i, l := range cat.Users[username].Privileges {
 				if l.DatabaseName == l.DatabaseName && l.TableName == l.TableName {
-					cat.Users[username].Privileges = append(cat.Users[username].Privileges[:i], cat.Users[username].Privileges[i+1:]...)
+
+					if len(l.PrivilegeActions) == len(priv.PrivilegeActions) {
+
+						cat.Users[username].Privileges = append(cat.Users[username].Privileges[:i], cat.Users[username].Privileges[i+1:]...)
+					} else {
+						for _, a := range priv.PrivilegeActions {
+							for j, b := range l.PrivilegeActions {
+								if a == b {
+									// only remove the privilege action
+									cat.Users[username].Privileges[i].PrivilegeActions = append(l.PrivilegeActions[:j], l.PrivilegeActions[j+1:]...)
+								}
+							}
+						}
+					}
 					break
 				}
 			}
@@ -1356,4 +1369,48 @@ func (cat *Catalog) AuthenticateUser(username, password string) error {
 	}
 
 	return nil
+}
+
+// HasPrivilege checks if a user has a privilege
+func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bool {
+
+	var has []bool
+
+	for _, p := range u.Privileges {
+		// if user has * for table name, they have all privileges for the database, on all tables
+		if p.TableName == "*" && p.DatabaseName == "*" {
+			// User is a super user
+			// has all privileges on all tables in all databases
+			for range actions {
+
+				has = append(has, true)
+
+			}
+		} else if p.TableName == "*" {
+			// user is allowed all actions on all tables in the database
+			if p.DatabaseName == db {
+				for range actions {
+
+					has = append(has, true)
+
+				}
+			}
+		} else {
+
+			if p.DatabaseName == db && p.TableName == tbl {
+				for _, a := range actions {
+					if slices.Contains(p.PrivilegeActions, a) {
+						has = append(has, true)
+					}
+				}
+			}
+		}
+
+	}
+
+	if len(has) == len(actions) {
+		return true
+	}
+
+	return false
 }

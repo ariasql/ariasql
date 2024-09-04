@@ -17,6 +17,7 @@
 package catalog
 
 import (
+	"ariasql/shared"
 	"fmt"
 	"os"
 	"testing"
@@ -1248,4 +1249,138 @@ func TestCatalog_AuthenticateUser(t *testing.T) {
 	if err.Error() != "authentication failed" {
 		t.Fatalf("expected authentication failed, got %s", err.Error())
 	}
+}
+
+func TestCatalog_GrantPrivilegeToUser(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.CreateNewUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.GrantPrivilegeToUser("user1", &Privilege{
+		DatabaseName:     "db1",
+		TableName:        "tbl1",
+		PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	usr := c.GetUser("user1")
+
+	if usr == nil {
+		t.Fatal("expected non-nil user")
+	}
+
+	if !usr.HasPrivilege("db1", "tbl1", []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT}) {
+		t.Fatal("expected user to have SELECT privilege and CREATE privilege on db1.tbl1")
+	}
+}
+
+func TestCatalog_RevokePrivilegeFromUser(t *testing.T) {
+	defer os.RemoveAll("test/")
+
+	c := New("test/")
+	err := c.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.CreateNewUser("user1", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.GrantPrivilegeToUser("user1", &Privilege{
+		DatabaseName:     "db1",
+		TableName:        "tbl1",
+		PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.RevokePrivilegeFromUser("user1", &Privilege{
+		DatabaseName:     "db1",
+		TableName:        "tbl1",
+		PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	usr := c.GetUser("user1")
+
+	if usr == nil {
+		t.Fatal("expected non-nil user")
+	}
+
+	if usr.HasPrivilege("db1", "tbl1", []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT}) {
+		t.Fatal("expected user to not have SELECT privilege and CREATE privilege on db1.tbl1")
+	}
+}
+
+func TestUser_HasPrivilege(t *testing.T) {
+	usr := &User{
+		Username: "user1",
+		Password: "password",
+		Privileges: []*Privilege{
+			{
+				DatabaseName:     "db1",
+				TableName:        "*",
+				PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+			},
+		},
+	}
+
+	if !usr.HasPrivilege("db1", "tbl1", []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT}) {
+		t.Fatal("expected user to have SELECT privilege and CREATE privilege on db1.tbl1")
+	}
+
+}
+
+func TestUser_HasPrivilege2(t *testing.T) {
+	usr := &User{
+		Username: "user1",
+		Password: "password",
+		Privileges: []*Privilege{
+			{
+				DatabaseName:     "*",
+				TableName:        "*",
+				PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+			},
+		},
+	}
+
+	if !usr.HasPrivilege("db1", "tbl1", []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT}) {
+		t.Fatal("expected user to have SELECT privilege and CREATE privilege on db1.tbl1")
+	}
+
+}
+
+func TestUser_HasPrivilege3(t *testing.T) {
+	usr := &User{
+		Username: "user1",
+		Password: "password",
+		Privileges: []*Privilege{
+			{
+				DatabaseName:     "db1",
+				TableName:        "t",
+				PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT},
+			},
+		},
+	}
+
+	if usr.HasPrivilege("db1", "tbl1", []shared.PrivilegeAction{shared.PRIV_CREATE, shared.PRIV_SELECT}) {
+		t.Fatal("expected user to not have SELECT privilege and CREATE privilege on db1.tbl1")
+	}
+
 }
