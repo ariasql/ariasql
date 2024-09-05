@@ -20,12 +20,14 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/briandowns/spinner"
 	term "github.com/nsf/termbox-go"
 	"net"
 	"os"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 const PROMPT = "ariasql>"
@@ -66,11 +68,18 @@ func New() (*ASQL, error) {
 
 	}
 
+	buffer := make([]rune, 0)
+
+	for i := 0; i < len(PROMPT); i++ {
+		buffer = append(buffer, rune(PROMPT[i]))
+
+	}
+
 	return &ASQL{
 		history:       make([]string, 0),
 		historyIndex:  0,
 		signalChannel: make(chan os.Signal, 1),
-		buffer:        make([]rune, 0),
+		buffer:        buffer,
 		authenticated: false,
 		historyFile:   historyFile,
 		wg:            &sync.WaitGroup{},
@@ -266,7 +275,8 @@ func (a *ASQL) handle() {
 
 			}
 		case term.EventError:
-			panic(ev.Err)
+			fmt.Println("Error: ", ev.Err)
+			a.signalChannel <- syscall.SIGINT
 		}
 	}
 }
@@ -301,6 +311,10 @@ func main() {
 
 	asql.wg.Add(1)
 	go asql.handle()
+	s := spinner.New(spinner.CharSets[12], 100*time.Millisecond)
+	s.Start()
+	time.Sleep(2 * time.Second)
+	s.Stop()
 
 	go func() {
 
