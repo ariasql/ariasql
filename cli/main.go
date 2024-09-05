@@ -121,7 +121,7 @@ func (a *ASQL) connect(host string, port int, secure bool, username, password st
 	a.header = []byte(fmt.Sprintf(`
 ARIASQL %s (c) %d all rights reserved
 =================================================*
-%s`, string(version), time.Now().Year(), PROMPT))
+`, string(version), time.Now().Year()))
 
 	if string(authOk) == "OK" {
 		a.authenticated = true
@@ -200,6 +200,8 @@ func main() {
 			os.Exit(0)
 		}
 	}()
+
+	fmt.Println(string(asql.header))
 
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:                 PROMPT,
