@@ -407,7 +407,6 @@ func (a *ASQL) handle() {
 	}
 }
 
-// WIP!
 func main() {
 	var (
 		host       = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
