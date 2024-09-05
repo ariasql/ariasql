@@ -88,7 +88,7 @@ func New() (*ASQL, error) {
 }
 
 // Connect connects to the AriaSQL server
-func (a *ASQL) connect(host string, port int, secure bool) error {
+func (a *ASQL) connect(host string, port int, secure bool, username, password string) error {
 	var err error
 
 	// Resolve the string address to a TCP address
@@ -174,7 +174,7 @@ func (a *ASQL) LoadHistory() error {
 
 // nextHistory moves to the next history item
 func (a *ASQL) nextHistory() string {
-	if a.historyIndex < len(a.history) {
+	if a.historyIndex+1 < len(a.history) {
 		a.historyIndex++
 	}
 
@@ -215,7 +215,24 @@ func (a *ASQL) handle() {
 			case term.KeyEsc:
 				term.Sync()
 			case term.KeyArrowDown:
-				term.Sync()
+				// Get the next item in the history
+				if len(a.history) > 0 {
+					// Get the next item
+					nextItem := a.nextHistory()
+
+					// Clear the current buffer
+					a.buffer = []rune{}
+
+					for i := 0; i < len(PROMPT); i++ {
+						a.runeCh <- rune(PROMPT[i])
+						term.Sync()
+					}
+
+					for _, r := range nextItem {
+						a.runeCh <- r
+						term.Sync()
+					}
+				}
 			case term.KeyArrowUp:
 				// Get the last item in the history
 				if len(a.history) > 0 {
@@ -246,12 +263,36 @@ func (a *ASQL) handle() {
 			case term.KeyEnter:
 				if strings.HasSuffix(string(a.buffer), ";") && !strings.HasSuffix(string(a.buffer), "\";") && !strings.HasSuffix(string(a.buffer), "';") {
 					a.history = append(a.history, string(a.buffer[len(PROMPT):len(a.buffer)]))
+					a.historyIndex = len(a.history)
 					a.buffer = []rune{}
 
 					term.Sync()
 
-					// response
-					response := []byte("OK\n")
+					// Send the statement to the server
+					if a.conn != nil {
+						_, err := a.conn.Write([]byte(string(a.buffer[len(PROMPT):len(a.buffer)])))
+						if err != nil {
+							fmt.Println("Error writing to server: ", err.Error())
+							a.signalChannel <- syscall.SIGINT
+							break
+						}
+					} else {
+						_, err := a.secureConn.Write([]byte(string(a.buffer[len(PROMPT):len(a.buffer)])))
+						if err != nil {
+							fmt.Println("Error writing to server: ", err.Error())
+							a.signalChannel <- syscall.SIGINT
+							break
+						}
+					}
+
+					// Get response
+					response := make([]byte, 1024)
+					_, err := a.conn.Read(response)
+					if err != nil {
+						fmt.Println("Error reading from server: ", err.Error())
+						a.signalChannel <- syscall.SIGINT
+						break
+					}
 
 					for i := 0; i < len(response); i++ {
 						a.runeCh <- rune(response[i])
@@ -284,9 +325,11 @@ func (a *ASQL) handle() {
 // WIP!
 func main() {
 	var (
-		host = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
-		port = flag.Int("port", 3695, "Port of AriaSQL instance you want to connect to")
-		tls  = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		host     = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
+		port     = flag.Int("port", 3695, "Port of AriaSQL instance you want to connect to")
+		tls      = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		username = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		password = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
 	)
 
 	asql, err := New()
@@ -303,7 +346,7 @@ func main() {
 
 	flag.Parse()
 
-	err = asql.connect(*host, *port, *tls)
+	err = asql.connect(*host, *port, *tls, *username, *password)
 	if err != nil {
 		fmt.Println("Unable to reach AriaSQL server: ", err.Error())
 		os.Exit(1)
