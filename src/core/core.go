@@ -23,7 +23,6 @@ import (
 	"ariasql/wal"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"sync"
 )
@@ -67,7 +66,6 @@ func New(config *Config) *AriaSQL {
 
 	wal, err := wal.OpenWAL(fmt.Sprintf("%s%swal.dat", config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		log.Println(err)
 		return nil
 
 	}

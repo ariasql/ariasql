@@ -24,7 +24,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -254,6 +253,9 @@ func (cat *Catalog) Open() error {
 
 	}
 
+	gob.Register(&User{})
+	gob.Register(&Privilege{})
+
 	// Open users file
 	cat.Users = make(map[string]*User)
 
@@ -269,6 +271,7 @@ func (cat *Catalog) Open() error {
 
 	err = cat.ReadUsersFromFile()
 	if err != nil {
+
 		if strings.Contains(err.Error(), "users file is empty") {
 			// Create default user
 			err = cat.CreateNewUser("admin", "admin")
@@ -288,8 +291,6 @@ func (cat *Catalog) Open() error {
 		}
 		return err
 	}
-
-	log.Println(cat.Users["admin"].Privileges)
 
 	return nil
 }
@@ -1270,8 +1271,6 @@ func (cat *Catalog) GrantPrivilegeToUser(username string, priv *Privilege) error
 
 	cat.Users[username].Privileges = append(cat.Users[username].Privileges, priv)
 
-	log.Println(cat.Users[username].Privileges)
-
 	err := cat.EncodeUsersToFile()
 
 	if err != nil {
@@ -1342,6 +1341,11 @@ func (cat *Catalog) EncodeUsersToFile() error {
 	// Lock users file
 	cat.UsersFileLock.Lock()
 	defer cat.UsersFileLock.Unlock()
+
+	// seek to beginning of file
+	if _, err := cat.UsersFile.Seek(0, 0); err != nil {
+		return err
+	}
 
 	// Encode users to file
 	enc := gob.NewEncoder(cat.UsersFile)
