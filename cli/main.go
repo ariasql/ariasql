@@ -17,7 +17,9 @@
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"github.com/briandowns/spinner"
@@ -71,11 +73,6 @@ func New() (*ASQL, error) {
 
 	buffer := make([]rune, 0)
 
-	for i := 0; i < len(PROMPT); i++ {
-		buffer = append(buffer, rune(PROMPT[i]))
-
-	}
-
 	return &ASQL{
 		history:       make([]string, 0),
 		historyIndex:  0,
@@ -114,6 +111,53 @@ func (a *ASQL) connect(host string, port int, secure bool, username, password st
 		if err != nil {
 			return err
 		}
+	}
+
+	// Authenticate the user
+	encodedStr := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s\\0%s", username, password)))
+	if a.conn != nil {
+		_, err = a.conn.Write([]byte(encodedStr))
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = a.secureConn.Write([]byte(encodedStr))
+		if err != nil {
+			return err
+		}
+
+	}
+
+	// Get response
+	response := make([]byte, a.bufferSize)
+	if a.conn != nil {
+		_, err = a.conn.Read(response)
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = a.secureConn.Read(response)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	authOk := bytes.Split(response, []byte("\n"))[0]
+	version := bytes.Split(response, []byte("\n"))[1]
+	header := fmt.Sprintf(`
+ARIASQL VERSION %s (c) %d all rights reserved
+=================================================*
+%s`, string(version), time.Now().Year(), PROMPT)
+
+	if string(authOk) == "OK" {
+		for i := 0; i < len(header); i++ {
+			a.buffer = append(a.buffer, rune(header[i]))
+		}
+
+	} else {
+		return fmt.Errorf("suthentication failed: %s", string(response))
+
 	}
 
 	return nil
@@ -351,18 +395,18 @@ func main() {
 
 	flag.Parse()
 
-	err = asql.connect(*host, *port, *tls, *username, *password, *bufferSize)
-	if err != nil {
-		fmt.Println("Unable to reach AriaSQL server: ", err.Error())
-		os.Exit(1)
-	}
-
 	asql.wg.Add(1)
 	go asql.handle()
 	s := spinner.New(spinner.CharSets[12], 100*time.Millisecond)
 	s.Start()
 	time.Sleep(2 * time.Second)
 	s.Stop()
+
+	err = asql.connect(*host, *port, *tls, *username, *password, *bufferSize)
+	if err != nil {
+		fmt.Println("Unable to reach AriaSQL server: ", err.Error())
+		os.Exit(1)
+	}
 
 	go func() {
 
