@@ -55,7 +55,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 
 	// if it doesn't, create it with the default values
 
-	if _, err := os.Stat(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir)); os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s%sariaserver.yaml", aria.Config.DataDir, shared.GetOsPathSeparator())); os.IsNotExist(err) {
 		// Resolve the string address to a TCP address
 		tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
 		if err != nil {
@@ -70,7 +70,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 		server := &TCPServer{Port: port, Host: host, listener: listener, addr: tcpAddr, aria: aria, BufferSize: bufferSize}
 
 		// create a new file
-		f, err := os.Create(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir))
+		f, err := os.Create(fmt.Sprintf("%s%sariaserver.yaml", aria.Config.DataDir, shared.GetOsPathSeparator()))
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 
 		// if there is no error, update the server struct values
 
-		b, err := os.ReadFile(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir))
+		b, err := os.ReadFile(fmt.Sprintf("%s%sariaserver.yaml", aria.Config.DataDir, shared.GetOsPathSeparator()))
 		if err != nil {
 			return nil, err
 		}
