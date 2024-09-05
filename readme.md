@@ -50,6 +50,18 @@ Above for example would be your base64 encoded auth string.
 If you're using netcat simply pass the base64 encoded string as the first line.
 ```
 
+#### Using asql - AriaSQL CLI
+```
+asql -u admin -p admin -host localhost -port 3695 -tls false
+```
+All but username and password are optional.
+
+
+<div>
+    <h1 align="center"><img width="400" src="artwork/asql0.png"></h1>
+</div>
+
+
 ### SQL
 AriaSQL Supports SQL1
 

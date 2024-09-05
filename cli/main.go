@@ -412,10 +412,18 @@ func main() {
 		host       = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
 		port       = flag.Int("port", 3695, "Port of AriaSQL instance you want to connect to")
 		tls        = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
-		username   = flag.String("username", "", "AriaSQL user username")
-		password   = flag.String("password", "", "ArilaSQL user password")
+		username   = flag.String("u", "", "AriaSQL user username")
+		password   = flag.String("p", "", "ArilaSQL user password")
 		bufferSize = flag.Int("buffer", 1024, "Buffer size for reading from the connection")
 	)
+
+	flag.Parse()
+
+	if *username == "" || *password == "" {
+		fmt.Println("Username and password are required")
+		os.Exit(1)
+
+	}
 
 	asql, err := New()
 	if err != nil {
@@ -428,8 +436,6 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-
-	flag.Parse()
 
 	asql.wg.Add(1)
 	go asql.handle()
