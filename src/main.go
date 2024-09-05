@@ -36,9 +36,7 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./", // For now, can be set in aria config file
-	})
+	aria := core.New(nil)
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 

@@ -24,6 +24,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"slices"
 	"strconv"
@@ -154,7 +155,7 @@ func (cat *Catalog) Open() error {
 		for _, databaseDir := range databaseDirs {
 			if databaseDir.IsDir() {
 				db := &Database{
-					Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), databaseDir.Name()),
+					Directory: fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), databaseDir.Name()),
 				}
 
 				db.TablesLock = &sync.Mutex{}
@@ -268,22 +269,27 @@ func (cat *Catalog) Open() error {
 
 	err = cat.ReadUsersFromFile()
 	if err != nil {
-		if err.Error() == "users file is empty" {
+		if strings.Contains(err.Error(), "users file is empty") {
 			// Create default user
 			err = cat.CreateNewUser("admin", "admin")
 			if err != nil {
 				return err
 			}
 
-			cat.GrantPrivilegeToUser("admin", &Privilege{
+			err = cat.GrantPrivilegeToUser("admin", &Privilege{
 				DatabaseName:     "*",
 				TableName:        "*",
 				PrivilegeActions: []shared.PrivilegeAction{shared.PRIV_ALL},
 			})
+			if err != nil {
+				return err
+			}
 
 		}
 		return err
 	}
+
+	log.Println(cat.Users["admin"].Privileges)
 
 	return nil
 }
@@ -1264,6 +1270,8 @@ func (cat *Catalog) GrantPrivilegeToUser(username string, priv *Privilege) error
 
 	cat.Users[username].Privileges = append(cat.Users[username].Privileges, priv)
 
+	log.Println(cat.Users[username].Privileges)
+
 	err := cat.EncodeUsersToFile()
 
 	if err != nil {
@@ -1431,7 +1439,13 @@ func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bo
 			}
 		} else {
 
-			if p.DatabaseName == db && p.TableName == tbl {
+			if slices.Contains(p.PrivilegeActions, shared.PRIV_ALL) {
+				if p.DatabaseName == "*" && p.TableName == "*" {
+					for range actions {
+						has = append(has, true)
+					}
+				}
+			} else if p.DatabaseName == db && p.TableName == tbl {
 				for _, a := range actions {
 					if slices.Contains(p.PrivilegeActions, a) {
 						has = append(has, true)
@@ -1441,6 +1455,16 @@ func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bo
 				for _, a := range actions {
 					if slices.Contains(p.PrivilegeActions, a) {
 						has = append(has, true)
+					}
+				}
+			} else if p.DatabaseName == "" && p.TableName == "" {
+				if slices.Contains(p.PrivilegeActions, shared.PRIV_CREATE) {
+					// CREATE DATABASE
+					for _, a := range actions {
+						if slices.Contains(p.PrivilegeActions, a) {
+							has = append(has, true)
+						}
+
 					}
 				}
 			}

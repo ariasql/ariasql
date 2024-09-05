@@ -1385,3 +1385,31 @@ func TestUser_HasPrivilege3(t *testing.T) {
 	}
 
 }
+
+func TestCatalog_ReadUsersFromFile(t *testing.T) {
+	defer os.RemoveAll("test/")
+	cat := New("test/")
+	err := cat.Open()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cat.Close()
+
+	err = cat.Open()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// There should be an admin user
+	if cat.GetUser("admin") == nil {
+		t.Fatal("expected admin user")
+	}
+
+	if len(cat.GetUser("admin").Privileges) != 1 {
+		t.Fatal("expected admin user to have 1 privilege")
+	}
+
+}

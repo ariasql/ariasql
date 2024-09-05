@@ -65,20 +65,12 @@ func New(config *Config) *AriaSQL {
 
 	}
 
-	wal, err := wal.OpenWAL(fmt.Sprintf("%swal.dat", config.DataDir), os.O_CREATE|os.O_RDWR, 0644)
+	wal, err := wal.OpenWAL(fmt.Sprintf("%s%swal.dat", config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		log.Println(err)
 		return nil
 
 	}
-
-	//gob.Register(parser.ShowStmt{})
-	//gob.Register(parser.DescribeStmt{})
-	//gob.Register(parser.BeginStmt{})
-	//gob.Register(parser.CommitStmt{})
-	//gob.Register(parser.RollbackStmt{})
-	//gob.Register(parser.AlterTableStmt{})
-	//gob.Register(parser.DropColumnStmt{})
 
 	return &AriaSQL{
 		Config: config,

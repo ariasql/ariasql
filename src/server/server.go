@@ -55,7 +55,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 
 	// if it doesn't, create it with the default values
 
-	if _, err := os.Stat(fmt.Sprintf("%sariaserver.yaml", aria.Config.DataDir)); os.IsNotExist(err) {
+	if _, err := os.Stat(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir)); os.IsNotExist(err) {
 		// Resolve the string address to a TCP address
 		tcpAddr, err := net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
 		if err != nil {
@@ -70,7 +70,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 		server := &TCPServer{Port: port, Host: host, listener: listener, addr: tcpAddr, aria: aria, BufferSize: bufferSize}
 
 		// create a new file
-		f, err := os.Create(fmt.Sprintf("%sariaserver.yaml", aria.Config.DataDir))
+		f, err := os.Create(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir))
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +92,7 @@ func NewTCPServer(port int, host string, aria *core.AriaSQL, bufferSize int) (*T
 
 		// if there is no error, update the server struct values
 
-		b, err := os.ReadFile(fmt.Sprintf("%sariaserver.yaml", aria.Config.DataDir))
+		b, err := os.ReadFile(fmt.Sprintf("%s%sariaserver.yaml", shared.GetOsPathSeparator(), aria.Config.DataDir))
 		if err != nil {
 			return nil, err
 		}
@@ -191,6 +191,8 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	// The reasoning behind this is so a client connecting can check the AriaSQL version, possibly right when connecting for example, on the CLI.
 	conn.Write([]byte("OK\nVERSION: " + shared.VERSION + "\n"))
 
+	exe := executor.New(s.aria, channel)
+
 	for {
 		// Read from the connection
 		n, err := conn.Read(buf)
@@ -215,13 +217,14 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
-			exe := executor.New(s.aria, channel)
 			err = exe.Execute(ast)
 			if err != nil {
 				// Write the error to the connection
 				conn.Write(append([]byte(fmt.Sprintf("ERR: %s", err.Error())), []byte("\n")...))
 				continue
 			}
+
+			exe.Clear()
 
 			// Write the response to the connection
 			if len(exe.GetResultSet()) == 0 {
