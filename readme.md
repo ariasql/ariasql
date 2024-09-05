@@ -103,7 +103,7 @@ All but username and password are optional.
 
 
 <div>
-    <h1 align="center"><img width="760" src="artwork/asql_rec1.gif"></h1>
+    <h1 align="center"><img width="760" src="artwork/asql_rec2.gif"></h1>
 </div>
 
 
