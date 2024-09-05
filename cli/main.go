@@ -26,6 +26,17 @@ import (
 	"syscall"
 )
 
+const PROMPT = "ariasql>"
+
+// ASQL is the AriaSQL CLI structure
+type ASQL struct {
+	history       []string
+	historyIndex  int
+	signalChannel chan *os.Signal
+	buffer        []rune
+}
+
+// WIP!
 func main() {
 	history := make([]string, 0)
 	// Create a channel to receive OS signals
@@ -87,17 +98,12 @@ func main() {
 						// Clear the current buffer
 						buffer = []rune{}
 
-						// Append the last item to the buffer
-						for _, r := range lastItem {
-							buffer = append(buffer, r)
-						}
-
 						for i := 0; i < len(prompt); i++ {
 							runeCh <- rune(prompt[i])
 							term.Sync()
 						}
 
-						for _, r := range buffer {
+						for _, r := range lastItem {
 							runeCh <- r
 							term.Sync()
 						}
@@ -112,7 +118,7 @@ func main() {
 
 				case term.KeyEnter:
 					if strings.HasSuffix(string(buffer), ";") && !strings.HasSuffix(string(buffer), "\";") && !strings.HasSuffix(string(buffer), "';") {
-						history = append(history, string(buffer))
+						history = append(history, string(buffer[len(prompt):len(buffer)]))
 						buffer = []rune{}
 
 						term.Sync()
