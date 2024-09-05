@@ -23,7 +23,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 	"sort"
 	"strconv"
@@ -46,6 +45,7 @@ type Transaction struct {
 
 // TransactionStmt represents a transaction statement
 type TransactionStmt struct {
+	Id       int         // The statement id
 	Stmt     interface{} // The statement, (insert, update, delete)
 	Commited bool        // Whether the statement has been commited
 	Rollback *Rollback   // Rollback data
@@ -95,24 +95,134 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("user does not have the privilege to COMMIT on system") // Transactions are system wide
 		}
 
-		if !ex.TransactionBegun {
-			return errors.New("no transaction begun")
-		}
+		for j, tx := range ex.Transaction.Statements {
+			switch ss := tx.Stmt.(type) {
+			case *parser.DeleteStmt:
+				if ex.ch.Database == nil {
+					return errors.New("no database selected")
 
-		for i, tx := range ex.Transaction.Statements {
+				}
 
-			err := ex.Execute(tx)
-			if err != nil {
-				err = ex.rollback()
+				rowIds, deletedRows, err := ex.executeDeleteStmt(ss)
 				if err != nil {
 					return err
-				} // Rollback the transaction
+				}
 
-				return err
+				if ex.TransactionBegun {
+
+					for i, rowId := range rowIds {
+						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+							RowId: rowId,
+							Row:   deletedRows[i],
+						})
+					}
+				}
+
+				continue
+			case *parser.UpdateStmt:
+				if ex.ch.Database == nil {
+					if j > 0 {
+						// rollback
+						err := ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+					return errors.New("no database selected")
+
+				}
+
+				rowIds, updatedRows, err := ex.executeUpdateStmt(ss)
+				if err != nil {
+					if j > 0 {
+						// rollback
+						err = ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+					return err
+				}
+
+				if ex.TransactionBegun {
+
+					for i, rowId := range rowIds {
+						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+							RowId: rowId,
+							Row:   updatedRows[i],
+						})
+					}
+				}
+
+				continue
+			case *parser.InsertStmt:
+				if ex.ch.Database == nil {
+					if j > 0 {
+						// rollback
+						err := ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+
+					return errors.New("no database selected")
+				}
+
+				tbl := ex.ch.Database.GetTable(ss.TableName.Value)
+				if tbl == nil {
+					if j > 0 {
+						// rollback
+						err := ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+					return errors.New("table does not exist")
+				}
+
+				if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, tbl.Name, []shared.PrivilegeAction{shared.PRIV_INSERT}) {
+					if j > 0 {
+						// rollback
+						err := ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+					return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name + " and table " + ss.TableName.Value)
+				}
+
+				var rows []map[string]interface{}
+
+				for _, row := range ss.Values {
+					data := map[string]interface{}{}
+					for i, col := range ss.ColumnNames {
+						data[col.Value] = row[i].Value
+					}
+					rows = append(rows, data)
+
+				}
+
+				rowIds, insertedRows, err := tbl.Insert(rows)
+				if err != nil {
+					if j > 0 {
+						// rollback
+						err := ex.rollback()
+						if err != nil {
+							return err
+						}
+					}
+					return err
+				}
+
+				for i, rowId := range rowIds {
+					ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
+						RowId: rowId,
+						Row:   insertedRows[i],
+					})
+				}
+
+				continue
 			}
-
-			ex.Transaction.Statements[i].Commited = true
-
 		}
 
 		ex.TransactionBegun = false
@@ -291,23 +401,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		rowIds, insertedRows, err := tbl.Insert(rows)
-		if err != nil {
-			return err
-		}
-
 		if ex.TransactionBegun {
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
 				Commited: false,
 				Rollback: &Rollback{Rows: []*Before{}},
 			})
+		} else {
 
-			for i, rowId := range rowIds {
-				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
-					RowId: rowId,
-					Row:   insertedRows[i],
-				})
+			_, _, err = tbl.Insert(rows)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -375,23 +480,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		rowIds, updatedRows, err := ex.executeUpdateStmt(s)
-		if err != nil {
-			return err
-		}
-
 		if ex.TransactionBegun {
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
 				Commited: false,
 				Rollback: &Rollback{Rows: []*Before{}},
 			})
+		} else {
 
-			for i, rowId := range rowIds {
-				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
-					RowId: rowId,
-					Row:   updatedRows[i],
-				})
+			_, _, err = ex.executeUpdateStmt(s)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -408,26 +508,21 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		rowIds, deletedRows, err := ex.executeDeleteStmt(s)
-		if err != nil {
-			return err
-		}
-
 		if ex.TransactionBegun {
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
+				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
 				Commited: false,
 				Rollback: &Rollback{Rows: []*Before{}},
 			})
+		} else {
 
-			for i, rowId := range rowIds {
-				ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
-					RowId: rowId,
-					Row:   deletedRows[i],
-				})
+			_, _, err = ex.executeDeleteStmt(s)
+			if err != nil {
+				return err
 			}
-		}
 
+		}
 		return nil
 	case *parser.CreateUserStmt:
 
@@ -1223,7 +1318,6 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 						switch arg := arg.(type) {
 						case *parser.ColumnSpecification:
 							if _, ok := row[arg.ColumnName.Value]; !ok {
-								log.Println("Column does not exist:", arg.ColumnName.Value)
 								return nil, errors.New("column does not exist")
 							}
 							count++
