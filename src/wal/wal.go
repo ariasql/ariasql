@@ -31,7 +31,7 @@ type WAL struct {
 	// The file descriptor for the WAL file
 	file *btree.Pager
 	// The file path for the WAL file
-	filePath string
+	FilePath string
 	lock     *sync.Mutex
 	// Every WAL contains ASTs to recover the database
 }
@@ -56,7 +56,7 @@ func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 
 	return &WAL{
 		file:     wal,
-		filePath: filePath,
+		FilePath: filePath,
 		lock:     &sync.Mutex{},
 	}, nil
 }
@@ -155,8 +155,8 @@ func (w *WAL) Decode(data []byte) interface{} {
 	return entry.Statement
 }
 
-// Recover abstract syntax trees from the WAL file
-func (w *WAL) Recover() ([]interface{}, error) {
+// RecoverASTs Recover abstract syntax trees from the WAL file
+func (w *WAL) RecoverASTs() ([]interface{}, error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 

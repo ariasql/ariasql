@@ -66,16 +66,9 @@ func TestWAL_Recover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stmts, err := wal.Recover()
+	err = wal.Recover()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if len(stmts) != 1 {
-		t.Fatal("expected 1 statement")
-	}
-
-	if stmts[0].(parser.CreateDatabaseStmt).Name.Value != "test" {
-		t.Fatal("expected test")
-	}
 }

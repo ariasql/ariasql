@@ -21,18 +21,22 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
+	"ariasql/wal"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Executor is the main executor structure
 type Executor struct {
 	aria             *core.AriaSQL // AriaSQL instance pointer
 	ch               *core.Channel // Channel pointer
+	recover          bool          // Recover flag
 	Transaction      *Transaction  // Transaction statements
 	TransactionBegun bool          // Transaction begun
 	ResultSetBuffer  []byte        // Result set buffer
@@ -243,8 +247,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateDatabaseStmt:
-		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to CREATE on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to CREATE on system")
+			}
 		}
 
 		if ex.TransactionBegun {
@@ -258,8 +264,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return ex.aria.Catalog.CreateDatabase(s.Name.Value)
 	case *parser.CreateTableStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
+			}
 		}
 
 		if ex.TransactionBegun {
@@ -283,8 +291,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.DropTableStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to DROP on system for database " + ex.ch.Database.Name)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to DROP on system for database " + ex.ch.Database.Name)
+			}
 		}
 
 		if ex.ch.Database == nil {
@@ -315,9 +325,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
-
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
+			}
 		}
 
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
@@ -351,8 +362,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to DRP{ on system for database " + ex.ch.Database.Name)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to DRP{ on system for database " + ex.ch.Database.Name)
+			}
 		}
 
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
@@ -381,8 +394,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("table does not exist")
 		}
 
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name + " and table " + s.TableName.Value)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name + " and table " + s.TableName.Value)
+			}
 		}
 
 		var rows []map[string]interface{}
@@ -435,9 +450,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		ex.ch.Database = db
 		return nil
 	case *parser.DropDatabaseStmt:
-
-		if !ex.ch.User.HasPrivilege(stmt.(*parser.DropDatabaseStmt).Name.Value, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to INSERT on system for database " + stmt.(*parser.DropDatabaseStmt).Name.Value)
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(stmt.(*parser.DropDatabaseStmt).Name.Value, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to INSERT on system for database " + stmt.(*parser.DropDatabaseStmt).Name.Value)
+			}
 		}
 
 		err := ex.aria.Catalog.DropDatabase(s.Name.Value)
@@ -498,6 +514,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.DeleteStmt:
+
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 
@@ -525,36 +542,52 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 		return nil
 	case *parser.CreateUserStmt:
-
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to CREATE on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to CREATE on system")
+			}
 		}
 
 		if ex.TransactionBegun {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
-		err := ex.aria.Catalog.CreateNewUser(s.Username.Value, s.Password.Value.(string))
+
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.aria.Catalog.CreateNewUser(s.Username.Value, s.Password.Value.(string))
 		if err != nil {
 			return err
 		}
 
 	case *parser.DropUserStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to DROP on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+				return errors.New("user does not have the privilege to DROP on system")
+			}
 		}
 
 		if ex.TransactionBegun {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
 
-		err := ex.aria.Catalog.DropUser(s.Username.Value)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.aria.Catalog.DropUser(s.Username.Value)
 		if err != nil {
 			return err
 		}
 
 	case *parser.GrantStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_GRANT}) {
-			return errors.New("user does not have the privilege to GRANT on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_GRANT}) {
+				return errors.New("user does not have the privilege to GRANT on system")
+			}
 		}
 
 		if ex.TransactionBegun {
@@ -578,14 +611,21 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
 		}
 
-		err := ex.aria.Catalog.GrantPrivilegeToUser(s.PrivilegeDefinition.Grantee.Value, priv)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.aria.Catalog.GrantPrivilegeToUser(s.PrivilegeDefinition.Grantee.Value, priv)
 		if err != nil {
 			return err
 		}
 
 	case *parser.RevokeStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
-			return errors.New("user does not have the privilege to REVOKE on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
+				return errors.New("user does not have the privilege to REVOKE on system")
+			}
 		}
 
 		if ex.TransactionBegun {
@@ -609,7 +649,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
 		}
 
-		err := ex.aria.Catalog.RevokePrivilegeFromUser(s.PrivilegeDefinition.Revokee.Value, priv)
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		if err != nil {
+			return err
+		}
+
+		err = ex.aria.Catalog.RevokePrivilegeFromUser(s.PrivilegeDefinition.Revokee.Value, priv)
 		if err != nil {
 			return err
 		}
@@ -659,8 +704,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("unsupported show type")
 		}
 	case *parser.AlterUserStmt:
-		if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_ALTER}) {
-			return errors.New("user does not have the privilege to ALTER on system")
+		if !ex.recover { // If not recovering from WAL
+			if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_ALTER}) {
+				return errors.New("user does not have the privilege to ALTER on system")
+			}
 		}
 
 		if ex.TransactionBegun {
@@ -668,12 +715,22 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if s.SetType == parser.ALTER_USER_SET_PASSWORD {
-			err := ex.aria.Catalog.AlterUserPassword(s.Username.Value, s.Value.Value.(string))
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+			if err != nil {
+				return err
+			}
+
+			err = ex.aria.Catalog.AlterUserPassword(s.Username.Value, s.Value.Value.(string))
 			if err != nil {
 				return err
 			}
 		} else if s.SetType == parser.ALTER_USER_SET_USERNAME {
-			err := ex.aria.Catalog.AlterUserUsername(s.Username.Value, s.Value.Value.(string))
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+			if err != nil {
+				return err
+			}
+
+			err = ex.aria.Catalog.AlterUserUsername(s.Username.Value, s.Value.Value.(string))
 			if err != nil {
 				return err
 			}
@@ -2688,4 +2745,52 @@ func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause) []*catalog.Se
 
 	return setClauses
 
+}
+
+// Recover recovers an AriaSQL instance from a WAL file
+func (ex *Executor) Recover(w *wal.WAL) error {
+	if !ex.recover {
+		ex.recover = true
+	}
+
+	stmts, err := w.RecoverASTs()
+	if err != nil {
+		return err
+	}
+
+	// Remove databases directory and users.usrs
+	err = os.RemoveAll(fmt.Sprintf("%s%sdatabases", w.FilePath, shared.GetOsPathSeparator()))
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(fmt.Sprintf("%s%susers.usrs", w.FilePath, shared.GetOsPathSeparator()))
+
+	aria := core.New(nil)
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		return err
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	if user == nil {
+		return fmt.Errorf("admin user not found")
+	}
+
+	ex.aria = aria
+	ex.ch = aria.OpenChannel(user)
+
+	for _, stmt := range stmts {
+		err = ex.Execute(stmt)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

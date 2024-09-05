@@ -19,7 +19,11 @@ package main
 import (
 	"ariasql/catalog"
 	"ariasql/core"
+	"ariasql/executor"
 	"ariasql/server"
+	"ariasql/shared"
+	"ariasql/wal"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -29,56 +33,78 @@ import (
 
 // The main function starts the AriaSQL server
 func main() {
-	// @todo Implement recover flag
-	// Look for recover flag
-	// If it exists, recover AriaSQL instance from WAL ( there is one WAL per AriaSQL instance )
-	// This will require deleting everything from catalog, opening an executor and executing all the statements in the WAL
+	var (
+		recov = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
+	)
 
-	// Create a channel to receive OS signals
-	sigs := make(chan os.Signal, 1)
+	flag.Parse()
 
-	// Register the channel to receive specific signals
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	// Create a new AriaSQL instance
-	aria := core.New(nil)
-
-	aria.Catalog = catalog.New(aria.Config.DataDir)
-
-	if err := aria.Catalog.Open(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	aria.Channels = make([]*core.Channel, 0)
-	aria.ChannelsLock = &sync.Mutex{}
-
-	server, err := server.NewTCPServer(3695, "0.0.0.0", aria, 1024)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	go func() {
-		sig := <-sigs
-		switch sig {
-		case syscall.SIGINT:
-			// Handling SIGINT (Ctrl+C) signal
-			fmt.Println("Received SIGINT, shutting down...")
-			server.Stop()
-			aria.Catalog.Close()
-			aria.WAL.Close()
-			os.Exit(0)
-		case syscall.SIGTERM:
-			// Handling SIGTERM signal
-			fmt.Println("Received SIGTERM, shutting down...")
-			server.Stop()
-			aria.Catalog.Close()
-			aria.WAL.Close()
-			os.Exit(0)
+	if *recov {
+		fmt.Println("Recovering AriaSQL instance from WAL...")
+		w, err := wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
-	}()
 
-	server.Start()
+		defer w.Close()
+
+		ex := executor.New(nil, nil)
+
+		err = ex.Recover(w)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+	} else {
+
+		// Create a channel to receive OS signals
+		sigs := make(chan os.Signal, 1)
+
+		// Register the channel to receive specific signals
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+		// Create a new AriaSQL instance
+		aria := core.New(nil)
+
+		aria.Catalog = catalog.New(aria.Config.DataDir)
+
+		if err := aria.Catalog.Open(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		aria.Channels = make([]*core.Channel, 0)
+		aria.ChannelsLock = &sync.Mutex{}
+
+		server, err := server.NewTCPServer(3695, "0.0.0.0", aria, 1024)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		go func() {
+			sig := <-sigs
+			switch sig {
+			case syscall.SIGINT:
+				// Handling SIGINT (Ctrl+C) signal
+				fmt.Println("Received SIGINT, shutting down...")
+				server.Stop()
+				aria.Catalog.Close()
+				aria.WAL.Close()
+				os.Exit(0)
+			case syscall.SIGTERM:
+				// Handling SIGTERM signal
+				fmt.Println("Received SIGTERM, shutting down...")
+				server.Stop()
+				aria.Catalog.Close()
+				aria.WAL.Close()
+				os.Exit(0)
+			}
+		}()
+
+		server.Start()
+	}
 
 }
