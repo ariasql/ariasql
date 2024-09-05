@@ -35,7 +35,7 @@ type Executor struct {
 	ch               *core.Channel // Channel pointer
 	Transaction      *Transaction  // Transaction statements
 	TransactionBegun bool          // Transaction begun
-	resultSetBuffer  []byte        // Result set buffer
+	ResultSetBuffer  []byte        // Result set buffer
 }
 
 // Transaction represents a transaction
@@ -534,7 +534,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				{"Databases": databases},
 			}
 
-			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 			return nil
 		case parser.SHOW_TABLES:
 			if ex.ch.Database == nil {
@@ -546,7 +546,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				{"Tables": tables},
 			}
 
-			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 			return nil
 
@@ -556,7 +556,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				{"Users": users},
 			}
 
-			ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 			return nil
 		default:
@@ -695,7 +695,7 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 	results = []map[string]interface{}{rA}
 
 	// Now we format the results
-	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil, nil
 
@@ -729,7 +729,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 	results = []map[string]interface{}{rA}
 
 	// Now we format the results
-	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil, nil
 
@@ -737,12 +737,12 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 
 // GetResultSet returns the result set buffer
 func (ex *Executor) GetResultSet() []byte {
-	return ex.resultSetBuffer
+	return ex.ResultSetBuffer
 }
 
 // Clear clears the result set buffer
 func (ex *Executor) Clear() {
-	ex.resultSetBuffer = nil
+	ex.ResultSetBuffer = nil
 }
 
 // executeSelectStmt executes a select statement
@@ -875,7 +875,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	}
 
 	// Now we format the results
-	ex.resultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 	return nil, nil
 }
