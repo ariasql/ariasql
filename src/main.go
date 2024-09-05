@@ -29,6 +29,11 @@ import (
 
 // The main function starts the AriaSQL server
 func main() {
+	// @todo Implement recover flag
+	// Look for recover flag
+	// If it exists, recover AriaSQL instance from WAL
+	// This will require deleting everything from catalog, opening an executor and executing all the statements in the WAL
+
 	// Create a channel to receive OS signals
 	sigs := make(chan os.Signal, 1)
 
