@@ -54,6 +54,7 @@ When starting AriaSQL for the first time a variety of files will be created as s
 
 #### Data directories
 ##### Windows
+
 ```
 os.Getenv("ProgramData") + GetOsPathSeparator() + "AriaSQL"
 
@@ -61,13 +62,16 @@ i.e C:\ProgramData\AriaSQL
 ```
 
 ##### MacOS
+
 ```
 /Library/Application Support/AriaSQL
 ```
 
 ##### Linux
+
 ```
 /var/lib/ariasql
+```
 
 
 ### Communicating with server
