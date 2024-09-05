@@ -254,7 +254,7 @@ func main() {
 
 		// Get response
 		response := make([]byte, asql.bufferSize)
-		n, err := asql.conn.Read(response)
+		_, err = asql.conn.Read(response)
 		if err != nil {
 			rl.Write([]byte(fmt.Sprintf("Error reading from server: %s\n", err.Error())))
 			asql.signalChannel <- syscall.SIGINT
@@ -263,7 +263,7 @@ func main() {
 
 		duration := fmt.Sprintf("Completed in %s\n", time.Since(tNow).String())
 
-		fmt.Print(string(append(response[:n], duration...)))
+		fmt.Print(string(append(response, duration...)))
 
 	}
 

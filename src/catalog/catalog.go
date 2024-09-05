@@ -245,7 +245,10 @@ func (cat *Catalog) Open() error {
 							tbl.Indexes[idx.Name] = idx
 
 						}
+
 					}
+
+					db.Tables[tbl.Name] = tbl
 				}
 
 			}
