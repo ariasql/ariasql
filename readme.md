@@ -43,7 +43,7 @@ The AriaSQL server starts when executing the binary.
 
 When starting AriaSQL for the first time a variety of files will be created as seen below.
 <div>
-    <h1 align="center"><img width="600" src="artwork/asql2.png"></h1>
+    <h1 align="center"><img width="760" src="artwork/asql2.png"></h1>
 </div>
 
 - ariaserver.yaml - The server configuration file.
@@ -80,7 +80,7 @@ The server listens on port `3695` for incoming connections.
 
 You can configure your server settings in the `ariaserver.yaml` file.
 <div>
-    <h1 align="center"><img width="600" src="artwork/asql3.png"></h1>
+    <h1 align="center"><img width="760" src="artwork/asql3.png"></h1>
 </div>
 
 
@@ -103,7 +103,7 @@ All but username and password are optional.
 
 
 <div>
-    <h1 align="center"><img width="600" src="artwork/asql0.png"></h1>
+    <h1 align="center"><img width="760" src="artwork/asql_rec1.gif"></h1>
 </div>
 
 
