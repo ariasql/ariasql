@@ -10,10 +10,10 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 ## Features
 - [x] SQL1 handwritten parser, lexer implementation
 - [x] BTrees for indexes
-- [x] Execution engine / Compiler
+- [x] Optimized execution engine / compiler
 - [x] SQL Server (TCP Server on port `3695`)
 - [x] User authentication and privileges
-- [x] Transactions with rollbacks
+- [x] Atomic transactions with rollback support on error
 - [x] WAL (Write Ahead Logging)
 - [x] Recovery-Replay from WAL
 - [x] Subqueries
