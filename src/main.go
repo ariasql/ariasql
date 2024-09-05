@@ -34,6 +34,7 @@ import (
 )
 
 // The main function starts the AriaSQL server
+// you can pass the -recover flag to recover the AriaSQL instance from the WAL if it was not shut down properly, crashed, etc
 func main() {
 	var (
 		recov = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
