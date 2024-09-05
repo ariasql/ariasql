@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"github.com/briandowns/spinner"
 	term "github.com/nsf/termbox-go"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -65,7 +66,7 @@ func New() (*ASQL, error) {
 		}
 	} else {
 		// Open the file
-		historyFile, err = os.Open(HISTORY_EXTENSION)
+		historyFile, err = os.OpenFile(HISTORY_EXTENSION, os.O_RDWR, 0644)
 		if err != nil {
 			return nil, err
 		}
@@ -180,28 +181,6 @@ func (a *ASQL) close() {
 	}
 }
 
-// SaveHistory saves the history to the history file
-func (a *ASQL) saveHistory() error {
-	// Trunc
-	err := a.historyFile.Truncate(0)
-	if err != nil {
-		return err
-	}
-	_, err = a.historyFile.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	for _, h := range a.history {
-		_, err = a.historyFile.WriteString(h + "\n")
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // LoadHistory loads the history from the history file
 func (a *ASQL) LoadHistory() error {
 	_, err := a.historyFile.Seek(0, 0)
@@ -229,11 +208,17 @@ func (a *ASQL) LoadHistory() error {
 // AddHistory adds a statement to the history
 func (a *ASQL) addHistory(statement string) error {
 	a.history = append(a.history, statement)
-	err := a.saveHistory()
+
+	// seek to the end of the file
+	_, err := a.historyFile.Seek(0, 2)
 	if err != nil {
 		return err
 	}
 
+	_, err = a.historyFile.WriteString(statement + "\n")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -347,7 +332,13 @@ func (a *ASQL) handle() {
 					// Add the statement to the history
 					err = a.addHistory(string(a.buffer))
 					if err != nil {
-						fmt.Println("Error adding to history: ", err.Error())
+						log.Println(err)
+						e := "Error adding to history: " + err.Error()
+						for i := 0; i < len(e); i++ {
+							a.runeCh <- rune(e[i])
+							term.Sync()
+						}
+
 						a.signalChannel <- syscall.SIGINT
 						return
 					}
@@ -360,14 +351,24 @@ func (a *ASQL) handle() {
 					if a.conn != nil {
 						_, err := a.conn.Write([]byte(string(a.buffer)))
 						if err != nil {
-							fmt.Println("Error writing to server: ", err.Error())
+							log.Println(err)
+							e := "Error writing to server: " + err.Error()
+							for i := 0; i < len(e); i++ {
+								a.runeCh <- rune(e[i])
+								term.Sync()
+							}
 							a.signalChannel <- syscall.SIGINT
 							break
 						}
 					} else {
 						_, err := a.secureConn.Write([]byte(string(len(a.buffer))))
 						if err != nil {
-							fmt.Println("Error writing to server: ", err.Error())
+							log.Println(err)
+							e := "Error writing to server: " + err.Error()
+							for i := 0; i < len(e); i++ {
+								a.runeCh <- rune(e[i])
+								term.Sync()
+							}
 							a.signalChannel <- syscall.SIGINT
 							break
 						}
@@ -377,7 +378,12 @@ func (a *ASQL) handle() {
 					response := make([]byte, a.bufferSize)
 					n, err := a.conn.Read(response)
 					if err != nil {
-						fmt.Println("Error reading from server: ", err.Error())
+						log.Println(err)
+						e := "Error writing to server: " + err.Error()
+						for i := 0; i < len(e); i++ {
+							a.runeCh <- rune(e[i])
+							term.Sync()
+						}
 						a.signalChannel <- syscall.SIGINT
 						break
 					}
@@ -401,7 +407,7 @@ func (a *ASQL) handle() {
 
 			}
 		case term.EventError:
-			fmt.Println("Error: ", ev.Err)
+			log.Println("Error: ", ev.Err)
 			a.signalChannel <- syscall.SIGINT
 		}
 	}
@@ -455,6 +461,7 @@ func main() {
 		sig := <-asql.signalChannel
 		switch sig {
 		case syscall.SIGINT:
+			log.Println("wtf")
 			asql.close()
 			term.Close()
 			// Handling SIGINT (Ctrl+C) signal
