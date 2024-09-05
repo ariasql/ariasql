@@ -119,9 +119,9 @@ func (a *ASQL) connect(host string, port int, secure bool, username, password st
 	authOk := bytes.Split(response, []byte("\n"))[0]
 	version := bytes.Split(response, []byte("\n"))[1]
 	a.header = []byte(fmt.Sprintf(`
-ARIASQL %s (c) %d all rights reserved
-=================================================*
-`, string(version), time.Now().Year()))
+ARIASQL VERSION %s (C) %d ALL RIGHTS RESERVED
+==================================================*
+`, strings.TrimSpace(strings.ReplaceAll(string(version), "VERSION:", "")), time.Now().Year()))
 
 	if string(authOk) == "OK" {
 		a.authenticated = true
