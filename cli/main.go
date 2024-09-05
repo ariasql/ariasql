@@ -46,6 +46,7 @@ type ASQL struct {
 	authenticated bool            // Is the user authenticated?
 	wg            *sync.WaitGroup // WaitGroup to wait for goroutines to finish
 	runeCh        chan rune       // Channel to send runes to the terminal
+	bufferSize    int             // Buffer size for reading from the connection
 }
 
 // New creates a new ASQL instance
@@ -84,12 +85,15 @@ func New() (*ASQL, error) {
 		historyFile:   historyFile,
 		wg:            &sync.WaitGroup{},
 		runeCh:        make(chan rune),
+		bufferSize:    0,
 	}, nil
 }
 
 // Connect connects to the AriaSQL server
-func (a *ASQL) connect(host string, port int, secure bool, username, password string) error {
+func (a *ASQL) connect(host string, port int, secure bool, username, password string, bufferSize int) error {
 	var err error
+
+	a.bufferSize = bufferSize
 
 	// Resolve the string address to a TCP address
 	a.addr, err = net.ResolveTCPAddr("tcp4", fmt.Sprintf("%s:%d", host, port))
@@ -286,7 +290,7 @@ func (a *ASQL) handle() {
 					}
 
 					// Get response
-					response := make([]byte, 1024)
+					response := make([]byte, a.bufferSize)
 					_, err := a.conn.Read(response)
 					if err != nil {
 						fmt.Println("Error reading from server: ", err.Error())
@@ -325,11 +329,12 @@ func (a *ASQL) handle() {
 // WIP!
 func main() {
 	var (
-		host     = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
-		port     = flag.Int("port", 3695, "Port of AriaSQL instance you want to connect to")
-		tls      = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
-		username = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
-		password = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		host       = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
+		port       = flag.Int("port", 3695, "Port of AriaSQL instance you want to connect to")
+		tls        = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		username   = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		password   = flag.Bool("tls", false, "Use TLS to connect to AriaSQL instance")
+		bufferSize = flag.Int("buffer", 1024, "Buffer size for reading from the connection")
 	)
 
 	asql, err := New()
@@ -346,7 +351,7 @@ func main() {
 
 	flag.Parse()
 
-	err = asql.connect(*host, *port, *tls, *username, *password)
+	err = asql.connect(*host, *port, *tls, *username, *password, *bufferSize)
 	if err != nil {
 		fmt.Println("Unable to reach AriaSQL server: ", err.Error())
 		os.Exit(1)
