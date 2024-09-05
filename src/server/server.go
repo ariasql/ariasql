@@ -188,6 +188,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 	// Write the OK response to the connection
 	// We also pass AriaSQL version to client
+	// The reasoning behind this is so a client connecting can check the AriaSQL version, possibly right when connecting for example, on the CLI.
 	conn.Write([]byte("OK\nVERSION: " + shared.VERSION + "\n"))
 
 	for {
