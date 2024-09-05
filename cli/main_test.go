@@ -15,3 +15,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package main
+
+import (
+	"os"
+	"testing"
+)
+
+func TestNew(t *testing.T) {
+	defer os.Remove(".asql_history")
+
+	asql, err := New()
+	if err != nil {
+		t.Errorf("Expected nil, got %s", err)
+	}
+
+	if asql == nil {
+		t.Errorf("Expected not nil, got nil")
+	}
+
+	if asql.historyIndex != 0 {
+		t.Errorf("Expected 0, got %d", asql.historyIndex)
+	}
+
+}

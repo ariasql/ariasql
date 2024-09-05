@@ -321,11 +321,13 @@ func main() {
 		sig := <-asql.signalChannel
 		switch sig {
 		case syscall.SIGINT:
+			asql.close()
 			term.Close()
 			// Handling SIGINT (Ctrl+C) signal
 			fmt.Println("\nReceived SIGINT, shutting down...")
 			os.Exit(0)
 		case syscall.SIGTERM:
+			asql.close()
 			term.Close()
 			// Handling SIGTERM signal
 			fmt.Println("\nReceived SIGTERM, shutting down...")
