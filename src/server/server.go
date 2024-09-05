@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -224,12 +225,12 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 				continue
 			}
 
-			exe.Clear()
-
 			// Write the response to the connection
 			if len(exe.GetResultSet()) == 0 {
 				conn.Write([]byte("OK\n"))
 			} else {
+
+				log.Println(exe.GetResultSet())
 				conn.Write(append(exe.GetResultSet(), []byte("\n")...))
 
 			}
