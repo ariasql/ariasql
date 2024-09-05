@@ -323,11 +323,11 @@ func (cat *Catalog) CreateDatabase(name string) error {
 	cat.Databases[name] = &Database{
 		Name:      name,
 		Tables:    make(map[string]*Table),
-		Directory: fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), name),
+		Directory: fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name),
 	}
 
 	// Create database directory
-	err := os.Mkdir(fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), name), 0755)
+	err := os.Mkdir(fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name), 0755)
 	if err != nil {
 		return err
 	}
@@ -342,14 +342,14 @@ func (cat *Catalog) DropDatabase(name string) error {
 		return fmt.Errorf("database %s does not exist", name)
 	}
 
-	// Drop database
-	delete(cat.Databases, name)
-
 	// Drop database directory
-	err := os.RemoveAll(fmt.Sprintf("%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), name))
+	err := os.RemoveAll(cat.Databases[name].Directory)
 	if err != nil {
 		return err
 	}
+
+	// Drop database
+	delete(cat.Databases, name)
 
 	return nil
 }

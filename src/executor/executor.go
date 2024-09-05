@@ -330,8 +330,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 	case *parser.DropDatabaseStmt:
 
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
-			return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name)
+		if !ex.ch.User.HasPrivilege(stmt.(*parser.DropDatabaseStmt).Name.Value, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			return errors.New("user does not have the privilege to INSERT on system for database " + stmt.(*parser.DropDatabaseStmt).Name.Value)
 		}
 
 		err := ex.aria.Catalog.DropDatabase(s.Name.Value)
@@ -342,6 +342,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
 		if err != nil {
 			return err
+		}
+
+		// if the database is the current database, set the current database to nil
+		if ex.ch.Database.Name == s.Name.Value {
+			ex.ch.Database = nil
 		}
 
 		return nil
