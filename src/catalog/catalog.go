@@ -1470,6 +1470,14 @@ func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bo
 						}
 
 					}
+				} else if slices.Contains(p.PrivilegeActions, shared.PRIV_CONNECT) {
+					// CONNECT
+					for _, a := range actions {
+						if slices.Contains(p.PrivilegeActions, a) {
+							has = append(has, true)
+						}
+
+					}
 				}
 			}
 		}

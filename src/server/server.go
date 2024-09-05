@@ -182,6 +182,12 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		return
 	}
 
+	// Check if user has CONNECT privilege
+	if !user.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_CONNECT}) {
+		conn.Write([]byte("ERR: User does not have CONNECT privilege\n"))
+		return
+	}
+
 	// Open a new channel
 	channel := s.aria.OpenChannel(user)
 	defer s.aria.CloseChannel(channel)
