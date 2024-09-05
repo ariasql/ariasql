@@ -15,3 +15,6 @@ src/test
 src/*.yaml
 ariasql
 src/ariasql
+src/wal.dat
+src/wal.dat.del
+src/users.usrs
