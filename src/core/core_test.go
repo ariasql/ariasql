@@ -17,9 +17,14 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package core
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestNew(t *testing.T) {
+	defer os.Remove("wal.dat")
+	defer os.Remove("wal.dat.del")
 	aria := New(&Config{
 		DataDir: "./",
 	})
@@ -34,6 +39,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestAriaSQL_OpenChannel(t *testing.T) {
+	defer os.Remove("wal.dat")
+	defer os.Remove("wal.dat.del")
 	aria := New(&Config{
 		DataDir: "./",
 	})
@@ -57,6 +64,8 @@ func TestAriaSQL_OpenChannel(t *testing.T) {
 }
 
 func TestAriaSQL_RemoveChannel(t *testing.T) {
+	defer os.Remove("wal.dat")
+	defer os.Remove("wal.dat.del")
 	aria := New(&Config{
 		DataDir: "./",
 	})
