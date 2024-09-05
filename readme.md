@@ -51,8 +51,9 @@ If you're using netcat simply pass the base64 encoded string as the first line.
 ```
 
 #### Using asql - AriaSQL CLI
+(still WIP)
 ```
-asql -u admin -p admin -host localhost -port 3695 -tls false
+./asql -u admin -p admin -host localhost -port 3695 -tls false
 ```
 All but username and password are optional.
 
