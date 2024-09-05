@@ -33,8 +33,4 @@ func TestNew(t *testing.T) {
 		t.Errorf("Expected not nil, got nil")
 	}
 
-	if asql.historyIndex != 0 {
-		t.Errorf("Expected 0, got %d", asql.historyIndex)
-	}
-
 }

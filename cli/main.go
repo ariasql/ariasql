@@ -23,8 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/briandowns/spinner"
-	term "github.com/nsf/termbox-go"
-	"log"
+	"github.com/chzyer/readline"
 	"net"
 	"os"
 	"strings"
@@ -38,52 +37,24 @@ const HISTORY_EXTENSION = ".asql_history"
 
 // ASQL is the AriaSQL CLI structure
 type ASQL struct {
-	history       []string // History of statements
-	historyFile   *os.File
-	historyIndex  int             // Current history index (used for up and down arrow keys)
-	signalChannel chan os.Signal  // Channel to receive OS signals
-	buffer        []rune          // Buffer to store the current input
-	conn          *net.TCPConn    // Connection to the server
-	secureConn    *tls.Conn       // Secure connection to the server
-	addr          *net.TCPAddr    // Address to connect to
-	authenticated bool            // Is the user authenticated?
-	wg            *sync.WaitGroup // WaitGroup to wait for goroutines to finish
-	runeCh        chan rune       // Channel to send runes to the terminal
-	bufferSize    int             // Buffer size for reading from the connection
+	signalChannel chan os.Signal     // Channel to receive OS signals
+	rl            *readline.Instance // Readline instance
+	conn          *net.TCPConn       // Connection to the server
+	secureConn    *tls.Conn          // Secure connection to the server
+	addr          *net.TCPAddr       // Address to connect to
+	authenticated bool               // Is the user authenticated?
+	wg            *sync.WaitGroup    // WaitGroup to wait for goroutines to finish
+	bufferSize    int                // Buffer size for reading from the connection
 	header        []byte
 }
 
 // New creates a new ASQL instance
 func New() (*ASQL, error) {
-	var historyFile *os.File
-
-	// Check if HISTORY_EXTENSION file exists
-	if _, err := os.Stat(HISTORY_EXTENSION); os.IsNotExist(err) {
-		// Create the file
-		historyFile, err = os.Create(HISTORY_EXTENSION)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// Open the file
-		historyFile, err = os.OpenFile(HISTORY_EXTENSION, os.O_RDWR, 0644)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	buffer := make([]rune, 0)
 
 	return &ASQL{
-		history:       make([]string, 0),
-		historyIndex:  0,
 		signalChannel: make(chan os.Signal, 1),
-		buffer:        buffer,
 		authenticated: false,
-		historyFile:   historyFile,
 		wg:            &sync.WaitGroup{},
-		runeCh:        make(chan rune),
 		bufferSize:    0,
 	}, nil
 }
@@ -153,10 +124,7 @@ ARIASQL %s (c) %d all rights reserved
 %s`, string(version), time.Now().Year(), PROMPT))
 
 	if string(authOk) == "OK" {
-		for i := 0; i < len(a.header); i++ {
-			a.buffer = append(a.buffer, rune(a.header[i]))
-		}
-
+		a.authenticated = true
 	} else {
 		return fmt.Errorf("authentication failed: %s", string(response))
 
@@ -176,243 +144,9 @@ func (a *ASQL) close() {
 		a.secureConn.Close()
 	}
 
-	if a.historyFile != nil {
-		a.historyFile.Close()
-	}
 }
 
-// LoadHistory loads the history from the history file
-func (a *ASQL) LoadHistory() error {
-	_, err := a.historyFile.Seek(0, 0)
-	if err != nil {
-		return err
-	}
-
-	var line string
-	for {
-		_, err := fmt.Fscanln(a.historyFile, &line)
-		if err != nil {
-			break
-		}
-
-		a.history = append(a.history, line)
-	}
-
-	// We should set index to the last item in the history
-	a.historyIndex = len(a.history)
-
-	return nil
-
-}
-
-// AddHistory adds a statement to the history
-func (a *ASQL) addHistory(statement string) error {
-	a.history = append(a.history, statement)
-
-	// seek to the end of the file
-	_, err := a.historyFile.Seek(0, 2)
-	if err != nil {
-		return err
-	}
-
-	_, err = a.historyFile.WriteString(statement + "\n")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// nextHistory moves to the next history item
-func (a *ASQL) nextHistory() string {
-	if a.historyIndex+1 < len(a.history) {
-		a.historyIndex++
-	}
-
-	return a.history[a.historyIndex]
-}
-
-// previousHistory moves to the previous history item
-func (a *ASQL) previousHistory() string {
-	if a.historyIndex > 0 {
-		a.historyIndex--
-	}
-
-	return a.history[a.historyIndex]
-
-}
-
-// handleKeys handles key events as well as communication with the server
-func (a *ASQL) handle() {
-	defer a.wg.Done()
-
-	err := term.Init()
-	if err != nil {
-		fmt.Println(err.Error())
-		a.signalChannel <- syscall.SIGINT
-		return
-	}
-
-	defer term.Close()
-
-	for {
-		switch ev := term.PollEvent(); ev.Type {
-		case term.EventKey:
-			switch ev.Key {
-			case term.KeyCtrlC:
-				term.Close()
-				a.signalChannel <- syscall.SIGINT
-				break
-			case term.KeyEsc:
-				term.Sync()
-			case term.KeyArrowDown:
-				// Get the next item in the history
-				if len(a.history) > 0 {
-					// Get the next item
-					nextItem := a.nextHistory()
-
-					// Clear the current buffer
-					a.buffer = []rune{}
-
-					for i := 0; i < len(PROMPT); i++ {
-						a.runeCh <- rune(PROMPT[i])
-						term.Sync()
-					}
-
-					for _, r := range nextItem {
-						a.runeCh <- r
-						term.Sync()
-					}
-				}
-			case term.KeyArrowUp:
-				// Get the last item in the history
-				if len(a.history) > 0 {
-					// Get the last item
-					lastItem := a.previousHistory()
-
-					// Clear the current buffer
-					a.buffer = []rune{}
-
-					// Clear the current buffer
-					a.buffer = []rune{}
-
-					for i := 0; i < len(PROMPT); i++ {
-						a.runeCh <- rune(PROMPT[i])
-						term.Sync()
-					}
-
-					for _, r := range lastItem {
-						a.runeCh <- r
-						term.Sync()
-					}
-
-				}
-			case term.KeySpace:
-				a.runeCh <- ' '
-			case term.KeyBackspace2, term.KeyBackspace:
-				if len(a.buffer) > len(PROMPT) {
-					a.runeCh <- '\b'
-				}
-
-			case term.KeyEnter:
-				if strings.HasSuffix(string(a.buffer), ";") && !strings.HasSuffix(string(a.buffer), "\";") && !strings.HasSuffix(string(a.buffer), "';") {
-					if len(a.buffer) > len(a.header) {
-						if string(a.buffer[:len(a.header)]) == string(a.header) {
-							// remove header
-							a.buffer = a.buffer[len(a.header):]
-						}
-
-					}
-
-					// remove prompt
-					if bytes.HasPrefix([]byte(string(a.buffer)), []byte(PROMPT)) {
-						a.buffer = a.buffer[len(PROMPT):]
-
-					}
-
-					// Add the statement to the history
-					err = a.addHistory(string(a.buffer))
-					if err != nil {
-						log.Println(err)
-						e := "Error adding to history: " + err.Error()
-						for i := 0; i < len(e); i++ {
-							a.runeCh <- rune(e[i])
-							term.Sync()
-						}
-
-						a.signalChannel <- syscall.SIGINT
-						return
-					}
-
-					a.historyIndex = len(a.history)
-
-					term.Sync()
-
-					// Send the statement to the server
-					if a.conn != nil {
-						_, err := a.conn.Write([]byte(string(a.buffer)))
-						if err != nil {
-							log.Println(err)
-							e := "Error writing to server: " + err.Error()
-							for i := 0; i < len(e); i++ {
-								a.runeCh <- rune(e[i])
-								term.Sync()
-							}
-							a.signalChannel <- syscall.SIGINT
-							break
-						}
-					} else {
-						_, err := a.secureConn.Write([]byte(string(len(a.buffer))))
-						if err != nil {
-							log.Println(err)
-							e := "Error writing to server: " + err.Error()
-							for i := 0; i < len(e); i++ {
-								a.runeCh <- rune(e[i])
-								term.Sync()
-							}
-							a.signalChannel <- syscall.SIGINT
-							break
-						}
-					}
-
-					// Get response
-					response := make([]byte, a.bufferSize)
-					n, err := a.conn.Read(response)
-					if err != nil {
-						log.Println(err)
-						e := "Error writing to server: " + err.Error()
-						for i := 0; i < len(e); i++ {
-							a.runeCh <- rune(e[i])
-							term.Sync()
-						}
-						a.signalChannel <- syscall.SIGINT
-						break
-					}
-
-					a.buffer = []rune{}
-
-					for i := 0; i < len(append(response[:n], []byte(PROMPT)...)); i++ {
-						a.runeCh <- rune(response[i])
-						term.Sync()
-
-					}
-
-				} else {
-					term.Sync()
-					a.runeCh <- '\n'
-				}
-
-			default:
-				term.Sync()
-				a.runeCh <- ev.Ch
-
-			}
-		case term.EventError:
-			log.Println("Error: ", ev.Err)
-			a.signalChannel <- syscall.SIGINT
-		}
-	}
-}
-
+// CLI entry point
 func main() {
 	var (
 		host       = flag.String("host", "localhost", "Host of AriaSQL instance you want to connect to")
@@ -437,15 +171,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = asql.LoadHistory()
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-
-	asql.wg.Add(1)
-	go asql.handle()
 	s := spinner.New(spinner.CharSets[12], 100*time.Millisecond)
+
+	s.Color("blue", "bold")
 	s.Start()
 	time.Sleep(2 * time.Second)
 	s.Stop()
@@ -461,32 +189,79 @@ func main() {
 		sig := <-asql.signalChannel
 		switch sig {
 		case syscall.SIGINT:
-			log.Println("wtf")
 			asql.close()
-			term.Close()
 			// Handling SIGINT (Ctrl+C) signal
 			fmt.Println("\nReceived SIGINT, shutting down...")
 			os.Exit(0)
 		case syscall.SIGTERM:
 			asql.close()
-			term.Close()
 			// Handling SIGTERM signal
 			fmt.Println("\nReceived SIGTERM, shutting down...")
 			os.Exit(0)
 		}
 	}()
 
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:                 "ariasql>",
+		HistoryFile:            HISTORY_EXTENSION,
+		DisableAutoSaveHistory: true,
+	})
+	if err != nil {
+		panic(err)
+	}
+	defer rl.Close()
+
+	var cmds []string
 	for {
-		term.Sync()
-		fmt.Print(string(asql.buffer))
-		select {
-		case r := <-asql.runeCh:
-			if r == '\b' {
-				asql.buffer = asql.buffer[:len(asql.buffer)-1]
-			} else {
-				asql.buffer = append(asql.buffer, r)
+		line, err := rl.Readline()
+		if err != nil {
+			break
+		}
+		line = strings.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		cmds = append(cmds, line)
+		if !strings.HasSuffix(line, ";") {
+			rl.SetPrompt(">>> ")
+			continue
+		}
+		cmd := strings.Join(cmds, " ")
+		cmds = cmds[:0]
+		rl.SetPrompt("ariasql>")
+		rl.SaveHistory(cmd)
+
+		tNow := time.Now()
+
+		// Send the statement to the server
+		if asql.conn != nil {
+			_, err := asql.conn.Write([]byte(cmd))
+			if err != nil {
+				rl.Write([]byte(fmt.Sprintf("Error writing to server: %s\n", err.Error())))
+				asql.signalChannel <- syscall.SIGINT
+				break
+			}
+		} else {
+			_, err := asql.secureConn.Write([]byte(cmd))
+			if err != nil {
+				rl.Write([]byte(fmt.Sprintf("Error writing to server: %s\n", err.Error())))
+				asql.signalChannel <- syscall.SIGINT
+				break
 			}
 		}
+
+		// Get response
+		response := make([]byte, asql.bufferSize)
+		n, err := asql.conn.Read(response)
+		if err != nil {
+			rl.Write([]byte(fmt.Sprintf("Error reading from server: %s\n", err.Error())))
+			asql.signalChannel <- syscall.SIGINT
+			break
+		}
+
+		duration := fmt.Sprintf("Completed in %s\n", time.Since(tNow).String())
+
+		fmt.Print(string(append(response[:n], duration...)))
 
 	}
 
