@@ -2792,5 +2792,7 @@ func (ex *Executor) Recover(w *wal.WAL) error {
 		}
 	}
 
+	ex.aria.Catalog.Close()
+
 	return nil
 }

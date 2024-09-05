@@ -25,10 +25,12 @@ import (
 	"ariasql/wal"
 	"flag"
 	"fmt"
+	"github.com/briandowns/spinner"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // The main function starts the AriaSQL server
@@ -41,21 +43,38 @@ func main() {
 
 	if *recov {
 		fmt.Println("Recovering AriaSQL instance from WAL...")
-		w, err := wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
-		defer w.Close()
+		wg := &sync.WaitGroup{}
 
-		ex := executor.New(nil, nil)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 
-		err = ex.Recover(w)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+			w, err := wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			defer w.Close()
+
+			ex := executor.New(nil, nil)
+
+			err = ex.Recover(w)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}()
+
+		s := spinner.New(spinner.CharSets[12], 100*time.Millisecond)
+
+		s.Color("blue", "bold")
+		s.Start()
+		wg.Wait()
+		s.Stop()
+
+		fmt.Sprintf("AriaSQL instance recovered from WAL successfully")
 
 	} else {
 
