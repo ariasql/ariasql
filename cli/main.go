@@ -202,7 +202,7 @@ func main() {
 	}()
 
 	rl, err := readline.NewEx(&readline.Config{
-		Prompt:                 "ariasql>",
+		Prompt:                 PROMPT,
 		HistoryFile:            HISTORY_EXTENSION,
 		DisableAutoSaveHistory: true,
 	})
@@ -228,7 +228,7 @@ func main() {
 		}
 		cmd := strings.Join(cmds, " ")
 		cmds = cmds[:0]
-		rl.SetPrompt("ariasql>")
+		rl.SetPrompt(PROMPT)
 		rl.SaveHistory(cmd)
 
 		tNow := time.Now()
