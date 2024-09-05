@@ -26,6 +26,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"gopkg.in/yaml.v3"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -199,6 +200,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		}
 
 		q := buf[:n]
+		log.Println(string(q))
 
 		switch {
 		case bytes.Equal([]byte("close"), q):

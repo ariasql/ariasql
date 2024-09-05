@@ -49,6 +49,7 @@ type ASQL struct {
 	wg            *sync.WaitGroup // WaitGroup to wait for goroutines to finish
 	runeCh        chan rune       // Channel to send runes to the terminal
 	bufferSize    int             // Buffer size for reading from the connection
+	header        []byte
 }
 
 // New creates a new ASQL instance
@@ -145,18 +146,18 @@ func (a *ASQL) connect(host string, port int, secure bool, username, password st
 
 	authOk := bytes.Split(response, []byte("\n"))[0]
 	version := bytes.Split(response, []byte("\n"))[1]
-	header := fmt.Sprintf(`
-ARIASQL VERSION %s (c) %d all rights reserved
+	a.header = []byte(fmt.Sprintf(`
+ARIASQL %s (c) %d all rights reserved
 =================================================*
-%s`, string(version), time.Now().Year(), PROMPT)
+%s`, string(version), time.Now().Year(), PROMPT))
 
 	if string(authOk) == "OK" {
-		for i := 0; i < len(header); i++ {
-			a.buffer = append(a.buffer, rune(header[i]))
+		for i := 0; i < len(a.header); i++ {
+			a.buffer = append(a.buffer, rune(a.header[i]))
 		}
 
 	} else {
-		return fmt.Errorf("suthentication failed: %s", string(response))
+		return fmt.Errorf("authentication failed: %s", string(response))
 
 	}
 
@@ -181,7 +182,12 @@ func (a *ASQL) close() {
 
 // SaveHistory saves the history to the history file
 func (a *ASQL) saveHistory() error {
-	_, err := a.historyFile.Seek(0, 0)
+	// Trunc
+	err := a.historyFile.Truncate(0)
+	if err != nil {
+		return err
+	}
+	_, err = a.historyFile.Seek(0, 0)
 	if err != nil {
 		return err
 	}
@@ -218,6 +224,17 @@ func (a *ASQL) LoadHistory() error {
 
 	return nil
 
+}
+
+// AddHistory adds a statement to the history
+func (a *ASQL) addHistory(statement string) error {
+	a.history = append(a.history, statement)
+	err := a.saveHistory()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // nextHistory moves to the next history item
@@ -290,6 +307,9 @@ func (a *ASQL) handle() {
 					// Clear the current buffer
 					a.buffer = []rune{}
 
+					// Clear the current buffer
+					a.buffer = []rune{}
+
 					for i := 0; i < len(PROMPT); i++ {
 						a.runeCh <- rune(PROMPT[i])
 						term.Sync()
@@ -310,22 +330,42 @@ func (a *ASQL) handle() {
 
 			case term.KeyEnter:
 				if strings.HasSuffix(string(a.buffer), ";") && !strings.HasSuffix(string(a.buffer), "\";") && !strings.HasSuffix(string(a.buffer), "';") {
-					a.history = append(a.history, string(a.buffer[len(PROMPT):len(a.buffer)]))
+					if len(a.buffer) > len(a.header) {
+						if string(a.buffer[:len(a.header)]) == string(a.header) {
+							// remove header
+							a.buffer = a.buffer[len(a.header):]
+						}
+
+					}
+
+					// remove prompt
+					if bytes.HasPrefix([]byte(string(a.buffer)), []byte(PROMPT)) {
+						a.buffer = a.buffer[len(PROMPT):]
+
+					}
+
+					// Add the statement to the history
+					err = a.addHistory(string(a.buffer))
+					if err != nil {
+						fmt.Println("Error adding to history: ", err.Error())
+						a.signalChannel <- syscall.SIGINT
+						return
+					}
+
 					a.historyIndex = len(a.history)
-					a.buffer = []rune{}
 
 					term.Sync()
 
 					// Send the statement to the server
 					if a.conn != nil {
-						_, err := a.conn.Write([]byte(string(a.buffer[len(PROMPT):len(a.buffer)])))
+						_, err := a.conn.Write([]byte(string(a.buffer)))
 						if err != nil {
 							fmt.Println("Error writing to server: ", err.Error())
 							a.signalChannel <- syscall.SIGINT
 							break
 						}
 					} else {
-						_, err := a.secureConn.Write([]byte(string(a.buffer[len(PROMPT):len(a.buffer)])))
+						_, err := a.secureConn.Write([]byte(string(len(a.buffer))))
 						if err != nil {
 							fmt.Println("Error writing to server: ", err.Error())
 							a.signalChannel <- syscall.SIGINT
@@ -335,20 +375,17 @@ func (a *ASQL) handle() {
 
 					// Get response
 					response := make([]byte, a.bufferSize)
-					_, err := a.conn.Read(response)
+					n, err := a.conn.Read(response)
 					if err != nil {
 						fmt.Println("Error reading from server: ", err.Error())
 						a.signalChannel <- syscall.SIGINT
 						break
 					}
 
-					for i := 0; i < len(response); i++ {
-						a.runeCh <- rune(response[i])
-						term.Sync()
-					}
+					a.buffer = []rune{}
 
-					for i := 0; i < len(PROMPT); i++ {
-						a.runeCh <- rune(PROMPT[i])
+					for i := 0; i < len(append(response[:n], []byte(PROMPT)...)); i++ {
+						a.runeCh <- rune(response[i])
 						term.Sync()
 
 					}
