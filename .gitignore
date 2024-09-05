@@ -15,6 +15,10 @@ src/test
 src/*.yaml
 ariasql
 src/ariasql
+src/ariasql.exe
 src/wal.dat
 src/wal.dat.del
 src/users.usrs
+cli/asql
+cli/asql.exe
+cli/.asql_history
