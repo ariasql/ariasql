@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"sort"
 	"strconv"
@@ -1214,8 +1215,23 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 		case *parser.AggregateFunc:
 			switch expr.FuncName {
 			case "COUNT":
-				count := len(results)
-				// For count we truncate the results to one row
+				count := 0
+
+				for _, row := range results {
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ColumnSpecification:
+							if _, ok := row[arg.ColumnName.Value]; !ok {
+								log.Println("Column does not exist:", arg.ColumnName.Value)
+								return nil, errors.New("column does not exist")
+							}
+							count++
+						case *parser.Wildcard:
+							count++
+						}
+					}
+				}
+
 				results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
 				columns = []string{"COUNT"}
 			case "SUM":

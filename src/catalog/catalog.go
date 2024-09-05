@@ -256,9 +256,6 @@ func (cat *Catalog) Open() error {
 
 	}
 
-	gob.Register(&User{})
-	gob.Register(&Privilege{})
-
 	// Open users file
 	cat.Users = make(map[string]*User)
 
