@@ -21,6 +21,7 @@ import (
 	"ariasql/core"
 	"ariasql/executor"
 	"ariasql/parser"
+	"ariasql/shared"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -167,6 +168,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	// Decode the authentication string
 	decodedAuth, err := base64.StdEncoding.DecodeString(string(auth))
 	if err != nil {
+		conn.Write([]byte("ERR: Authentication failed\n"))
 		return
 	}
 
@@ -185,7 +187,8 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 	defer s.aria.CloseChannel(channel)
 
 	// Write the OK response to the connection
-	conn.Write([]byte("OK\n"))
+	// We also pass AriaSQL version to client
+	conn.Write([]byte("OK\nVERSION: " + shared.VERSION + "\n"))
 
 	for {
 		// Read from the connection

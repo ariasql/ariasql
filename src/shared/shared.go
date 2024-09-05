@@ -32,6 +32,8 @@ import (
 
 // Shared between all packages
 
+const VERSION = "ALPHA"
+
 // DataTypes is a list of valid system data types
 var DataTypes = []string{
 	"CHAR", "CHARACTER", "DEC", "DECIMAL", "DOUBLE", "FLOAT", "SMALLINT", "INT", "INTEGER", "REAL", "NUMERIC",

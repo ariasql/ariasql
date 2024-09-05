@@ -28,7 +28,6 @@ import (
 
 func main() {
 	history := make([]string, 0)
-
 	// Create a channel to receive OS signals
 	sigs := make(chan os.Signal, 1)
 
