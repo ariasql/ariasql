@@ -1193,6 +1193,7 @@ func (ex *Executor) group(results []map[string]interface{}, groupBy *parser.Grou
 	return grouped, nil
 }
 
+// selectListFilter filters the results based on the select list
 func (ex *Executor) selectListFilter(results []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
 
 	if selectList == nil {
@@ -1228,6 +1229,9 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 							count++
 						case *parser.Wildcard:
 							count++
+							// @todo case binary expression
+							// i.ie COUNT(col+1) or COUNT(col*2)
+							// Or even COUNT(col1+5) + 5
 						}
 					}
 				}
@@ -1255,6 +1259,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 								sum += int(row[arg.ColumnName.Value].(float64))
 
 							}
+							// @todo case binary expression
 						}
 
 					}
@@ -1286,6 +1291,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 								sum += int(row[arg.ColumnName.Value].(float64))
 
 							}
+							// @todo case binary expression
 						}
 
 					}
@@ -1324,6 +1330,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 									mx = int(row[arg.ColumnName.Value].(float64))
 								}
 							}
+							// @todo case binary expression
 						}
 					}
 				}
@@ -1358,6 +1365,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 									mn = int(row[arg.ColumnName.Value].(float64))
 								}
 							}
+							// @todo case binary expression
 						}
 					}
 				}
