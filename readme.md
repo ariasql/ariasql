@@ -15,7 +15,7 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 - [x] User authentication and privileges
 - [x] Transactions with rollbacks
 - [x] WAL (Write Ahead Logging)
-- [x] Recovery
+- [x] Recovery-Replay from WAL
 - [x] Subqueries
 - [x] Aggregates
 - [x] Implicit joins
