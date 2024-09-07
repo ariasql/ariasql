@@ -671,8 +671,9 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 	case *parser.ShowStmt:
-		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_SHOW}) {
-			return errors.New("user does not have the privilege to SHOW on system")
+
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_SHOW}) {
+			return errors.New("user does not have the privilege to SHOW on system") // system wide privilege
 		}
 
 		if ex.TransactionBegun {

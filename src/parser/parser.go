@@ -608,7 +608,7 @@ func (p *Parser) parseAlterUserStmt() (Node, error) {
 func (p *Parser) parseShowStmt() (Node, error) {
 	p.consume() // Consume SHOW
 
-	switch p.peek(0).value {
+	switch strings.ToUpper(p.peek(0).value.(string)) {
 	case "DATABASES":
 		return &ShowStmt{ShowType: SHOW_DATABASES}, nil
 	case "TABLES":
