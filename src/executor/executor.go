@@ -599,8 +599,9 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.GrantStmt:
+
 		if !ex.recover { // If not recovering from WAL
-			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_GRANT}) {
+			if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_GRANT}) {
 				return errors.New("user does not have the privilege to GRANT on system")
 			}
 		}
@@ -609,21 +610,36 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
 
-		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
-			return errors.New("invalid object")
-		}
+		var priv *catalog.Privilege
 
-		databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
-		tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+		if s.PrivilegeDefinition.Object != nil {
 
-		priv := &catalog.Privilege{
-			DatabaseName:     databaseName,
-			TableName:        tableName,
-			PrivilegeActions: nil,
-		}
+			if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
+				return errors.New("invalid object")
+			}
 
-		for _, action := range s.PrivilegeDefinition.Actions {
-			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
+			tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+
+			priv = &catalog.Privilege{
+				DatabaseName:     databaseName,
+				TableName:        tableName,
+				PrivilegeActions: nil,
+			}
+
+			for _, action := range s.PrivilegeDefinition.Actions {
+				priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			}
+		} else {
+			priv = &catalog.Privilege{
+				DatabaseName:     "*",
+				TableName:        "*",
+				PrivilegeActions: nil,
+			}
+
+			for _, action := range s.PrivilegeDefinition.Actions {
+				priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			}
 		}
 
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
@@ -640,7 +656,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 	case *parser.RevokeStmt:
 		if !ex.recover { // If not recovering from WAL
-			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
+			if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
 				return errors.New("user does not have the privilege to REVOKE on system")
 			}
 		}
@@ -649,21 +665,36 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
 
-		if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
-			return errors.New("invalid object")
-		}
+		var priv *catalog.Privilege
 
-		databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
-		tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+		if s.PrivilegeDefinition.Object != nil {
 
-		priv := &catalog.Privilege{
-			DatabaseName:     databaseName,
-			TableName:        tableName,
-			PrivilegeActions: nil,
-		}
+			if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
+				return errors.New("invalid object")
+			}
 
-		for _, action := range s.PrivilegeDefinition.Actions {
-			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
+			tableName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[1]
+
+			priv = &catalog.Privilege{
+				DatabaseName:     databaseName,
+				TableName:        tableName,
+				PrivilegeActions: nil,
+			}
+
+			for _, action := range s.PrivilegeDefinition.Actions {
+				priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			}
+		} else {
+			priv = &catalog.Privilege{
+				DatabaseName:     "*",
+				TableName:        "*",
+				PrivilegeActions: nil,
+			}
+
+			for _, action := range s.PrivilegeDefinition.Actions {
+				priv.PrivilegeActions = append(priv.PrivilegeActions, action)
+			}
 		}
 
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
