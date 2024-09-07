@@ -19,7 +19,6 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -3357,12 +3356,215 @@ func TestNewParserSelect33(t *testing.T) {
 		t.Fatal(err)
 
 	}
+	//
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
-	sel, err := PrintAST(selectStmt)
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "orders2" {
+		t.Fatalf("expected orders2, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[1].Name.Value != "stores2" {
+		t.Fatalf("expected stores2, got %s", selectStmt.TableExpression.FromClause.Tables[1].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value != "orders2" {
+		t.Fatalf("expected orders2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value)
+
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "store_id" {
+		t.Fatalf("expected store_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value != "stores2" {
+		t.Fatalf("expected stores2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value)
+
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value != "store_id" {
+		t.Fatalf("expected store_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value != "stores2" {
+		t.Fatalf("expected stores2, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "store_name" {
+		t.Fatalf("expected store_name, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Literal).Value != "'Amazon'" {
+		t.Fatalf("expected Amazon, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserSelect34(t *testing.T) {
+	statement := []byte(`
+	SELECT * FROM users u, posts p WHERE u.user_id = p.user_id;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	log.Println(sel)
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "users" {
+		t.Fatalf("expected users, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[1].Name.Value != "posts" {
+		t.Fatalf("expected posts, got %s", selectStmt.TableExpression.FromClause.Tables[1].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Alias.Value != "u" {
+		t.Fatalf("expected users, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[1].Alias.Value != "p" {
+		t.Fatalf("expected posts, got %s", selectStmt.TableExpression.FromClause.Tables[1].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value != "u" {
+		t.Fatalf("expected u, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "user_id" {
+		t.Fatalf("expected user_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value != "p" {
+		t.Fatalf("expected p, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value != "user_id" {
+		t.Fatalf("expected user_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
+
+}
+
+func TestNewParserSelect35(t *testing.T) {
+	statement := []byte(`
+	SELECT * FROM users as u, posts as p WHERE u.user_id = p.user_id;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "users" {
+		t.Fatalf("expected users, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[1].Name.Value != "posts" {
+		t.Fatalf("expected posts, got %s", selectStmt.TableExpression.FromClause.Tables[1].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Alias.Value != "u" {
+		t.Fatalf("expected users, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[1].Alias.Value != "p" {
+		t.Fatalf("expected posts, got %s", selectStmt.TableExpression.FromClause.Tables[1].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value != "u" {
+		t.Fatalf("expected u, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "user_id" {
+		t.Fatalf("expected user_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value != "p" {
+		t.Fatalf("expected p, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).TableName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value != "user_id" {
+		t.Fatalf("expected user_id, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
 
 }

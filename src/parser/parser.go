@@ -2184,6 +2184,23 @@ func (p *Parser) parseTable() (*Table, error) {
 
 	table.Name = tableName
 
+	// can have tablename aliasname i.e users u
+	// OR tablename aliasname i.e users as u
+	if p.peek(0).tokenT == KEYWORD_TOK {
+		if p.peek(0).value == "AS" {
+			p.consume()
+		}
+	}
+
+	if p.peek(0).tokenT == IDENT_TOK {
+		aliasName, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		table.Alias = aliasName
+
+	}
+
 	return table, nil
 }
 
