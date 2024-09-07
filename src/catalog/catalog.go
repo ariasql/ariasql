@@ -92,14 +92,22 @@ type TableSchema struct {
 
 // ColumnDefinition is a column definition
 type ColumnDefinition struct {
-	Name      string // Column name
-	DataType  string // Column data type
-	NotNull   bool   // Column cannot be null
-	Sequence  bool   // Column is auto increment/sequence
-	Unique    bool   // Column is unique
-	Length    int    // Column length
-	Scale     int    // Column scale
-	Precision int    // Column precision
+	Name       string    // Column name
+	DataType   string    // Column data type
+	NotNull    bool      // Column cannot be null
+	Sequence   bool      // Column is auto increment/sequence
+	Unique     bool      // Column is unique
+	Length     int       // Column length
+	Scale      int       // Column scale
+	Precision  int       // Column precision
+	References Reference // References is a foreign key reference
+}
+
+// Reference is a reference to another table
+// Is a foreign key reference
+type Reference struct {
+	TableName  string // Table name
+	ColumnName string // Column name
 }
 
 // Index is an index object

@@ -43,6 +43,7 @@ var (
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "SHOW",
+		"PRIMARY", "FOREIGN", "KEY", "REFERENCES",
 	}, shared.DataTypes...)
 )
 
