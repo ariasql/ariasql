@@ -683,8 +683,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		switch s.ShowType {
 		case parser.SHOW_DATABASES:
 			databases := ex.aria.Catalog.GetDatabases()
-			results := []map[string]interface{}{
-				{"Databases": databases},
+			results := make([]map[string]interface{}, len(databases))
+
+			for i, db := range databases {
+				results[i] = map[string]interface{}{"Database": db}
 			}
 
 			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
@@ -695,18 +697,22 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			tables := ex.ch.Database.GetTables()
-			results := []map[string]interface{}{
-				{"Tables": tables},
-			}
+			results := make([]map[string]interface{}, len(tables))
 
+			for i, db := range tables {
+				results[i] = map[string]interface{}{"Table": db}
+			}
 			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
 			return nil
 
 		case parser.SHOW_USERS:
 			users := ex.aria.Catalog.GetUsers()
-			results := []map[string]interface{}{
-				{"Users": users},
+
+			results := make([]map[string]interface{}, len(users))
+
+			for i, db := range users {
+				results[i] = map[string]interface{}{"User": db}
 			}
 
 			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
