@@ -19,6 +19,7 @@ package shared
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"io"
@@ -236,4 +237,21 @@ func CopyDir(srcDir, destDir string) error {
 
 		return nil
 	})
+}
+
+// DistinctMap returns a distinct map
+func DistinctMap(data []map[string]interface{}) []map[string]interface{} {
+	unique := make(map[string]map[string]interface{})
+
+	for _, row := range data {
+		b, _ := json.Marshal(row)
+		unique[string(b)] = row
+	}
+
+	distinct := make([]map[string]interface{}, 0, len(unique))
+	for _, value := range unique {
+		distinct = append(distinct, value)
+	}
+
+	return distinct
 }

@@ -92,3 +92,25 @@ func TestCreateTableByteArray(t *testing.T) {
 		t.Errorf("expected %s, got %s", expect, string(b))
 	}
 }
+
+func TestDistinctMap(t *testing.T) {
+	data := []map[string]interface{}{
+		{
+			"ID":   1,
+			"Name": "John",
+		},
+		{
+			"ID":   1,
+			"Name": "John",
+		},
+		{
+			"ID":   2,
+			"Name": "John",
+		},
+	}
+
+	distinct := DistinctMap(data)
+	if len(distinct) != 2 {
+		t.Errorf("expected 2 rows, got %d", len(distinct))
+	}
+}
