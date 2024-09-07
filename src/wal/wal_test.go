@@ -18,9 +18,7 @@ package wal
 
 import (
 	"ariasql/parser"
-	"log"
 	"os"
-	"reflect"
 	"testing"
 )
 
@@ -68,14 +66,57 @@ func TestWAL_RecoverASTs(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	err = wal.Append(wal.Encode(&parser.UseStmt{DatabaseName: &parser.Identifier{Value: "test"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wal.Append(wal.Encode(&parser.CreateTableStmt{TableName: &parser.Identifier{Value: "users"}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = wal.Append(wal.Encode(&parser.InsertStmt{
+		TableName:   &parser.Identifier{Value: "users"},
+		ColumnNames: []*parser.Identifier{{Value: "user_id"}, {Value: "users"}},
+		Values: [][]*parser.Literal{
+			{{Value: 1}, {Value: "frankenstein"}},
+			{{Value: 2}, {Value: "frankenstein"}},
+			{{Value: 3}, {Value: "drako"}},
+		}},
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	asts, err := wal.RecoverASTs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println(reflect.TypeOf(asts[0]))
 
-	if len(asts) != 1 {
-		t.Fatalf("expected 1 ast, got %d", len(asts))
+	if len(asts) != 4 {
+		t.Fatalf("expected 4 ast, got %d", len(asts))
+	}
+
+	for _, ast := range asts {
+		switch ast.(type) {
+		case *parser.CreateDatabaseStmt:
+			if ast.(*parser.CreateDatabaseStmt).Name.Value != "test" {
+				t.Fatalf("expected test, got %s", ast.(*parser.CreateDatabaseStmt).Name.Value)
+			}
+		case *parser.UseStmt:
+			if ast.(*parser.UseStmt).DatabaseName.Value != "test" {
+				t.Fatalf("expected test, got %s", ast.(*parser.UseStmt).DatabaseName.Value)
+			}
+		case *parser.CreateTableStmt:
+			if ast.(*parser.CreateTableStmt).TableName.Value != "users" {
+				t.Fatalf("expected users, got %s", ast.(*parser.CreateTableStmt).TableName.Value)
+			}
+		case *parser.InsertStmt:
+			if ast.(*parser.InsertStmt).TableName.Value != "users" {
+				t.Fatalf("expected users, got %s", ast.(*parser.InsertStmt).TableName.Value)
+			}
+		}
 	}
 
 }

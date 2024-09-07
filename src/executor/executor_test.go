@@ -21,8 +21,6 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/wal"
-	"errors"
-	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -39,9 +37,14 @@ func TestStmt(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -89,9 +92,14 @@ func TestStmt2(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -163,9 +171,14 @@ func TestStmt3(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -264,9 +277,14 @@ func TestStmt4(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -423,9 +441,14 @@ func TestStmt5(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -583,9 +606,14 @@ func TestStmt6(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -795,9 +823,14 @@ func TestStmt7(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -957,9 +990,14 @@ func TestStmt8(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -1169,9 +1207,14 @@ func TestStmt9(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -1380,9 +1423,14 @@ func TestStmt10(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -1539,9 +1587,14 @@ func TestStmt11(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -1752,9 +1805,14 @@ func TestStmt12(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -1911,9 +1969,14 @@ func TestStmt13(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2123,9 +2186,14 @@ func TestStmt14(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2334,9 +2402,14 @@ func TestStmt15(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2545,9 +2618,14 @@ func TestStmt16(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2704,9 +2782,14 @@ func TestStmt17(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2863,9 +2946,14 @@ func TestStmt18(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3022,9 +3110,14 @@ func TestStmt19(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3181,9 +3274,14 @@ func TestStmt20(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3392,9 +3490,14 @@ func TestStmt21(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3604,9 +3707,14 @@ func TestStmt22(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3763,9 +3871,14 @@ func TestStmt23(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -3922,9 +4035,14 @@ func TestStmt24(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -4082,9 +4200,14 @@ func TestStmt25(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -4293,9 +4416,14 @@ func TestStmt26(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -4506,9 +4634,14 @@ func TestStmt27(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -4718,9 +4851,14 @@ func TestStmt28(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -4936,9 +5074,14 @@ func TestStmt29(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5148,9 +5291,14 @@ func TestStmt30(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5359,9 +5507,14 @@ func TestStmt31(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5518,9 +5671,14 @@ func TestStmt32(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5677,9 +5835,14 @@ func TestStmt33(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5836,9 +5999,14 @@ func TestStmt34(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -5995,9 +6163,14 @@ func TestStmt35(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -6150,9 +6323,14 @@ func TestStmt36(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -6324,9 +6502,14 @@ func TestStmt37(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -6484,9 +6667,14 @@ func TestStmt38(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -6690,9 +6878,14 @@ func TestStmt39(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -6896,9 +7089,14 @@ func TestStmt40(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -7101,9 +7299,14 @@ func TestStmt41(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -7313,9 +7516,14 @@ func TestStmt42(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
 	// Create a new AriaSQL instance
-	aria := core.New(&core.Config{
-		DataDir: "./test/", // For now, can be set in aria config file
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -7469,19 +7677,25 @@ func TestStmt42(t *testing.T) {
 
 }
 
-// setupToRecover sets up a test database to be used for recovery testing
-func setupToRecover() error {
-	aria := core.New(&core.Config{
+func TestStmt43(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
 		DataDir: "./test",
 	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
 	if err := aria.Catalog.Open(); err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
-
-	defer aria.Catalog.Close()
 
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
@@ -7499,18 +7713,20 @@ func setupToRecover() error {
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
 	if err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	err = ex.Execute(ast)
 	if err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	//log.Println(string(ex.resultSetBuffer))
 	// result should be empty
 	if len(ex.ResultSetBuffer) != 0 {
-		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
 	}
 
 	stmt = []byte(`
@@ -7522,22 +7738,25 @@ func setupToRecover() error {
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
 	if err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	err = ex.Execute(ast)
 	if err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	//log.Println(string(ex.resultSetBuffer))
 	// result should be empty
 	if len(ex.ResultSetBuffer) != 0 {
-		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
 	}
 
 	stmt = []byte(`
-	CREATE TABLE users (user_id INT, username CHAR(255));
+	CREATE TABLE y (x INT);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -7545,22 +7764,18 @@ func setupToRecover() error {
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
 	if err != nil {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	err = ex.Execute(ast)
 	if err != nil {
-		return err
-	}
-
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		return err
+		t.Fatal(err)
+		return
 	}
 
 	stmt = []byte(`
-	INSERT INTO users (user_id, username) VALUES (1, 'frankenstein'), (2, 'frankenstein'), (3, 'drako');
+	INSERT INTO y (x) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13), (14), (15), (16), (17), (18), (19), (20);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -7568,7 +7783,112 @@ func setupToRecover() error {
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
 	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	SELECT * FROM y ORDER BY x DESC;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+----+
+| x  |
++----+
+| 20 |
+| 19 |
+| 18 |
+| 17 |
+| 16 |
+| 15 |
+| 14 |
+| 13 |
+| 12 |
+| 11 |
+| 10 |
+| 9  |
+| 8  |
+| 7  |
+| 6  |
+| 5  |
+| 4  |
+| 3  |
+| 2  |
+| 1  |
++----+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+
+	}
+
+}
+
+// setupToRecover sets up a test database to be used for recovery testing
+func setupToRecover() error {
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
 		return err
+	}
+
+	defer aria.Close()
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err = aria.Catalog.Open(); err != nil {
+		return err
+
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+		CREATE DATABASE test;
+	`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		return err
+
 	}
 
 	err = ex.Execute(ast)
@@ -7576,10 +7896,58 @@ func setupToRecover() error {
 		return err
 	}
 
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+	stmt = []byte(`
+		USE test;
+	`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	stmt = []byte(`
+		CREATE TABLE test (x INT);
+	`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	stmt = []byte(`
+		INSERT INTO test (x) VALUES (1);
+	`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -7587,39 +7955,46 @@ func setupToRecover() error {
 }
 
 func TestExecutor_Recover(t *testing.T) {
-	defer os.RemoveAll("./test/")
+	defer os.RemoveAll("./test")
 	err := setupToRecover()
 	if err != nil {
 		t.Errorf("setupToRecover failed: %v", err)
 		return
 	}
 
-	asts, err := wal.OpenWAL("./test/wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+	wal, err := wal.OpenWAL("./test/wal.dat", os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
 		t.Errorf("OpenWAL failed: %v", err)
 		return
 	}
 
-	ex := New(nil, nil)
+	defer wal.Close()
 
-	err = ex.Recover(asts)
+	asts, err := wal.RecoverASTs()
 	if err != nil {
-		t.Errorf("Recover failed: %v", err)
-		return
-	}
-
-	aria := core.New(&core.Config{
-		DataDir: "./test",
-	})
-
-	aria.Catalog = catalog.New(aria.Config.DataDir)
-
-	if err := aria.Catalog.Open(); err != nil {
 		t.Fatal(err)
 		return
 	}
 
-	defer aria.Catalog.Close()
+	wal.Close()
+
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+
+	if err != nil {
+		t.Errorf("core.New failed: %v", err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err = aria.Catalog.Open(); err != nil {
+		t.Errorf("aria.Catalog.Open failed: %v", err)
+		return
+	}
 
 	aria.Channels = make([]*core.Channel, 0)
 
@@ -7629,15 +8004,48 @@ func TestExecutor_Recover(t *testing.T) {
 
 	ch := aria.OpenChannel(user)
 
+	ex := New(aria, ch)
+
+	err = ex.Recover(asts)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	aria, err = core.New(&core.Config{
+		DataDir: "./test",
+	})
+
+	if err != nil {
+		t.Errorf("core.New failed: %v", err)
+	}
+
+	defer aria.Close()
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err = aria.Catalog.Open(); err != nil {
+		t.Errorf("aria.Catalog.Open failed: %v", err)
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user = aria.Catalog.GetUser("admin")
+
+	ch = aria.OpenChannel(user)
+
 	ex = New(aria, ch)
 
 	stmt := []byte(`
-	use test;
-`)
+		USE test;
+	`)
 
 	lexer := parser.NewLexer(stmt)
 
 	p := parser.NewParser(lexer)
+
 	ast, err := p.Parse()
 	if err != nil {
 		t.Fatal(err)
@@ -7645,18 +8053,15 @@ func TestExecutor_Recover(t *testing.T) {
 	}
 
 	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
 
 	stmt = []byte(`
-	SELECT DISTINCT username FROM users;
-`)
+			SELECT * FROM test;
+		`)
 
 	lexer = parser.NewLexer(stmt)
 
 	p = parser.NewParser(lexer)
+
 	ast, err = p.Parse()
 	if err != nil {
 		t.Fatal(err)
@@ -7664,23 +8069,21 @@ func TestExecutor_Recover(t *testing.T) {
 	}
 
 	err = ex.Execute(ast)
+
 	if err != nil {
 		t.Fatal(err)
 		return
 	}
 
-	expect := `+----------------+
-| username       |
-+----------------+
-| 'frankenstein' |
-| 'drako'        |
-+----------------+
+	expect := `+---+
+| x |
++---+
+| 1 |
++---+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
 		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
 		return
-
 	}
-
 }

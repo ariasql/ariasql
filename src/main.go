@@ -61,7 +61,7 @@ func main() {
 
 			ex := executor.New(nil, nil)
 
-			err = ex.Recover(w)
+			err = ex.Recover(w, shared.GetDefaultDataDir())
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)

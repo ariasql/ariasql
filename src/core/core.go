@@ -51,7 +51,7 @@ type Config struct {
 
 // New creates a new AriaSQL object
 // Can pass nil to use default configuration
-func New(config *Config) *AriaSQL {
+func New(config *Config) (*AriaSQL, error) {
 
 	if config == nil {
 		config = &Config{}
@@ -66,7 +66,7 @@ func New(config *Config) *AriaSQL {
 
 	wal, err := wal.OpenWAL(fmt.Sprintf("%s%swal.dat", config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		return nil
+		return nil, err
 
 	}
 
@@ -77,7 +77,7 @@ func New(config *Config) *AriaSQL {
 		},
 		WAL:          wal,
 		ChannelsLock: &sync.Mutex{},
-	}
+	}, err
 }
 
 // OpenChannel opens a new channel to database
@@ -119,4 +119,10 @@ func (ariasql *AriaSQL) GetChannel(channelID uint64) *Channel {
 
 	return nil
 
+}
+
+// Close
+func (ariasql *AriaSQL) Close() error {
+	ariasql.Catalog.Close()
+	return ariasql.WAL.Close()
 }

@@ -8,7 +8,7 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 > Still in beta stages, use at your own risk.
 
 ## Features
-- [x] SQL1 handwritten parser, lexer implementation
+- [x] SQL1+ handwritten parser, lexer implementation
 - [x] BTrees for indexes
 - [x] Optimized execution engine / compiler
 - [x] SQL Server (TCP Server on port `3695`)

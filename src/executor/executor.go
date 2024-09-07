@@ -21,10 +21,10 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
-	"ariasql/wal"
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"sort"
 	"strconv"
@@ -267,7 +267,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -288,7 +288,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -315,7 +315,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -352,7 +352,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			columns = append(columns, col.Value)
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -383,7 +383,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("table does not exist")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -410,6 +410,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(stmt))
+		if err != nil {
+			return err
+		}
+
 		var rows []map[string]interface{}
 
 		for _, row := range s.Values {
@@ -419,11 +424,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 			rows = append(rows, data)
 
-		}
-
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
-		if err != nil {
-			return err
 		}
 
 		if ex.TransactionBegun {
@@ -452,7 +452,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("database does not exist")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -471,7 +471,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -501,7 +501,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -530,7 +530,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -563,7 +563,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -584,7 +584,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -622,7 +622,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -660,7 +660,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			priv.PrivilegeActions = append(priv.PrivilegeActions, action)
 		}
 
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -726,7 +726,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if s.SetType == parser.ALTER_USER_SET_PASSWORD {
-			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 			if err != nil {
 				return err
 			}
@@ -736,7 +736,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				return err
 			}
 		} else if s.SetType == parser.ALTER_USER_SET_USERNAME {
-			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(&stmt))
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 			if err != nil {
 				return err
 			}
@@ -750,7 +750,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 	default:
-		return errors.New("unsupported statement")
+		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
 
 	}
 
@@ -1482,6 +1482,7 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 
 			// Setup new row iterator
 			iter := tbl.NewIterator()
+
 			for iter.Valid() {
 				// For every row in the table, we append it to the filtered rows
 				row, err := iter.Next()
@@ -2663,30 +2664,24 @@ func (ex *Executor) rollback() error {
 }
 
 // Recover recovers an AriaSQL instance from a WAL file
-func (ex *Executor) Recover(w *wal.WAL) error {
-	if !ex.recover {
-		ex.recover = true
-	}
+func (ex *Executor) Recover(asts []interface{}) error {
 
-	stmts, err := w.RecoverASTs()
+	err := os.RemoveAll(fmt.Sprintf("%s%sdatabases", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
 	if err != nil {
 		return err
 	}
 
-	// Remove databases directory and users.usrs
-	err = os.RemoveAll(fmt.Sprintf("%s%sdatabases", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1], shared.GetOsPathSeparator()))
+	err = os.Remove(fmt.Sprintf("%s%susers.usrs", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
 	if err != nil {
 		return err
 	}
 
-	err = os.Remove(fmt.Sprintf("%s%susers.usrs", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1], shared.GetOsPathSeparator()))
-	if err != nil {
-		return err
-	}
-
-	aria := core.New(&core.Config{
-		DataDir: fmt.Sprintf("%s", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1]),
+	aria, err := core.New(&core.Config{
+		DataDir: ex.aria.Config.DataDir,
 	})
+	if err != nil {
+		return err
+	}
 
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
@@ -2705,14 +2700,14 @@ func (ex *Executor) Recover(w *wal.WAL) error {
 	ex.aria = aria
 	ex.ch = aria.OpenChannel(user)
 
-	for _, stmt := range stmts {
-		err = ex.Execute(stmt)
+	for _, stmt := range asts {
+		err := ex.Execute(stmt)
 		if err != nil {
 			return err
 		}
 	}
 
-	ex.aria.Catalog.Close()
+	ex.aria.Close()
 
 	return nil
 }
