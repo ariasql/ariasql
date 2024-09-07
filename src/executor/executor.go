@@ -2723,3 +2723,8 @@ func (ex *Executor) Recover(asts []interface{}) error {
 func (ex *Executor) SetRecover(rec bool) {
 	ex.recover = rec
 }
+
+// GetResultSet returns the result set buffer
+func (ex *Executor) GetResultSet() []byte {
+	return ex.ResultSetBuffer
+}
