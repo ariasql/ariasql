@@ -106,7 +106,11 @@ func main() {
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 		// Create a new AriaSQL instance
-		aria := core.New(nil)
+		aria, err := core.New(nil)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		aria.Catalog = catalog.New(aria.Config.DataDir)
 
