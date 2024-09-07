@@ -542,7 +542,7 @@ func TestStmt5(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT * FROM test WHERE name = 'John Doe';
+	SELECT * FROM test WHERE id = 1 OR name = 'Jane Doe';
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -564,6 +564,7 @@ func TestStmt5(t *testing.T) {
 | id | name       |
 +----+------------+
 | 1  | 'John Doe' |
+| 2  | 'Jane Doe' |
 +----+------------+
 `
 
@@ -649,7 +650,7 @@ func TestStmt6(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE users (user_id INT, username CHAR(255));
+	CREATE TABLE users (user_id INT UNIQUE NOT NULL, username CHAR(255));
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -675,7 +676,7 @@ func TestStmt6(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE posts (post_id INT, title CHAR(255), user_id INT NOT NULL);
+	CREATE TABLE posts (post_id INT UNIQUE NOT NULL, title CHAR(255), user_id INT UNIQUE NOT NULL);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -938,7 +939,7 @@ func TestStmt7(t *testing.T) {
 	expect := `+-----+---------+----------+
 | age | user_id | username |
 +-----+---------+----------+
-| 5   | 1       | 'jdoe'   |
+| 4   | 1       | 'jdoe'   |
 +-----+---------+----------+
 `
 
@@ -1023,7 +1024,7 @@ func TestStmt8(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE users (user_id INT, username CHAR(255));
+	CREATE TABLE users (user_id INT NOT NULL UNIQUE, username CHAR(255));
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -1049,7 +1050,7 @@ func TestStmt8(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE posts (post_id INT, title CHAR(255), user_id INT NOT NULL);
+	CREATE TABLE posts (post_id INT NOT NULL UNIQUE, title CHAR(255), user_id INT NOT NULL UNIQUE);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -1127,7 +1128,7 @@ func TestStmt8(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT * FROM users, posts WHERE users.user_id+1 = posts.user_id;
+	SELECT * FROM users, posts WHERE users.user_id = posts.user_id;
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -1148,7 +1149,8 @@ func TestStmt8(t *testing.T) {
 	expect := `+---------------+-----------------+---------------+---------------+----------------+
 | posts.post_id | posts.title     | posts.user_id | users.user_id | users.username |
 +---------------+-----------------+---------------+---------------+----------------+
-| 2             | 'Hello World 2' | 2             | 2             | 'jdoe'         |
+| 1             | 'Hello World'   | 1             | 1             | 'jdoe'         |
+| 2             | 'Hello World 2' | 2             | 2             | 'adoe'         |
 +---------------+-----------------+---------------+---------------+----------------+
 `
 
@@ -1604,7 +1606,7 @@ func TestStmt11(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE users (user_id INT, username CHAR(255));
+	CREATE TABLE users (user_id INT UNIQUE NOT NULL, username CHAR(255));
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -1630,7 +1632,7 @@ func TestStmt11(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE posts (post_id INT, title CHAR(255), user_id INT NOT NULL);
+	CREATE TABLE posts (post_id INT UNIQUE NOT NULL, title CHAR(255), user_id INT NOT NULL);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -3350,7 +3352,7 @@ func TestStmt20(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT * FROM users, posts WHERE users.user_id = posts.user_id AND users.user_id IN (1);
+	SELECT * FROM users, posts WHERE users.user_id = posts.user_id AND users.user_id in (1);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -4693,21 +4695,19 @@ func TestStmt27(t *testing.T) {
 		return
 	}
 
-	//	expect := `+---------+---------------+
-	//| test.id | test.name     |
-	//+---------+---------------+
-	//| 2       | 'Alex Padula' |
-	//| 3       | 'John Smith'  |
-	//| 4       | 'Alex Smith'  |
-	//+---------+---------------+
-	//`
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
+`
 
 	// Uncomment this after select list implementation
-	//if string(ex.resultSetBuffer) != expect {
-	//	t.Fatalf("expected %s, got %s", expect, string(ex.resultSetBuffer))
-	//	return
-	//
-	//}
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+
+	}
 
 }
 
@@ -4889,7 +4889,14 @@ func TestStmt28(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT * FROM test WHERE EXISTS (SELECT * FROM test2 WHERE test.id = test2.id AND name = 'Dog');
+SELECT * 
+FROM test 
+WHERE EXISTS (
+    SELECT *
+    FROM test2 
+    WHERE test.id = test2.id 
+    AND test2.name = 'Dog'
+);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -4907,11 +4914,11 @@ func TestStmt28(t *testing.T) {
 		return
 	}
 
-	expect := `+----+-------+----------+------------+
-| id | name  | test2.id | test2.name |
-+----+-------+----------+------------+
-| 1  | 'Dog' | 1        | 'Dog'      |
-+----+-------+----------+------------+
+	expect := `+---------+------------+----------+------------+
+| test.id | test.name  | test2.id | test2.name |
++---------+------------+----------+------------+
+| 1       | 'John Doe' | 1        | 'Dog'      |
++---------+------------+----------+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {

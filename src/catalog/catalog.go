@@ -481,7 +481,7 @@ func (db *Database) CreateTable(name string, tblSchema *TableSchema) error {
 				return fmt.Errorf("column %s requires a scale", colName)
 			}
 		case "INT", "INTEGER", "SMALLINT":
-			// An integer datatype does not require a precision or scale
+
 		default:
 			delete(db.Tables, name)
 			os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
@@ -1420,68 +1420,44 @@ func (cat *Catalog) AuthenticateUser(username, password string) (*User, error) {
 // HasPrivilege checks if a user has a privilege
 func (u *User) HasPrivilege(db, tbl string, actions []shared.PrivilegeAction) bool {
 
-	var has []bool
+	var has []bool // Slice of booleans determining if user has privileges
 
 	for _, p := range u.Privileges {
-		// if user has * for table name, they have all privileges for the database, on all tables
-		if p.TableName == "*" && p.DatabaseName == "*" {
-			// User is a super user
-			// has all privileges on all tables in all databases
-			for range actions {
-
-				has = append(has, true)
-
-			}
-		} else if p.TableName == "*" {
-			// user is allowed all actions on all tables in the database
-			if p.DatabaseName == db {
-				for range actions {
-
-					has = append(has, true)
-
-				}
-			}
-		} else {
-
-			if slices.Contains(p.PrivilegeActions, shared.PRIV_ALL) {
-				if p.DatabaseName == "*" && p.TableName == "*" {
-					for range actions {
+		for _, a := range actions {
+			if p.DatabaseName == db && p.TableName == tbl { // if the requested database and table match the privilege
+				for _, pa := range p.PrivilegeActions {
+					if pa == a { // if the privilege action matches the requested action
+						has = append(has, true)
+					} else if pa == shared.PRIV_ALL { // if the privilege action is all
 						has = append(has, true)
 					}
 				}
-			} else if p.DatabaseName == db && p.TableName == tbl {
-				for _, a := range actions {
-					if slices.Contains(p.PrivilegeActions, a) {
+			} else if p.DatabaseName == "*" && p.TableName == "*" { // all databases and tables
+				for _, pa := range p.PrivilegeActions {
+					if pa == a {
+						has = append(has, true)
+					} else if pa == shared.PRIV_ALL {
 						has = append(has, true)
 					}
 				}
-			} else if slices.Contains(p.PrivilegeActions, shared.PRIV_ROLLBACK) || slices.Contains(p.PrivilegeActions, shared.PRIV_COMMIT) || slices.Contains(p.PrivilegeActions, shared.PRIV_BEGIN) {
-				for _, a := range actions {
-					if slices.Contains(p.PrivilegeActions, a) {
+			} else if p.DatabaseName == db && p.TableName == "*" { // all tables in a database
+				for _, pa := range p.PrivilegeActions {
+					if pa == a {
+						has = append(has, true)
+					} else if pa == shared.PRIV_ALL {
 						has = append(has, true)
 					}
 				}
-			} else if p.DatabaseName == "" && p.TableName == "" {
-				if slices.Contains(p.PrivilegeActions, shared.PRIV_CREATE) {
-					// CREATE DATABASE
-					for _, a := range actions {
-						if slices.Contains(p.PrivilegeActions, a) {
-							has = append(has, true)
-						}
-
-					}
-				} else if slices.Contains(p.PrivilegeActions, shared.PRIV_CONNECT) {
-					// CONNECT
-					for _, a := range actions {
-						if slices.Contains(p.PrivilegeActions, a) {
-							has = append(has, true)
-						}
-
+			} else if p.DatabaseName == "*" && p.TableName == tbl { // all databases and a table
+				for _, pa := range p.PrivilegeActions {
+					if pa == a {
+						has = append(has, true)
+					} else if pa == shared.PRIV_ALL {
+						has = append(has, true)
 					}
 				}
 			}
 		}
-
 	}
 
 	if len(has) == len(actions) {

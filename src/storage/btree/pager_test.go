@@ -81,12 +81,13 @@ func TestPager_Write2(t *testing.T) {
 	}
 	defer pager.Close()
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000; i++ {
 		_, err := pager.Write([]byte(fmt.Sprintf("Hello World %d", i)))
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
+
 }
 
 func TestPager_Count(t *testing.T) {

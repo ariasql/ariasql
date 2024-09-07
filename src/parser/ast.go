@@ -130,7 +130,8 @@ type FromClause struct {
 
 // Table represents a table in a FROM clause
 type Table struct {
-	Name *Identifier
+	Name  *Identifier
+	Alias *Identifier // i.e. AS alias
 }
 
 // WhereClause represents a WHERE clause in a SELECT statement
@@ -175,7 +176,20 @@ type ComparisonPredicate struct {
 	Left  *ValueExpression
 	Op    ComparisonOperator
 	Right *ValueExpression
+	Join  JoinType
 }
+
+// JoinType represents a join type
+type JoinType int
+
+const (
+	_            JoinType = iota
+	JOIN                  // INNER JOIN
+	LEFT_JOIN             // LEFT JOIN
+	RIGHT_JOIN            // RIGHT JOIN
+	CROSS_JOIN            // CROSS JOIN
+	NATURAL_JOIN          // NATURAL JOIN
+)
 
 // LogicalOperator represents a logical operator
 type LogicalOperator int
@@ -313,7 +327,8 @@ type IsPredicate struct {
 
 // ExistsPredicate represents an EXISTS predicate
 type ExistsPredicate struct {
-	Expr *ValueExpression
+	Tables []*Table
+	Expr   *ValueExpression
 }
 
 // OrderByOrder represents the order of an ORDER BY clause

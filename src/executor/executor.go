@@ -21,15 +21,12 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
-	"ariasql/wal"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 // Executor is the main executor structure
@@ -67,15 +64,33 @@ type Before struct {
 }
 
 // New creates a new Executor
+// Creates a new AriaSQL executor
+// You must pass in a pointer to an AriaSQL instance and a pointer to a Channel instance
+// they should be created before calling this function
 func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 	return &Executor{ch: ch, aria: aria}
 }
 
-// Execute executes a statement
+// Execute executes an abstract syntax tree statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
 
+	// We will handle the statement based on the type
 	switch s := stmt.(type) {
-	case *parser.RollbackStmt:
+	case *parser.BeginStmt:
+		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
+			return errors.New("user does not have the privilege to BEGIN on system") // Transactions are system wide
+		}
+
+		if ex.TransactionBegun {
+			return errors.New("transaction already begun")
+		}
+
+		ex.TransactionBegun = true
+
+		ex.Transaction = &Transaction{Statements: []*TransactionStmt{}} // Initialize the transaction
+
+		return nil
+	case *parser.RollbackStmt: // Rollback statement
 		// Check if the database is the system database
 
 		// Check user has the privilege to rollback
@@ -87,7 +102,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no transaction begun")
 		}
 
-		err := ex.rollback()
+		err := ex.rollback() // Rollback the transaction
 		if err != nil {
 			return err
 
@@ -99,10 +114,16 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("user does not have the privilege to COMMIT on system") // Transactions are system wide
 		}
 
+		// Transactions are made up of INSERT, UPDATE, DELETE statements
 		for j, tx := range ex.Transaction.Statements {
 			switch ss := tx.Stmt.(type) {
 			case *parser.DeleteStmt:
 				if ex.ch.Database == nil {
+					err := ex.rollback() // Rollback the transaction
+					if err != nil {
+						return err
+
+					}
 					return errors.New("no database selected")
 
 				}
@@ -114,10 +135,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				if ex.TransactionBegun {
 
-					for i, rowId := range rowIds {
+					for i, r := range deletedRows {
 						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
-							RowId: rowId,
-							Row:   deletedRows[i],
+							RowId: rowIds[i],
+							Row:   r,
 						})
 					}
 				}
@@ -150,9 +171,9 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				if ex.TransactionBegun {
 
-					for i, rowId := range rowIds {
+					for i, _ := range updatedRows {
 						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
-							RowId: rowId,
+							RowId: rowIds[i],
 							Row:   updatedRows[i],
 						})
 					}
@@ -230,20 +251,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		ex.TransactionBegun = false
-
-		return nil
-	case *parser.BeginStmt:
-		if !ex.ch.User.HasPrivilege("", "", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
-			return errors.New("user does not have the privilege to BEGIN on system") // Transactions are system wide
-		}
-
-		if ex.TransactionBegun {
-			return errors.New("transaction already begun")
-		}
-
-		ex.TransactionBegun = true
-
-		ex.Transaction = &Transaction{Statements: []*TransactionStmt{}} // Initialize the transaction
 
 		return nil
 	case *parser.CreateDatabaseStmt:
@@ -540,6 +547,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 		}
+
 		return nil
 	case *parser.CreateUserStmt:
 		if !ex.recover { // If not recovering from WAL
@@ -706,7 +714,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	case *parser.AlterUserStmt:
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_ALTER}) {
-				return errors.New("user does not have the privilege to ALTER on system")
+				return errors.New("user does not have the privilege to ALTER on system") // Altering a user just requires an ALTER privilege system wide
 			}
 		}
 
@@ -746,162 +754,10 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	return errors.New("unsupported statement")
 }
 
-// rollback rolls back the transaction
-func (ex *Executor) rollback() error {
-	if !ex.TransactionBegun {
-		return errors.New("no transaction begun")
-	}
-
-	ex.TransactionBegun = false
-
-	for _, tx := range ex.Transaction.Statements {
-		if tx.Commited {
-			// If a transaction is commited we can rollback the transaction
-			// This allows for database consistency
-			switch stmt := tx.Stmt.(type) { // only Insert, Update, Delete, statements can be rolled back
-			case *parser.InsertStmt:
-				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
-
-				if tbl == nil {
-					return errors.New("table does not exist")
-				}
-
-				// In tx.Before for insert we have the row ids that were inserted, thus making it easy to remove them
-				for _, row := range tx.Rollback.Rows {
-					err := tbl.Rows.DeletePage(row.RowId)
-					if err != nil {
-						return err
-					}
-				}
-			case *parser.UpdateStmt:
-				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
-
-				if tbl == nil {
-					return errors.New("table does not exist")
-				}
-
-				// In tx.Before for update we have the row ids and their previous entire rows thus making it easy to write back the previous value
-
-				for _, row := range tx.Rollback.Rows {
-					// en
-					encoded, err := catalog.EncodeRow(row.Row)
-					if err != nil {
-						return err
-					}
-
-					err = tbl.Rows.WriteTo(row.RowId, encoded)
-					if err != nil {
-						return err
-					}
-				}
-			case *parser.DeleteStmt:
-				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
-
-				if tbl == nil {
-					return errors.New("table does not exist")
-				}
-
-				// In tx.Before for delete we have the row ids and their previous entire rows thus making it easy to write back the previous value
-				for _, row := range tx.Rollback.Rows {
-					// en
-					encoded, err := catalog.EncodeRow(row.Row)
-					if err != nil {
-						return err
-					}
-
-					err = tbl.Rows.WriteTo(row.RowId, encoded)
-					if err != nil {
-						return err
-					}
-
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// executeDeleteStmt executes a delete statement
-func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[string]interface{}, error) {
-	var tbles []*catalog.Table // Table list
-	var rowIds []int64         // Deleted row ids
-	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
-
-	// Check if there are any tables
-	if len(tbles) == 0 {
-		return nil, nil, errors.New("no tables")
-	} // You can't do this!!
-
-	// For a 1 table query we can evaluate the search condition
-	// If the column is indexed, we can use the index to locate rows faster
-
-	// Filter the results
-	results, err := ex.filter(tbles, stmt.WhereClause, nil, true, &rowIds, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	rowsAffected := len(results)
-
-	rA := map[string]interface{}{"RowsAffected": rowsAffected}
-	results = []map[string]interface{}{rA}
-
-	// Now we format the results
-	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
-
-	return nil, nil, nil
-
-}
-
-// executeUpdateStmt
-func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[string]interface{}, error) {
-	var rowIds []int64                // Updated row ids
-	var rows []map[string]interface{} // Rows before update
-
-	var tbles []*catalog.Table // Table list
-
-	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
-
-	// Check if there are any tables
-	if len(tbles) == 0 {
-		return nil, nil, errors.New("no tables")
-	} // You can't do this!!
-
-	// For a 1 table query we can evaluate the search condition
-	// If the column is indexed, we can use the index to locate rows faster
-
-	// Filter the results
-	results, err := ex.filter(tbles, stmt.WhereClause, &stmt.SetClause, false, &rowIds, &rows)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	rowsAffected := len(results)
-	rA := map[string]interface{}{"RowsAffected": rowsAffected}
-	results = []map[string]interface{}{rA}
-
-	// Now we format the results
-	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
-
-	return nil, nil, nil
-
-}
-
-// GetResultSet returns the result set buffer
-func (ex *Executor) GetResultSet() []byte {
-	return ex.ResultSetBuffer
-}
-
-// Clear clears the result set buffer
-func (ex *Executor) Clear() {
-	ex.ResultSetBuffer = nil
-}
-
-// executeSelectStmt executes a select statement
 func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
+	// Check for select list
 	if stmt.SelectList == nil {
 		return nil, errors.New("no select list")
 	}
@@ -915,7 +771,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 				results = append(results, map[string]interface{}{fmt.Sprintf("%v", expr.Value): expr.Value})
 			case *parser.BinaryExpression:
 				var val interface{}
-				err := evaluateBinaryExpression(expr, &val)
+				err := evaluateBinaryExpression(expr, &val, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -924,65 +780,85 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			}
 		}
 
-	}
+	} else if stmt.SelectList != nil && stmt.TableExpression != nil {
+		var tbles []*catalog.Table // Table list
+		// a table list is the tables required say for a join or not, can be a single table
 
-	var tbles []*catalog.Table // Table list
-
-	// Check if table expression is not nil,
-	// if so we need to evaluate the from clause
-	// Gathering the proposed tables
-	if stmt.TableExpression != nil {
-		if stmt.TableExpression.FromClause == nil {
-			return nil, errors.New("no from clause")
+		// Check if table expression is not nil,
+		// if so we need to evaluate the from clause
+		// Gathering the proposed tables
+		if stmt.TableExpression != nil {
+			if stmt.TableExpression.FromClause == nil {
+				return nil, errors.New("no from clause") // No from?  We need a from clause, that is the tables for the select
+			}
 		}
 
+		// Gather tables required for the select, can be 1 or more
 		for _, tblExpr := range stmt.TableExpression.FromClause.Tables {
+
 			tbl := ex.ch.Database.GetTable(tblExpr.Name.Value)
 			if tbl == nil {
 				return nil, errors.New("table does not exist")
 			}
 
+			// If there is an alias set the table name temporarily to the alias
+			if tblExpr.Alias != nil {
+				tbl.Name = tblExpr.Alias.Value
+			}
+
+			// Check if user has the privilege to select from the table
+			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, tbl.Name, []shared.PrivilegeAction{shared.PRIV_SELECT}) {
+				return nil, errors.New("user does not have the privilege to SELECT on table " + tbl.Name)
+			}
+
 			tbles = append(tbles, tbl)
 		}
 
-	}
+		// Check if there are any tables
+		if len(tbles) == 0 {
+			return nil, errors.New("no tables")
+		} // You can't do this!!  There should be tables
 
-	// Check if there are any tables
-	if len(tbles) == 0 {
-		return nil, errors.New("no tables")
-	} // You can't do this!!
-
-	// For a 1 table query we can evaluate the search condition
-	// If the column is indexed, we can use the index to locate rows faster
-
-	// Filter the results
-	rows, err := ex.filter(tbles, stmt.TableExpression.WhereClause, nil, false, nil, nil)
-	if err != nil {
-		return nil, err
-	} // This one functions gathers the rows based on where clause.
-	// Handles joins, and other conditions such as subqueries
-
-	results = rows
-
-	// Check for group by
-	if stmt.TableExpression.GroupByClause != nil {
-		grouped, err := ex.group(results, stmt.TableExpression.GroupByClause)
+		// search reads tables, the where condition and gathers the rows based on that
+		// search will also evaluate joins, subqueries, and other predicates
+		// if the column in a predicate is indexed, we can use the index to locate rows faster to evaluate
+		rows, err := ex.search(tbles, stmt.TableExpression.WhereClause, nil, false, nil, nil)
 		if err != nil {
 			return nil, err
 		}
 
+		// Pass rows to result set
+		results = rows
+
+	}
+
+	//If there is a group by clause
+	if stmt.TableExpression.GroupByClause != nil {
+		// Group the results
+		groupedRows, err := ex.group(results, stmt.TableExpression.GroupByClause)
+		if err != nil {
+			return nil, err
+		}
 		// Check for having clause
 		if stmt.TableExpression.HavingClause != nil {
-			results, err = ex.having(grouped, stmt.TableExpression.HavingClause)
+			// Filter the results based on the having clause
+			results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause)
 			if err != nil {
 				return nil, err
+			}
+		} else {
+			// No having clause, return the grouped rows
+			results = []map[string]interface{}{}
+			for _, row := range groupedRows {
+				results = append(results, row[0])
 			}
 
 		}
 	} else {
-
+		// We should evaluate the select list
 		// Based on projection (select list), we can filter the columns
-		results, err = ex.selectListFilter(rows, stmt.SelectList)
+		var err error
+		results, err = ex.selectListFilter(results, stmt.SelectList)
 		if err != nil {
 			return nil, err
 
@@ -991,6 +867,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	// Check for order by
 	if stmt.TableExpression.OrderByClause != nil {
+		var err error
 		results, err = ex.orderBy(results, stmt.TableExpression.OrderByClause)
 		if err != nil {
 			return nil, err
@@ -1023,6 +900,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			results = results[offset:end]
 		}
 	}
+
 	if subquery {
 		return results, nil
 	}
@@ -1030,69 +908,109 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	// Now we format the results
 	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
-	return nil, nil
+	return nil, nil // We return rows in result set buffer
+
 }
 
-// orderBy orders the results
-func (ex *Executor) orderBy(results []map[string]interface{}, orderBy *parser.OrderByClause) ([]map[string]interface{}, error) {
-	if orderBy == nil {
-		return results, nil
+// executeUpdateStmt
+func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[string]interface{}, error) {
+	var rowIds []int64                // Updated row ids
+	var rows []map[string]interface{} // Rows to update
+	var updatedRows int
+	var tbles []*catalog.Table // Table list
+
+	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
+
+	// Check if there are any tables
+	if len(tbles) == 0 {
+		return nil, nil, errors.New("no tables")
+	} // You can't do this!!
+
+	// For a 1 table query we can evaluate the search condition
+	// If the column is indexed, we can use the index to locate rows faster
+
+	// Filter the results
+	err := ex.filter(stmt.WhereClause, tbles, &rows, &rowIds)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	if len(orderBy.OrderByExpressions) == 0 {
-		return results, nil
-	}
+	setClause := convertSetClauseToCatalogLike(&stmt.SetClause)
 
-	// Get the column name
-	colName := orderBy.OrderByExpressions[0].Value.(*parser.ColumnSpecification).ColumnName.Value
+	for i, row := range rows {
 
-	// Get the order
-	order := orderBy.Order
-
-	// Define a custom sort function
-	less := func(i, j int) bool {
-		// You may want to add error checking here
-		switch results[i][colName].(type) {
-		case int:
-			return results[i][colName].(int) < results[j][colName].(int)
-		case int64:
-			return results[i][colName].(int64) < results[j][colName].(int64)
-		case float64:
-			return results[i][colName].(float64) < results[j][colName].(float64)
-		case string:
-			return strings.Compare(results[i][colName].(string), results[j][colName].(string)) < 0
+		err = tbles[0].UpdateRow(rowIds[i]-1, row, setClause)
+		if err != nil {
+			return nil, nil, err
 		}
-		return false
+		updatedRows++
+
 	}
 
-	// Sort the results
-	if order == parser.ASC {
-		sort.SliceStable(results, less)
-	} else {
-		// For descending order, we can use the same function but negate the result
-		switch results[0][colName].(type) {
-		case int:
-			sort.SliceStable(results, func(i, j int) bool {
-				return !less(i, j)
-			})
-		case int64:
-			sort.SliceStable(results, func(i, j int) bool {
-				return !less(i, j)
-			})
-		case float64:
-			sort.SliceStable(results, func(i, j int) bool {
-				return !less(i, j)
-			})
-		case string:
-			sort.SliceStable(results, func(i, j int) bool {
-				return !less(i, j)
-			})
-		default:
-			return nil, errors.New("unsupported data type")
+	rowsAffected := map[string]interface{}{"RowsAffected": updatedRows}
+	rows = []map[string]interface{}{rowsAffected}
+
+	// Now we format the results
+	ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+
+	return nil, nil, nil
+
+}
+
+func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[string]interface{}, error) {
+	var rowIds []int64                // Updated row ids
+	var rows []map[string]interface{} // Rows before deletion
+	var deletedRows int
+	var tbles []*catalog.Table // Table list
+
+	tbles = append(tbles, ex.ch.Database.GetTable(stmt.TableName.Value))
+
+	// Check if there are any tables
+	if len(tbles) == 0 {
+		return nil, nil, errors.New("no tables")
+	} // You can't do this!!
+
+	// For a 1 table query we can evaluate the search condition
+	// If the column is indexed, we can use the index to locate rows faster
+
+	// Filter the results
+	err := ex.filter(stmt.WhereClause, tbles, &rows, &rowIds)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for i := range rows {
+		err = tbles[0].DeleteRow(rowIds[i] - 1)
+		if err != nil {
+			return nil, nil, err
 		}
+		deletedRows++
+
 	}
 
-	return results, nil
+	rowsAffected := map[string]interface{}{"RowsAffected": deletedRows}
+	rows = []map[string]interface{}{rowsAffected}
+
+	// Now we format the results
+	ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+
+	return rowIds, rows, nil
+
+}
+
+// convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
+func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause) []*catalog.SetClause {
+	var setClauses []*catalog.SetClause
+
+	for _, set := range *setClause {
+		setClauses = append(setClauses, &catalog.SetClause{
+			ColumnName: set.Column.Value,
+			Value:      set.Value.Value,
+		})
+	}
+
+	return setClauses
+
 }
 
 // having filters the results based on the having clause
@@ -1155,9 +1073,10 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 
 				having.SearchCondition.(*parser.ComparisonPredicate).Left.Value = &parser.Literal{Value: count}
 
-				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
-					"COUNT": count,
-				}, nil)
+				rows := []map[string]interface{}{
+					{"COUNT": count},
+				}
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1192,9 +1111,11 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					Left: &parser.ValueExpression{Value: &parser.Literal{Value: sum}},
 				}
 
-				ok, _ := ex.evaluatePredicate(newComparisonPredicate, map[string]interface{}{
-					"SUM": sum,
-				}, nil)
+				rows := []map[string]interface{}{
+					{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: sum},
+				}
+
+				ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1229,9 +1150,10 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				count = len(row)
 				avg := sum / count
 
-				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
-					"AVG": avg,
-				}, nil)
+				rows := []map[string]interface{}{
+					{"AVG": avg},
+				}
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1267,9 +1189,10 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					}
 				}
 
-				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
-					"MAX": mx,
-				}, nil)
+				rows := []map[string]interface{}{
+					{"MIN": mx},
+				}
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1307,9 +1230,10 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					}
 				}
 
-				ok, _ := ex.evaluatePredicate(having.SearchCondition.(*parser.ComparisonPredicate), map[string]interface{}{
-					"MIN": mn,
-				}, nil)
+				rows := []map[string]interface{}{
+					{"MIN": mn},
+				}
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1356,7 +1280,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 		return nil, errors.New("no select list")
 	}
 
-	columns := []string{}
+	var columns []string // The columns to be selected
 
 	for _, expr := range selectList.Expressions {
 
@@ -1380,9 +1304,6 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 							count++
 						case *parser.Wildcard:
 							count++
-							// @todo case binary expression
-							// i.ie COUNT(col+1) or COUNT(col*2)
-							// Or even COUNT(col1+5) + 5
 						}
 					}
 				}
@@ -1410,7 +1331,6 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 								sum += int(row[arg.ColumnName.Value].(float64))
 
 							}
-							// @todo case binary expression
 						}
 
 					}
@@ -1442,7 +1362,6 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 								sum += int(row[arg.ColumnName.Value].(float64))
 
 							}
-							// @todo case binary expression
 						}
 
 					}
@@ -1541,731 +1460,645 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 }
 
-// filter filters the tables
-func (ex *Executor) filter(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool, rowIds *[]int64, before *[]map[string]interface{}) ([]map[string]interface{}, error) {
-	var filteredRows []map[string]interface{}
-
-	var tbl *catalog.Table // The first table in from clause, the left table
-	// Every other table is the right table
+// search searches tables based on the where clause
+func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool, rowIds *[]int64, before *[]map[string]interface{}) ([]map[string]interface{}, error) {
+	var filteredRows []map[string]interface{} // The final rows that are filtered based on the where clause
 
 	if len(tbls) == 0 {
 		return nil, errors.New("no tables")
-	} else {
-
-		tbl = tbls[0] // Set left table
 	}
-
-	var leftCond, rightCond interface{}
-	var logicalOp parser.LogicalOperator
-
-	var leftTblName *parser.Identifier
 
 	if where == nil {
-		// If there is no where clause, we return all rows
-		iter := tbl.NewIterator()
-		for iter.Valid() {
-			row, err := iter.Next()
-			if err != nil {
-				continue
-			}
-
-			filteredRows = append(filteredRows, row)
-
-		}
-
-		return filteredRows, nil
-
-	}
-	// Check if search condition is a logical condition
-	if _, ok := where.SearchCondition.(*parser.LogicalCondition); ok {
-		// If so we grab the left and right conditions
-		leftCond = where.SearchCondition.(*parser.LogicalCondition).Left
-
-		rightCond = where.SearchCondition.(*parser.LogicalCondition).Right
-
-		logicalOp = where.SearchCondition.(*parser.LogicalCondition).Op
-
-	} else {
-		leftCond = where.SearchCondition
-	}
-
-	var left interface{}
-	// if left is a binary expression
-
-	var binaryExpr *parser.BinaryExpression // can be nil
-
-	switch leftCond.(type) {
-	case *parser.ExistsPredicate:
-
-		// Evaluate subquery
-		res, err := ex.executeSelectStmt(leftCond.(*parser.ExistsPredicate).Expr.Value.(*parser.SelectStmt), true)
-		if err != nil {
-			return nil, err
-
-		}
-
-		if len(res) > 0 {
-			filteredRows = res
-		}
-
-		return filteredRows, nil
-
-	case *parser.BetweenPredicate:
-		if _, ok := leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		switch leftCond.(*parser.BetweenPredicate).Left.Value.(type) {
-		case *parser.ColumnSpecification:
-			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		case *parser.Literal:
-			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.Literal).Value
-		case *parser.BinaryExpression:
-
-			binaryExpr = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression)
-
-			// look for left table
-			if _, ok := leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-				leftTblName = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-			}
-
-			left = leftCond.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		default:
-			return nil, errors.New("unsupported search condition")
-		}
-	case *parser.NotExpr:
-		switch leftCond.(*parser.NotExpr).Expr.(type) {
-		case *parser.BetweenPredicate:
-			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression); ok {
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-
-			switch leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(type) {
-			case *parser.ColumnSpecification:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-			case *parser.Literal:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.Literal).Value
-			case *parser.BinaryExpression:
-
-				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression)
-
-				// look for left table
-				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-				}
-
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.BetweenPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-		case *parser.InPredicate:
-			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-
-			switch leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(type) {
-			case *parser.ColumnSpecification:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-			case *parser.Literal:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.Literal).Value
-			case *parser.BinaryExpression:
-
-				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression)
-
-				// look for left table
-				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-				}
-
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-
-		case *parser.LikePredicate:
-
-			if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression); ok {
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-
-			switch leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(type) {
-			case *parser.ColumnSpecification:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-			case *parser.Literal:
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.Literal).Value
-			case *parser.BinaryExpression:
-
-				binaryExpr = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression)
-
-				// look for left table
-				if _, ok := leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-					leftTblName = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-				}
-
-				left = leftCond.(*parser.NotExpr).Expr.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-			}
-		}
-	case *parser.ComparisonPredicate:
-
-		if _, ok := leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		switch leftCond.(*parser.ComparisonPredicate).Left.Value.(type) {
-		case *parser.ColumnSpecification:
-			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		case *parser.Literal:
-			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.Literal).Value
-		case *parser.BinaryExpression:
-
-			binaryExpr = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression)
-
-			// look for left table
-			if _, ok := leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-				leftTblName = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-			}
-
-			left = leftCond.(*parser.ComparisonPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		default:
-			return nil, errors.New("unsupported search condition")
-		}
-	case *parser.IsPredicate:
-
-		if _, ok := leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		switch leftCond.(*parser.IsPredicate).Left.Value.(type) {
-		case *parser.ColumnSpecification:
-			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		case *parser.Literal:
-			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.Literal).Value
-		case *parser.BinaryExpression:
-
-			binaryExpr = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression)
-
-			// look for left table
-			if _, ok := leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-				leftTblName = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-			}
-
-			left = leftCond.(*parser.IsPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-
-		}
-
-	case *parser.LikePredicate:
-
-		if _, ok := leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		switch leftCond.(*parser.LikePredicate).Left.Value.(type) {
-		case *parser.ColumnSpecification:
-			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		case *parser.Literal:
-			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.Literal).Value
-		case *parser.BinaryExpression:
-
-			binaryExpr = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression)
-
-			// look for left table
-			if _, ok := leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-				leftTblName = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-			}
-
-			left = leftCond.(*parser.LikePredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-	case *parser.InPredicate:
-
-		if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression); ok {
-			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		switch leftCond.(*parser.InPredicate).Left.Value.(type) {
-		case *parser.ColumnSpecification:
-			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		case *parser.Literal:
-			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.Literal).Value
-		case *parser.BinaryExpression:
-
-			binaryExpr = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression)
-
-			// look for left table
-			if _, ok := leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); ok {
-				leftTblName = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName
-			}
-
-			left = leftCond.(*parser.InPredicate).Left.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-		}
-	}
-
-	var row map[string]interface{}
-	var err error
-
-	// Check if tbl is indexed
-
-	var idx *catalog.Index
-
-	idx = tbl.CheckIndexedColumn(left.(string), true)
-	if idx == nil {
-		// try not unique index
-		idx = tbl.CheckIndexedColumn(left.(string), false)
-		if idx != nil {
-			idx = nil
-
-		}
-
-	}
-
-	if idx != nil {
-
-		keys, err := idx.GetBtree().InOrderTraversal()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, key := range keys {
-			for _, val := range key.V {
-				int64Str := string(val)
-
-				rowId, err := strconv.ParseInt(int64Str, 10, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				row, err = tbl.GetRow(rowId)
-				if err != nil {
-					return nil, err
-				}
-
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, nil, rowId, false, rowIds, before)
-				if err != nil {
-					return nil, err
-				}
-
-			}
-
-		}
-
-	} else {
-
-		iter := tbl.NewIterator()
-
-		if update == nil && !del {
-
+		// If there is no where clause, we return all rows from whatever tables were passed
+		for _, tbl := range tbls {
+
+			// Setup new row iterator
+			iter := tbl.NewIterator()
 			for iter.Valid() {
-				row, err = iter.Next()
+				// For every row in the table, we append it to the filtered rows
+				row, err := iter.Next()
 				if err != nil {
 					continue
 				}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current(), del, rowIds, before)
-				if err != nil {
-					return nil, err
-				}
-
-				if !iter.Valid() {
-					break
-				}
-
+				filteredRows = append(filteredRows, row)
 			}
-		} else {
-			for iter.ValidUpdateIter() {
-				row, err = iter.Next()
-				if err != nil {
-					continue
-				}
+		}
 
-				err = ex.evaluateFinalCondition(where, &filteredRows, rightCond, leftCond, leftTblName, logicalOp, left, binaryExpr, row, tbls, update, iter.Current()-1, del, rowIds, before)
-				if err != nil {
-					return nil, err
-				}
+	} else {
 
-				if !iter.ValidUpdateIter() {
-					break
-				}
+		var err error
 
-			}
+		// where is the where clause
+		// filteredRows is the final rows from this function that are filtered based on the where clause
+		// tbls are the tables that are being filtered
+		// update is a set of set clauses for an update statement, if this is an update statement
+		// del is a flag to indicate if this is a delete statement
+		// before is a list of rows before a delete or update statement
+
+		err = ex.filter(where, tbls, &filteredRows, rowIds)
+		if err != nil {
+			return nil, err
+
 		}
 
 	}
 
 	return filteredRows, nil
+
 }
 
-// evaluateFinalCondition evaluates the final condition
-func (ex *Executor) evaluateFinalCondition(where *parser.WhereClause, filteredRows *[]map[string]interface{}, rightCond, leftCond interface{}, leftTblName *parser.Identifier, logicalOp parser.LogicalOperator, left interface{}, binaryExpr *parser.BinaryExpression, row map[string]interface{}, tbls []*catalog.Table, update *[]*parser.SetClause, rowId int64, del bool, rowIds *[]int64, before *[]map[string]interface{}) error {
-	var err error
-	if binaryExpr != nil {
-		var val interface{}
+// Optimize struct
+// Reads abstract syntax tree and collections tables and columns to check for index optimization
+type Optimize struct {
+	Tables map[string][]map[string]interface{} // Table and columns to check
+}
 
-		// Replace binary expression column spec with a literal
-		binaryExpr.Left = &parser.Literal{Value: row[left.(string)]}
+// opt optimizes the where clause
+func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Table) error {
+	switch cond.(type) {
+	case *parser.LogicalCondition:
+		err := ex.opt(cond.(*parser.LogicalCondition).Left, optimize, tbls)
+		if err != nil {
+			return err
 
-		err = evaluateBinaryExpression(binaryExpr, &val)
+		}
+
+		err = ex.opt(cond.(*parser.LogicalCondition).Right, optimize, tbls)
 		if err != nil {
 			return err
 		}
 
-		row[left.(string)] = val
+	case *parser.ComparisonPredicate:
+		// check if left is column spec
+		if _, ok := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification); ok {
+			col := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification)
+
+			if col.TableName != nil {
+				if _, ok := optimize.Tables[col.TableName.Value]; !ok {
+					optimize.Tables[col.TableName.Value] = []map[string]interface{}{}
+				}
+
+				optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.ComparisonPredicate).Right.Value})
+			}
+		}
+
+		// check if right is column spec
+		if _, ok := cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification); ok {
+			col := cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification)
+			if _, ok := optimize.Tables[col.TableName.Value]; !ok {
+				// Check if right value is a column spec
+				// if so we need to get the first value from left
+
+				if _, ok := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification); ok {
+					col := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification)
+					tbl := ex.ch.Database.GetTable(col.TableName.Value)
+					if tbl == nil {
+						return errors.New("table does not exist")
+					}
+
+					iter := tbl.NewIterator()
+					if iter.Valid() {
+						row, err := iter.Next()
+						if err != nil {
+							return err
+						}
+
+						for k, _ := range row {
+							if k == col.ColumnName.Value {
+								optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
+								break // break out of loop
+							}
+						}
+
+					}
+				} else {
+					// Get first table in tables list
+					tbl := ex.ch.Database.GetTable(tbls[0].Name)
+					if tbl == nil {
+						return errors.New("table does not exist")
+					}
+
+					iter := tbl.NewIterator()
+					if iter.Valid() {
+						row, err := iter.Next()
+						if err != nil {
+							return err
+						}
+
+						for k, _ := range row {
+							if k == col.ColumnName.Value {
+								optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
+								break // break out of loop
+							}
+						}
+
+					}
+				}
+			}
+
+		}
+	case *parser.InPredicate:
+		// check if left is column spec
+		if _, ok := cond.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification); ok {
+			col := cond.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification)
+
+			if col.TableName == nil {
+
+				// Get first table in tables list
+				tbl := ex.ch.Database.GetTable(tbls[0].Name)
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				iter := tbl.NewIterator()
+				if iter.Valid() {
+					row, err := iter.Next()
+					if err != nil {
+						return err
+					}
+
+					for k, _ := range row {
+						if k == col.ColumnName.Value {
+							col.TableName = &parser.Identifier{Value: tbl.Name}
+							break // break out of loop
+						}
+					}
+
+				}
+			}
+
+			for _, val := range cond.(*parser.InPredicate).Values {
+				optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": val.Value})
+			}
+
+		}
+	case *parser.BetweenPredicate:
+		// check if left is column spec
+		if _, ok := cond.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification); ok {
+			col := cond.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification)
+
+			if col.TableName == nil {
+
+				// Get first table in tables list
+				tbl := ex.ch.Database.GetTable(tbls[0].Name)
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				iter := tbl.NewIterator()
+				if iter.Valid() {
+					row, err := iter.Next()
+					if err != nil {
+						return err
+					}
+
+					for k, _ := range row {
+						if k == col.ColumnName.Value {
+							col.TableName = &parser.Identifier{Value: tbl.Name}
+							break // break out of loop
+						}
+					}
+
+				}
+			}
+
+			if _, ok := optimize.Tables[col.TableName.Value]; !ok {
+				optimize.Tables[col.TableName.Value] = []map[string]interface{}{}
+			}
+
+			optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.BetweenPredicate).Upper.Value})
+			optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.BetweenPredicate).Lower.Value})
+
+		}
+	case *parser.LikePredicate:
+		// check if left is column spec
+		if _, ok := cond.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification); ok {
+
+			col := cond.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification)
+
+			if col.TableName == nil {
+
+				// Get first table in tables list
+				tbl := ex.ch.Database.GetTable(tbls[0].Name)
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				iter := tbl.NewIterator()
+				if iter.Valid() {
+					row, err := iter.Next()
+					if err != nil {
+						return err
+					}
+
+					for k, _ := range row {
+						if k == col.ColumnName.Value {
+							col.TableName = &parser.Identifier{Value: tbl.Name}
+							break // break out of loop
+						}
+					}
+
+				}
+			}
+
+			if _, ok := optimize.Tables[col.TableName.Value]; !ok {
+				optimize.Tables[col.TableName.Value] = []map[string]interface{}{}
+			}
+
+			optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.LikePredicate).Pattern.Value})
+
+		}
+	case *parser.IsPredicate:
+		// check if left is column spec
+		if _, ok := cond.(*parser.IsPredicate).Left.Value.(*parser.ColumnSpecification); ok {
+			col := cond.(*parser.IsPredicate).Left.Value.(*parser.ColumnSpecification)
+
+			if col.TableName == nil {
+
+				// Get first table in tables list
+				tbl := ex.ch.Database.GetTable(tbls[0].Name)
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				iter := tbl.NewIterator()
+				if iter.Valid() {
+					row, err := iter.Next()
+					if err != nil {
+						return err
+					}
+
+					for k, _ := range row {
+						if k == col.ColumnName.Value {
+							col.TableName = &parser.Identifier{Value: tbl.Name}
+							break // break out of loop
+						}
+					}
+
+				}
+			}
+
+			if _, ok := optimize.Tables[col.TableName.Value]; !ok {
+				optimize.Tables[col.TableName.Value] = []map[string]interface{}{}
+			}
+
+			optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": nil})
+
+		}
+	case *parser.NotExpr:
+		err := ex.opt(cond.(*parser.NotExpr).Expr, optimize, tbls)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// filter filters rows based on the where clause
+func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, filteredRows *[]map[string]interface{}, rowIds *[]int64) error {
+
+	if len(tbls) == 0 {
+		return errors.New("no tables")
 	}
 
-	if logicalOp == parser.OP_AND {
-		ok, res := ex.evaluatePredicate(leftCond, row, tbls)
-		if ok {
-			ok, _ := ex.evaluatePredicate(rightCond, row, tbls)
-			if ok {
+	// gather the tables and columns to check
+	optimize := &Optimize{
+		Tables: make(map[string][]map[string]interface{}),
+	}
+	err := ex.opt(where.SearchCondition, optimize, tbls)
+	if err != nil {
+		return err
+	}
 
-				var resTbls []string
+	indexedColumns := make(map[string]*catalog.Index)
 
-				for t, _ := range res {
-					resTbls = append(resTbls, t)
+	var tblIters []*catalog.Iterator
 
-				}
-
-				if len(res) == 1 {
-					for _, rows := range res[resTbls[0]] {
-						*filteredRows = append(*filteredRows, rows)
-
-					}
-				} else if len(res) > 1 {
-					newRow := map[string]interface{}{}
-					for _, tblName := range resTbls {
-						for _, rows := range res[tblName] {
-							for k, v := range rows {
-								newRow[k] = v //newRow[fmt.Sprintf("%s.%s", tblName, k)] = v
-							}
-
-						}
-
-					}
-
-					*filteredRows = append(*filteredRows, newRow)
-				}
-
-			}
-		}
-	} else if logicalOp == parser.OP_OR {
-		ok, res := ex.evaluatePredicate(leftCond, row, tbls)
-		if ok {
-
-			var resTbls []string
-
-			for t, _ := range res {
-				resTbls = append(resTbls, t)
-
-			}
-
-			if len(res) == 1 {
-				for _, rows := range res[resTbls[0]] {
-					*filteredRows = append(*filteredRows, rows)
-
-				}
-			} else if len(res) > 1 {
-
-				newRow := map[string]interface{}{}
-				for _, tblName := range resTbls {
-					for _, rows := range res[tblName] {
-						for k, v := range rows {
-							newRow[k] = v
-						}
-
-					}
-
-				}
-
-				*filteredRows = append(*filteredRows, newRow)
-			}
+	// For each table
+	for _, tbl := range tbls {
+		// skip table where index is found
+		if _, ok := indexedColumns[tbl.Name]; ok {
+			continue
 		}
 
-		ok, res = ex.evaluatePredicate(rightCond, row, tbls)
-		if ok {
+		// Setup new row iterator
+		iter := tbl.NewIterator()
 
-			var resTbls []string
+		tblIters = append(tblIters, iter)
 
-			for t, _ := range res {
-				resTbls = append(resTbls, t)
+	}
 
+	invalidIters := 0
+
+	var currentRows []map[string]interface{}
+
+	if len(optimize.Tables) > 0 {
+		for tblName, colsValues := range optimize.Tables {
+			tbl := ex.ch.Database.GetTable(tblName)
+			if tbl == nil {
+				return errors.New("table does not exist")
 			}
 
-			if len(res) == 1 {
-				for _, r := range res[resTbls[0]] {
-					// copy other columns from the row if they dont exist in current rows
-					newRow := r
+			for _, colValue := range colsValues {
+				col := colValue["column"].(string)
+				val := colValue["value"]
 
-					if len(*filteredRows) > 0 {
-						for k, _ := range (*filteredRows)[0] {
-							if _, ok = newRow[k]; !ok {
-								newRow[k] = nil
-							}
-						}
+				var idx *catalog.Index
 
-						*filteredRows = append(*filteredRows, newRow)
+				idx = tbl.CheckIndexedColumn(col, true)
+				if idx == nil {
+					// try not unique index
+					idx = tbl.CheckIndexedColumn(col, false)
+					if idx != nil {
+						idx = nil
+
 					}
 
 				}
-			} else if len(res) > 1 {
-				newRow := map[string]interface{}{}
-				for _, tblName := range resTbls {
-					for _, rows := range res[tblName] {
-						for k, v := range rows {
-							newRow[k] = v
-						}
 
+				if idx != nil {
+					key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", val)))
+					if err != nil {
+						return err
 					}
 
-				}
-
-				*filteredRows = append(*filteredRows, newRow)
-			}
-		}
-
-	} else {
-		ok, res := ex.evaluatePredicate(where.SearchCondition, row, tbls)
-		if ok {
-
-			var resTbls []string
-
-			for t, _ := range res {
-				resTbls = append(resTbls, t)
-
-			}
-
-			if len(res) == 1 {
-				for _, r := range res[resTbls[0]] {
-					if rowIds != nil || before != nil {
-
-						if update != nil {
-							*rowIds = append(*rowIds, rowId)
-							*before = append(*before, row)
-
-							err := tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
+					if key != nil {
+						for _, v := range key.V {
+							int64Str := string(v)
+							rRowId, err := strconv.ParseInt(int64Str, 10, 64)
 							if err != nil {
 								return err
 							}
-						} else if del {
-							*rowIds = append(*rowIds, rowId)
-							err := tbls[0].DeleteRow(rowId)
+
+							if rowIds != nil {
+
+								*rowIds = append(*rowIds, rRowId)
+							}
+
+							row, err := tbl.GetRow(rRowId)
 							if err != nil {
 								return err
 							}
+
+							// convert to tablename.columnname
+							for k, vv := range row {
+								delete(row, k)
+								row[fmt.Sprintf("%v.%v", tbl.Name, k)] = vv
+							}
+
+							currentRows = append(currentRows, row)
+
 						}
 					}
-
-					*filteredRows = append(*filteredRows, r)
-				}
-			} else if len(res) > 1 {
-
-				newRow := map[string]interface{}{}
-				for _, tblName := range resTbls {
-					for _, r := range res[tblName] {
-
-						if rowIds != nil || before != nil {
-							if update != nil {
-								*rowIds = append(*rowIds, rowId)
-								*before = append(*before, row)
-
-								err := tbls[0].UpdateRow(rowId, row, convertSetClauseToCatalogLike(update))
-								if err != nil {
-									return err
-								}
-							} else if del {
-								*rowIds = append(*rowIds, rowId)
-
-								err := tbls[0].DeleteRow(rowId)
-								if err != nil {
-									return err
-								}
-							}
-						}
-
-						for k, v := range r {
-							if leftTblName != nil {
-								if len(strings.Split(k, ".")) == 1 {
-									newRow[fmt.Sprintf("%s.%s", leftTblName.Value, k)] = v
-								} else {
-									newRow[k] = v
-								}
-							} else {
-								newRow[k] = v
-							}
-						}
-
-					}
-
 				}
 
-				*filteredRows = append(*filteredRows, newRow)
 			}
 
 		}
+	}
+
+	for invalidIters < len(tblIters) {
+		if invalidIters >= len(tblIters) {
+			break
+		}
+
+		for i := 0; i < len(tblIters); i++ {
+			iter := tblIters[i]
+
+			if iter.Valid() {
+				row, err := iter.Next()
+				if err != nil {
+					invalidIters++
+					continue
+				}
+
+				if rowIds != nil {
+
+					*rowIds = append(*rowIds, iter.Current())
+				}
+
+				// convert row to tablename.columnname
+
+				for k, v := range row {
+					delete(row, k)
+					row[fmt.Sprintf("%v.%v", tbls[i].Name, k)] = v
+				}
+
+				currentRows = append(currentRows, row)
+			} else {
+				invalidIters++
+			}
+		}
+
+		if ex.evaluateWhereClause(where, &currentRows, tbls, filteredRows) {
+
+			// create a new row
+			newRow := map[string]interface{}{}
+
+			// add the columns to the new row
+			for _, row := range currentRows {
+				for k, v := range row {
+					newRow[k] = v
+				}
+			}
+
+			// check if newRow == map[]
+			if len(newRow) > 0 {
+				*filteredRows = append(*filteredRows, newRow)
+
+			}
+
+		}
+
+		currentRows = []map[string]interface{}{}
 	}
 
 	return nil
-
 }
 
-// evaluatePredicate evaluates a predicate condition on a row
-func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface{}, tbls []*catalog.Table) (bool, map[string][]map[string]interface{}) {
-	results := make(map[string][]map[string]interface{})
+// evaluateWhereClause evaluates the where clause
+func (ex *Executor) evaluateWhereClause(where *parser.WhereClause, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
+	// If there is no where clause, we return true
+	if where == nil {
+		return true
+	}
 
-	_, isNot := cond.(*parser.NotExpr)
-	if isNot {
-		cond = cond.(*parser.NotExpr).Expr
+	// If there is a where clause, we evaluate the condition
+	return ex.evaluateCondition(where.SearchCondition, rows, tbls, filteredRows)
+}
+
+// evaluateCondition evaluates a condition
+func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
+	// If there is no condition, we return true
+	if condition == nil {
+		return true
+	}
+
+	_, not := condition.(*parser.NotExpr)
+	if not {
+		condition = condition.(*parser.NotExpr).Expr
 
 	}
 
-	var left interface{}
-
-	switch cond := cond.(type) {
-	case *parser.BetweenPredicate:
-
-		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
-			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+	switch condition := condition.(type) {
+	case *parser.LogicalCondition:
+		switch condition.Op {
+		case parser.OP_AND:
+			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) && ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
+		case parser.OP_OR:
+			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) || ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
+		case parser.OP_NOT:
+			return !ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		}
+	case *parser.InPredicate:
+		// check if left is column spec
+		if _, ok := condition.Left.Value.(*parser.ColumnSpecification); ok {
+			left := ex.evaluateValueExpression(condition.Left, rows)
 
-		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
-			var val interface{}
-			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
-			if err != nil {
-				return false, nil
+			// Check if first value is selectStmt
+			if _, ok := condition.Values[0].Value.(*parser.SelectStmt); ok {
+
+				innerRows, err := ex.executeSelectStmt(condition.Values[0].Value.(*parser.SelectStmt), true)
+				if err != nil {
+					return false
+				}
+
+				for _, val := range innerRows {
+					if not {
+
+						if left != val[condition.Left.Value.(*parser.ColumnSpecification).ColumnName.Value] {
+							return true
+						}
+
+					} else {
+
+						if left == val[condition.Left.Value.(*parser.ColumnSpecification).ColumnName.Value] {
+
+							return true
+						}
+
+					}
+				}
+
+				return false
+
 			}
 
-			left = val
-		}
+			for _, val := range condition.Values {
 
-		if _, ok := cond.Left.Value.(*parser.Literal); ok {
-			left = cond.Left.Value.(*parser.Literal).Value
-		}
+				switch val.Value.(*parser.Literal).Value.(type) {
+				case uint64:
+					val.Value.(*parser.Literal).Value = int(val.Value.(*parser.Literal).Value.(uint64))
+				}
 
-		for k, _ := range row {
-			// convert columnname to table.columnname
-			if len(strings.Split(k, ".")) == 1 {
-				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
-				delete(row, k)
+				if not {
+					if val.Value.(*parser.Literal).Value != left {
+
+						return true
+					}
+
+				} else {
+					if val.Value.(*parser.Literal).Value == left {
+
+						return true
+					}
+				}
+
 			}
-		}
-
-		if !isNot {
-
-			if left.(int) >= int(cond.Lower.Value.(*parser.Literal).Value.(uint64)) && left.(int) <= int(cond.Upper.Value.(*parser.Literal).Value.(uint64)) {
-				results[tbls[0].Name] = []map[string]interface{}{row}
-			}
-		} else {
-			if left.(int) < int(cond.Lower.Value.(*parser.Literal).Value.(uint64)) || left.(int) > int(cond.Upper.Value.(*parser.Literal).Value.(uint64)) {
-				results[tbls[0].Name] = []map[string]interface{}{row}
-			}
-		}
-
-		if len(results) > 0 {
-			return true, results
 		}
 
 	case *parser.IsPredicate:
 
-		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
-			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
+		if not {
+			return false
 		}
 
-		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
-			var val interface{}
-			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
-			if err != nil {
-				return false, nil
+		if _, ok := condition.Left.Value.(*parser.ColumnSpecification); ok {
+			left := ex.evaluateValueExpression(condition.Left, rows)
+
+			if condition.Null {
+				return left == nil
+			} else {
+				return left != nil
 			}
 
-			left = val
 		}
+	case *parser.BetweenPredicate:
+		// check if left is column spec
+		if _, ok := condition.Left.Value.(*parser.ColumnSpecification); ok {
+			left := ex.evaluateValueExpression(condition.Left, rows)
+			right := ex.evaluateValueExpression(condition.Lower, rows)
+			upper := ex.evaluateValueExpression(condition.Upper, rows)
 
-		if _, ok := cond.Left.Value.(*parser.Literal); ok {
-			left = cond.Left.Value.(*parser.Literal).Value
-		}
-
-		for k, _ := range row {
-			// convert columnname to table.columnname
-			if len(strings.Split(k, ".")) == 1 {
-				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
-				delete(row, k)
-			}
-		}
-
-		if cond.Null {
 			if left == nil {
-				results[tbls[0].Name] = []map[string]interface{}{row}
+				return false
 			}
-		} else {
 
-			if left != nil {
-				results[tbls[0].Name] = []map[string]interface{}{row}
+			if !not {
+				// check if left is a string
+				if _, ok := left.(string); ok {
+					// check if right is a string
+					if _, ok := right.(string); ok {
+						return left.(string) >= right.(string) && left.(string) <= upper.(string) // left >= lower && left <= upper
+					}
+
+					return false
+				}
+
+				// check if left is a float
+				if _, ok := left.(float64); ok {
+					return left.(float64) >= right.(float64) && left.(float64) <= upper.(float64) // left >= lower && left <= upper
+				}
+
+				return left.(int) >= int(right.(uint64)) && left.(int) <= int(upper.(uint64)) // left >= lower && left <= upper
+			} else {
+				return left.(int) < int(right.(uint64)) || left.(int) > int(upper.(uint64)) // left < lower || left > upper
 			}
-		}
 
-		if len(results) > 0 {
-			return true, results
 		}
-
 	case *parser.LikePredicate:
+		// check if left is column spec
+		if _, ok := condition.Left.Value.(*parser.ColumnSpecification); ok {
+			left := ex.evaluateValueExpression(condition.Left, rows)
 
-		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
-			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
-		}
+			pattern := condition.Pattern.Value
+			/*
+				'%a'
+				Matches any string that ends with 'a'. The '%' wildcard matches any sequence of characters, including an empty sequence.
 
-		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
-			var val interface{}
-			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
-			if err != nil {
-				return false, nil
+				'%a%'
+				Matches any string that contains 'a' anywhere within it. The '%' wildcard before and after 'a' means that 'a' can be preceded or followed by any sequence of characters.
+
+				'a%'
+				Matches any string that starts with 'a'. The '%' wildcard after 'a' allows for any sequence of characters after 'a'.
+
+				'a%b'
+				Matches any string that starts with 'a' and ends with 'b'. The '%' wildcard in the middle allows for any sequence of characters between 'a' and 'b'.
+
+			*/
+
+			if left == nil {
+				return false
 			}
 
-			left = val
-		}
-
-		if _, ok := cond.Left.Value.(*parser.Literal); ok {
-			left = cond.Left.Value.(*parser.Literal).Value
-		}
-
-		for k, _ := range row {
-			// convert columnname to table.columnname
-			if len(strings.Split(k, ".")) == 1 {
-				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
-				delete(row, k)
-			}
-		}
-
-		/*
-			'%a'
-			Matches any string that ends with 'a'. The '%' wildcard matches any sequence of characters, including an empty sequence.
-
-			'%a%'
-			Matches any string that contains 'a' anywhere within it. The '%' wildcard before and after 'a' means that 'a' can be preceded or followed by any sequence of characters.
-
-			'a%'
-			Matches any string that starts with 'a'. The '%' wildcard after 'a' allows for any sequence of characters after 'a'.
-
-			'a%b'
-			Matches any string that starts with 'a' and ends with 'b'. The '%' wildcard in the middle allows for any sequence of characters between 'a' and 'b'.
-
-		*/
-
-		// check if left is a string
-		if _, ok := left.(string); ok {
-
-			pattern := cond.Pattern.Value
-
-			if !isNot {
-
+			if !not {
 				switch {
+
 				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
 					// '%a%'
 					if strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
 					// 'a%'
 					if strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
 					// '%a'
 					if strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
 					// 'a%b'
@@ -2273,29 +2106,30 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 					rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
 
 					if strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 
 				default:
-					return false, nil
+					return false
 
 				}
 			} else {
 				switch {
+
 				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%") && strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
 					// '%a%'
 					if !strings.Contains(left.(string), strings.TrimPrefix(strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'"), "'%")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case strings.HasSuffix(pattern.(*parser.Literal).Value.(string), "%'"):
 					// 'a%'
 					if !strings.HasPrefix(left.(string), strings.TrimSuffix(pattern.(*parser.Literal).Value.(string), "%'")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case strings.HasPrefix(pattern.(*parser.Literal).Value.(string), "'%"):
 					// '%a'
 					if !strings.HasSuffix(left.(string), strings.TrimPrefix(pattern.(*parser.Literal).Value.(string), "'%")) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 				case len(strings.Split(pattern.(*parser.Literal).Value.(string), "%")) == 2:
 					// 'a%b'
@@ -2303,496 +2137,509 @@ func (ex *Executor) evaluatePredicate(cond interface{}, row map[string]interface
 					rStr := strings.TrimRight(strings.Split(pattern.(*parser.Literal).Value.(string), "%")[1], "'")
 
 					if !strings.HasPrefix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), lStr) && !strings.HasSuffix(strings.TrimPrefix(strings.TrimSuffix(left.(string), "'"), "'"), rStr) {
-						results[tbls[0].Name] = []map[string]interface{}{row}
+						return true
 					}
 
 				default:
-					return false, nil
+					return false
 
 				}
 			}
+		}
+	case *parser.ExistsPredicate:
+		// check subquery
 
+		// Pass outer table to exists subquery
+		/*
+			SELECT *
+			FROM users
+			WHERE EXISTS (
+			    SELECT 1
+			    FROM posts
+			    WHERE users.user_id + posts.user_id = 5
+			);
+		*/
+		for _, tbl := range tbls {
+			//condition.Expr.Value.(*parser.SelectStmt).TableExpression.FromClause.Tables = append(condition.Expr.Value.(*parser.SelectStmt).TableExpression.FromClause.Tables, &parser.Table{
+			//	Name: &parser.Identifier{Value: tbl.Name},
+			//})
+
+			// push to start of condition.Expr.Value.(*parser.SelectStmt).TableExpression.FromClause.Tables
+			condition.Expr.Value.(*parser.SelectStmt).TableExpression.FromClause.Tables = append([]*parser.Table{&parser.Table{
+				Name: &parser.Identifier{Value: tbl.Name},
+			}}, condition.Expr.Value.(*parser.SelectStmt).TableExpression.FromClause.Tables...)
+		}
+
+		r, err := ex.executeSelectStmt(condition.Expr.Value.(*parser.SelectStmt), true)
+		if err != nil {
+			return false
+		}
+
+		if not {
+			// if not exists
+			// if there are no results return true
+			if len(r) == 0 {
+				return true
+			} else {
+				return false
+			}
+		}
+
+		// when there is no not, we add to filteredRows
+		if len(r) > 0 {
+
+			// check if any results compare to *filteredRows
+			// if so skip
+			if len(*filteredRows) > 0 {
+				for _, row := range *filteredRows {
+					for _, rr := range r {
+						for k, v := range rr {
+							if row[k] == v {
+								return false
+							} else {
+								if row[k] != v {
+									return false
+								}
+							}
+						}
+
+						*filteredRows = append(*filteredRows, rr)
+						return true
+					}
+
+					return true
+				}
+			} else {
+				*filteredRows = append(*filteredRows, r...)
+				return false
+			}
+
+			return false
 		} else {
-			return false, nil
-
+			return false
 		}
 
-		if len(results) > 0 {
-			return true, results
-		}
+	case *parser.ComparisonPredicate:
 
-	case *parser.InPredicate:
+		left := ex.evaluateValueExpression(condition.Left, rows)
+		right := ex.evaluateValueExpression(condition.Right, rows)
 
-		var leftCol string
+		// check if right is value expression
+		if _, ok := condition.Right.Value.(*parser.ValueExpression); ok {
 
-		if _, ok := cond.Left.Value.(*parser.ColumnSpecification); ok {
-			left = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
-			leftCol = cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value
-		}
-
-		if _, ok := cond.Left.Value.(*parser.BinaryExpression); ok {
-			var val interface{}
-			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
-			if err != nil {
-				return false, nil
-			}
-
-			left = val
-		}
-
-		if _, ok := cond.Left.Value.(*parser.Literal); ok {
-			left = cond.Left.Value.(*parser.Literal).Value
-		}
-
-		for k, _ := range row {
-			// convert columnname to table.columnname
-			if len(strings.Split(k, ".")) == 1 {
-				row[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = row[k]
-				delete(row, k)
-			}
-		}
-
-		// Check if val.Value.(*parser.Literal).Value is a select statement
-		if _, ok := cond.Values[0].Value.(*parser.SelectStmt); ok {
-			// Run the select statement
-			stmt := cond.Values[0].Value.(*parser.SelectStmt)
-
-			res, err := ex.executeSelectStmt(stmt, true)
-			if err != nil {
-				return false, nil
-			}
-
-			if !isNot {
-
-				for _, r := range res {
-					switch left.(type) {
-					case int:
-						left = int(left.(int))
-						if left == r[leftCol].(int) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case uint64:
-						if left.(uint64) == r[leftCol].(uint64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-					case float64:
-						if left.(float64) == r[leftCol].(float64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case string:
-						if left.(string) == r[leftCol].(string) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-
-					}
-				}
-			} else {
-				for _, r := range res {
-					switch left.(type) {
-					case int:
-						left = int(left.(int))
-						if left != r[leftCol].(int) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case uint64:
-						if left.(uint64) != r[leftCol].(uint64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-					case float64:
-						if left.(float64) != r[leftCol].(float64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case string:
-						if left.(string) != r[leftCol].(string) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-
-					}
-				}
-			}
-		} else {
-
-			if !isNot {
-
-				for _, val := range cond.Values {
-					switch left.(type) {
-					case int:
-						left = int(left.(int))
-						if left == int(val.Value.(*parser.Literal).Value.(uint64)) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case uint64:
-						if left.(uint64) == val.Value.(*parser.Literal).Value.(uint64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-					case float64:
-						if left.(float64) == val.Value.(*parser.Literal).Value.(float64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case string:
-						if left.(string) == val.Value.(*parser.Literal).Value.(string) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-
-					}
+			// check if right is subquery
+			if _, ok := condition.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt); ok {
+				rows, err := ex.executeSelectStmt(condition.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt), true)
+				if err != nil {
+					return false
 				}
 
-			} else {
-				for _, val := range cond.Values {
-					switch left.(type) {
-					case int:
-						left = int(left.(int))
-						if left != int(val.Value.(*parser.Literal).Value.(uint64)) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case uint64:
-						if left.(uint64) != val.Value.(*parser.Literal).Value.(uint64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-					case float64:
-						if left.(float64) != val.Value.(*parser.Literal).Value.(float64) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-						}
-					case string:
-						if left.(string) != val.Value.(*parser.Literal).Value.(string) {
-							results[tbls[0].Name] = []map[string]interface{}{row}
-
-						}
-
-					}
-				}
-			}
-		}
-
-		if len(results) > 0 {
-			return true, results
-		}
-
-	case *parser.ComparisonPredicate: // Joins are only supported with comparison predicates
-
-		var right interface{}
-		var ok bool
-
-		if _, ok = cond.Left.Value.(*parser.ColumnSpecification); ok {
-
-			left, ok = row[cond.Left.Value.(*parser.ColumnSpecification).ColumnName.Value]
-			if !ok {
-				return false, nil
-			}
-
-			if cond.Left.Value.(*parser.ColumnSpecification).TableName != nil {
-
-				results[cond.Left.Value.(*parser.ColumnSpecification).TableName.Value] = []map[string]interface{}{row}
-
-				newRow := map[string]interface{}{}
-
-				for k, v := range row {
-					newRow[fmt.Sprintf("%s.%s", tbls[0].Name, k)] = v
+				// get first key
+				for k, _ := range rows[0] {
+					right = rows[0][k]
+					break
 				}
 
-				results[tbls[0].Name] = []map[string]interface{}{newRow}
-
-			} else {
-
-				results[tbls[0].Name] = []map[string]interface{}{row}
-			}
-		} else if _, ok = cond.Left.Value.(*parser.BinaryExpression); ok {
-
-			var val interface{}
-			err := evaluateBinaryExpression(cond.Left.Value.(*parser.BinaryExpression), &val)
-			if err != nil {
-				return false, nil
-			}
-
-			left = val
-
-			results[tbls[0].Name] = []map[string]interface{}{row}
-		} else if _, ok = cond.Left.Value.(*parser.Literal); ok {
-			left = cond.Left.Value.(*parser.Literal).Value
-		}
-
-		if _, ok = cond.Right.Value.(*parser.Literal); ok {
-			right = cond.Right.Value.(*parser.Literal).Value
-		} else if _, ok = cond.Right.Value.(*parser.ColumnSpecification); ok {
-			tblName := cond.Right.Value.(*parser.ColumnSpecification).TableName.Value
-			colName := cond.Right.Value.(*parser.ColumnSpecification).ColumnName.Value
-
-			for _, tbl := range tbls {
-				if tbl.Name == tblName {
-
-					rightRow, err := ex.filter([]*catalog.Table{tbl},
-						&parser.WhereClause{
-							SearchCondition: &parser.ComparisonPredicate{
-								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
-									TableName:  &parser.Identifier{Value: tblName},
-									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false, nil, nil)
-					if err != nil {
-						return false, nil
-					}
-
-					if len(rightRow) == 0 {
-						return false, nil
-					}
-
-					right = rightRow[0][colName]
-
-					if right == nil {
-						right = rightRow[0][fmt.Sprintf("%s.%s", tblName, colName)]
-					}
-
-					results[tbl.Name] = rightRow
-				}
-			}
-		} else if _, ok = cond.Right.Value.(*parser.BinaryExpression); ok {
-			binaryExpr := cond.Right.Value.(*parser.BinaryExpression)
-
-			var val interface{}
-
-			// left should be a column
-
-			if _, ok = cond.Right.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification); !ok {
-				return false, nil
-			}
-
-			tblName := cond.Right.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).TableName.Value
-			colName := cond.Right.Value.(*parser.BinaryExpression).Left.(*parser.ColumnSpecification).ColumnName.Value
-
-			for _, tbl := range tbls {
-				if tbl.Name == tblName {
-					rightRow, err := ex.filter([]*catalog.Table{tbl},
-						&parser.WhereClause{
-							SearchCondition: &parser.ComparisonPredicate{
-								Left: &parser.ValueExpression{Value: &parser.ColumnSpecification{
-									TableName:  &parser.Identifier{Value: tblName},
-									ColumnName: &parser.Identifier{Value: colName}},
-								}, Right: &parser.ValueExpression{Value: &parser.Literal{Value: row[colName]}}, Op: cond.Op}}, nil, false, nil, nil)
-					if err != nil {
-						return false, nil
-					}
-
-					binaryExpr.Left = &parser.Literal{Value: rightRow[0][colName]}
-
-				}
-			}
-
-			err := evaluateBinaryExpression(binaryExpr, &val)
-			if err != nil {
-				return false, nil
-			}
-
-			right = val
-
-			results[tbls[0].Name] = []map[string]interface{}{row}
-
-		}
-
-		// check if right is not a parser.Literal
-		if _, ok := cond.Right.Value.(*parser.Literal); !ok {
-			if _, ok := cond.Right.Value.(*parser.ColumnSpecification); !ok {
-				// check for subquery
-				if _, ok := cond.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt); ok {
-					res, err := ex.executeSelectStmt(cond.Right.Value.(*parser.ValueExpression).Value.(*parser.SelectStmt), true)
-					if err != nil {
-						return false, nil
-					}
-
-					// if results are greater than one only get first row first column
-					for _, r := range res {
-						for _, v := range r {
-							right = v
-							break
-						}
-					}
-				}
 			}
 		}
 
 		switch left.(type) {
 		case int:
-			left = int(left.(int))
-		case uint64:
-			left = int(left.(uint64))
-		}
-
-		switch right.(type) {
-		case int:
-			right = int(right.(int))
-		case uint64:
-			right = int(right.(uint64))
-
-		}
-
-		// convert left and right to float64
-		if _, ok := left.(string); !ok {
-			if _, ok := left.(float64); !ok {
-				left = float64(left.(int))
-			}
-
+			// Check if right is not int
 			if _, ok := right.(int); !ok {
-				if _, ok := right.(float64); !ok {
-					// check if right is string
-					if _, ok := right.(string); ok {
-						return false, nil
-					}
-
-					right = float64(right.(int))
+				// check if right is nil
+				if right == nil {
+					return false
 				}
-			} else {
-				right = float64(right.(int))
+
+				// check if right is string
+				if _, ok := right.(string); ok {
+					return false
+				}
+
+				right = int(right.(uint64))
 			}
 
 		}
 
-		// The right type should be the same as the left type in the end
-
-		switch cond.Op {
+		switch condition.Op {
 		case parser.OP_EQ:
-			switch left.(type) {
-			case int:
-				return left.(int) == right.(int), results
 
-			case float64:
-				return left.(float64) == right.(float64), results
-			case string:
-				return left.(string) == right.(string), results
+			if !not {
+				return left == right
+			} else {
+				return left != right
 			}
+
 		case parser.OP_NEQ:
-			return left != right, results
+			if !not {
+				return left != right
+			} else {
+				return left == right
+			}
+
 		case parser.OP_LT:
-			return left.(float64) < right.(float64), results
+			if !not {
+				return left.(int) < right.(int)
+			} else {
+				return left.(int) >= right.(int)
+			}
 		case parser.OP_LTE:
-			return left.(float64) <= right.(float64), results
+			if !not {
+				return left.(int) <= right.(int)
+			} else {
+				return left.(int) > right.(int)
+			}
 		case parser.OP_GT:
-			return left.(float64) > right.(float64), results
+			if !not {
+				return left.(int) > right.(int)
+			} else {
+				return left.(int) <= right.(int)
+			}
 		case parser.OP_GTE:
-			return left.(float64) >= right.(float64), results
+			if !not {
+				return left.(int) >= right.(int)
+			} else {
+				return left.(int) < right.(int)
+			}
 		}
+	default:
+
+		return false
 
 	}
 
-	return false, nil
-
+	return false
 }
 
-// evaluateBinaryExpression evaluates a binary expression
-func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}) error {
-	leftInt, ok := expr.Left.(*parser.Literal).Value.(uint64)
-	if !ok {
-		_, ok = expr.Left.(*parser.Literal).Value.(int)
-		if !ok {
-			return fmt.Errorf("left value is not a number")
+// EvaluateValueExpression evaluates a value expression
+func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
+	switch expr := expr.Value.(type) {
+	case *parser.Literal:
+		return expr.Value
+	case *parser.ColumnSpecification:
+
+		if expr.TableName == nil {
+			for i, row := range *rows {
+				newRow := map[string]interface{}{}
+				for k, v := range row {
+					// trim off the tablename if it exists
+
+					if strings.Contains(k, ".") {
+						newRow[strings.Split(k, ".")[1]] = v
+					} else {
+						newRow[k] = v
+
+					}
+				}
+				*rows = append(*rows, newRow)
+				*rows = append((*rows)[:i], (*rows)[i+1:]...)
+			}
 		}
+		for _, row := range *rows {
+			// check if tablename.columnname exists
+			if expr.TableName != nil {
+				if _, ok := row[fmt.Sprintf("%v.%v", expr.TableName.Value, expr.ColumnName.Value)]; ok {
+					return row[fmt.Sprintf("%v.%v", expr.TableName.Value, expr.ColumnName.Value)]
+				}
+			}
+			if _, ok := row[expr.ColumnName.Value]; ok {
 
-		leftInt = uint64(expr.Left.(*parser.Literal).Value.(int))
-	}
-
-	left := float64(leftInt)
-
-	var right interface{}
-	if _, ok := expr.Right.(*parser.BinaryExpression); ok {
-		err := evaluateBinaryExpression(expr.Right.(*parser.BinaryExpression), &right)
-		if err != nil {
-			return err
-		}
-	} else {
-		rightInt, ok := expr.Right.(*parser.Literal).Value.(uint64)
-		if !ok {
-			_, ok = expr.Right.(*parser.Literal).Value.(int)
-			if !ok {
-				return fmt.Errorf("right value is not a number")
+				return row[expr.ColumnName.Value]
 			}
 
-			rightInt = uint64(expr.Left.(*parser.Literal).Value.(int))
 		}
 
-		right = float64(rightInt)
+		return nil
 
-	}
+	case *parser.BinaryExpression:
+		var val interface{}
+		err := evaluateBinaryExpression(expr, &val, rows)
+		if err != nil {
+			return nil
+		}
 
-	switch expr.Op {
-	case parser.OP_PLUS:
-		*val = left + right.(float64)
-	case parser.OP_MINUS:
-		*val = left - right.(float64)
-	case parser.OP_MULT:
-		*val = left * right.(float64)
-	case parser.OP_DIV:
-		*val = left / right.(float64)
-
+		return val
 	}
 
 	return nil
 }
 
-// convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
-func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause) []*catalog.SetClause {
-	var setClauses []*catalog.SetClause
+// evaluateBinaryExpression evaluates a binary expression
+func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, rows *[]map[string]interface{}) error {
 
-	for _, set := range *setClause {
-		setClauses = append(setClauses, &catalog.SetClause{
-			ColumnName: set.Column.Value,
-			Value:      set.Value.Value,
-		})
+	left := expr.Left
+	right := expr.Right
+	var row map[string]interface{}
+
+	// Check if left is column spec
+	if _, ok := left.(*parser.ColumnSpecification); ok {
+
+		if left.(*parser.ColumnSpecification).TableName == nil {
+			for i, r := range *rows {
+				newRow := map[string]interface{}{}
+				for k, v := range r {
+					// trim off the tablename if it exists
+
+					if strings.Contains(k, ".") {
+						newRow[strings.Split(k, ".")[1]] = v
+					} else {
+						newRow[k] = v
+
+					}
+				}
+				*rows = append(*rows, newRow)
+				*rows = append((*rows)[:i], (*rows)[i+1:]...)
+			}
+
+		}
+
+		for _, r := range *rows {
+			if _, ok := r[left.(*parser.ColumnSpecification).ColumnName.Value]; ok {
+				row = r
+				break
+			}
+		}
+
+		left = &parser.Literal{Value: row[left.(*parser.ColumnSpecification).ColumnName.Value]}
 	}
 
-	return setClauses
+	switch left := left.(type) {
+	case *parser.Literal:
+		switch right := right.(type) {
+		case *parser.BinaryExpression:
+			var valInner interface{}
+			err := evaluateBinaryExpression(right, &valInner, rows)
+			if err != nil {
+				return err
+			}
+		case *parser.Literal:
+			switch expr.Op {
+			case parser.OP_PLUS:
 
-}
+				switch left.Value.(type) {
+				case int:
+					switch right.Value.(type) {
+					case uint64:
+						*val = left.Value.(int) + int(right.Value.(uint64))
+					case int:
+						*val = left.Value.(int) + right.Value.(int)
+					case int64:
+						*val = left.Value.(int) + int(right.Value.(int64))
+					case float64:
+						*val = left.Value.(int) + int(right.Value.(float64))
+					default:
+						return errors.New("unsupported type")
+					}
+				case int64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(int64)) + right.Value.(int)
+					case int64:
+						*val = int(left.Value.(int64)) + int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(int64)) + int(right.Value.(float64))
+					}
+				case float64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(float64)) + right.Value.(int)
+					case int64:
+						*val = int(left.Value.(float64)) + int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(float64)) + int(right.Value.(float64))
+					}
+				default:
 
-// Recover recovers an AriaSQL instance from a WAL file
-func (ex *Executor) Recover(w *wal.WAL) error {
-	if !ex.recover {
-		ex.recover = true
-	}
+				}
 
-	stmts, err := w.RecoverASTs()
-	if err != nil {
-		return err
-	}
-
-	// Remove databases directory and users.usrs
-	err = os.RemoveAll(fmt.Sprintf("%s%sdatabases", w.FilePath, shared.GetOsPathSeparator()))
-	if err != nil {
-		return err
-	}
-
-	err = os.Remove(fmt.Sprintf("%s%susers.usrs", w.FilePath, shared.GetOsPathSeparator()))
-
-	aria := core.New(nil)
-
-	aria.Catalog = catalog.New(aria.Config.DataDir)
-
-	if err := aria.Catalog.Open(); err != nil {
-		return err
-	}
-
-	aria.Channels = make([]*core.Channel, 0)
-	aria.ChannelsLock = &sync.Mutex{}
-
-	user := aria.Catalog.GetUser("admin")
-	if user == nil {
-		return fmt.Errorf("admin user not found")
-	}
-
-	ex.aria = aria
-	ex.ch = aria.OpenChannel(user)
-
-	for _, stmt := range stmts {
-		err = ex.Execute(stmt)
-		if err != nil {
-			return err
+			case parser.OP_MINUS:
+				switch left.Value.(type) {
+				case int:
+					switch right.Value.(type) {
+					case int:
+						*val = left.Value.(int) - right.Value.(int)
+					case int64:
+						*val = left.Value.(int) - int(right.Value.(int64))
+					case float64:
+						*val = left.Value.(int) - int(right.Value.(float64))
+					}
+				case int64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(int64)) - right.Value.(int)
+					case int64:
+						*val = int(left.Value.(int64)) - int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(int64)) - int(right.Value.(float64))
+					}
+				case float64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(float64)) - right.Value.(int)
+					case int64:
+						*val = int(left.Value.(float64)) - int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(float64)) - int(right.Value.(float64))
+					}
+				}
+			case parser.OP_MULT:
+				switch right.Value.(type) {
+				case int:
+					*val = int(left.Value.(float64)) * right.Value.(int)
+				case int64:
+					*val = int(left.Value.(float64)) * int(right.Value.(int64))
+				case float64:
+					*val = int(left.Value.(float64)) * int(right.Value.(float64))
+				}
+			}
 		}
 	}
 
-	ex.aria.Catalog.Close()
+	return nil
+}
+
+// orderBy orders the results
+func (ex *Executor) orderBy(results []map[string]interface{}, orderBy *parser.OrderByClause) ([]map[string]interface{}, error) {
+	if orderBy == nil {
+		return results, nil
+	}
+
+	if len(orderBy.OrderByExpressions) == 0 {
+		return results, nil
+	}
+
+	// Get the column name
+	colName := orderBy.OrderByExpressions[0].Value.(*parser.ColumnSpecification).ColumnName.Value
+
+	// Get the order
+	order := orderBy.Order
+
+	// Define a custom sort function
+	less := func(i, j int) bool {
+		// You may want to add error checking here
+		switch results[i][colName].(type) {
+		case int:
+			return results[i][colName].(int) < results[j][colName].(int)
+		case int64:
+			return results[i][colName].(int64) < results[j][colName].(int64)
+		case float64:
+			return results[i][colName].(float64) < results[j][colName].(float64)
+		case string:
+			return strings.Compare(results[i][colName].(string), results[j][colName].(string)) < 0
+		}
+		return false
+	}
+
+	// Sort the results
+	if order == parser.ASC {
+		sort.SliceStable(results, less)
+	} else {
+		// For descending order, we can use the same function but negate the result
+		switch results[0][colName].(type) {
+		case int:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case int64:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case float64:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		case string:
+			sort.SliceStable(results, func(i, j int) bool {
+				return !less(i, j)
+			})
+		default:
+			return nil, errors.New("unsupported data type")
+		}
+	}
+
+	return results, nil
+}
+
+// Clear clears the result set buffer
+func (ex *Executor) Clear() {
+	ex.ResultSetBuffer = nil
+}
+
+// rollback rolls back a transaction
+func (ex *Executor) rollback() error {
+	if !ex.TransactionBegun {
+		return errors.New("no transaction begun")
+	}
+
+	ex.TransactionBegun = false
+
+	for _, tx := range ex.Transaction.Statements {
+		if tx.Commited {
+			// If a transaction is commited we can rollback the transaction
+			// This allows for database consistency
+			switch stmt := tx.Stmt.(type) { // only Insert, Update, Delete, statements can be rolled back
+			case *parser.InsertStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for insert we have the row ids that were inserted, thus making it easy to remove them
+				for _, row := range tx.Rollback.Rows {
+					err := tbl.Rows.DeletePage(row.RowId)
+					if err != nil {
+						return err
+					}
+				}
+			case *parser.UpdateStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for update we have the row ids and their previous entire rows thus making it easy to write back the previous value
+
+				for _, row := range tx.Rollback.Rows {
+					// en
+					encoded, err := catalog.EncodeRow(row.Row)
+					if err != nil {
+						return err
+					}
+
+					err = tbl.Rows.WriteTo(row.RowId, encoded)
+					if err != nil {
+						return err
+					}
+				}
+			case *parser.DeleteStmt:
+				tbl := ex.ch.Database.GetTable(stmt.TableName.Value)
+
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
+
+				// In tx.Before for delete we have the row ids and their previous entire rows thus making it easy to write back the previous value
+				for _, row := range tx.Rollback.Rows {
+					// en
+					encoded, err := catalog.EncodeRow(row.Row)
+					if err != nil {
+						return err
+					}
+
+					err = tbl.Rows.WriteTo(row.RowId, encoded)
+					if err != nil {
+						return err
+					}
+
+				}
+			}
+		}
+	}
+
+	ex.Transaction = nil // clear transaction
 
 	return nil
 }

@@ -19,6 +19,7 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -3322,5 +3323,46 @@ func TestNewParserAlterUser2(t *testing.T) {
 	if alterUserStmt.SetType != ALTER_USER_SET_USERNAME {
 		t.Fatalf("expected USERNAME, got %d", alterUserStmt.SetType)
 	}
+
+}
+
+func TestNewParserSelect33(t *testing.T) {
+	statement := []byte(`
+	SELECT * FROM orders2, stores2 WHERE orders2.store_id = stores2.store_id AND stores2.store_name = 'Amazon';
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
 
 }
