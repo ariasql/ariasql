@@ -554,7 +554,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 	case *parser.CreateUserStmt:
 		if !ex.recover { // If not recovering from WAL
-			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
+			if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to CREATE on system")
 			}
 		}
@@ -572,6 +572,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 
 	case *parser.DropUserStmt:
 		if !ex.recover { // If not recovering from WAL
@@ -593,6 +595,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 
 	case *parser.GrantStmt:
 		if !ex.recover { // If not recovering from WAL
@@ -632,6 +636,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		return nil
+
 	case *parser.RevokeStmt:
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_REVOKE}) {
@@ -669,6 +675,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if err != nil {
 			return err
 		}
+
+		return nil
 
 	case *parser.ShowStmt:
 
@@ -756,6 +764,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("unsupported set type for alter user")
 
 		}
+
+		return nil
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
 

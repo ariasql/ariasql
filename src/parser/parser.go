@@ -1177,7 +1177,7 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 		return nil, errors.New("expected keyword")
 	}
 
-	switch p.peek(0).value {
+	switch strings.ToUpper(p.peek(0).value.(string)) {
 	case "DATABASE":
 		return p.parseCreateDatabaseStmt()
 	case "INDEX", "UNIQUE":
