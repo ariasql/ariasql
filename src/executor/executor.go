@@ -21,12 +21,15 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
+	"ariasql/wal"
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Executor is the main executor structure
@@ -2655,6 +2658,61 @@ func (ex *Executor) rollback() error {
 	}
 
 	ex.Transaction = nil // clear transaction
+
+	return nil
+}
+
+// Recover recovers an AriaSQL instance from a WAL file
+func (ex *Executor) Recover(w *wal.WAL) error {
+	if !ex.recover {
+		ex.recover = true
+	}
+
+	stmts, err := w.RecoverASTs()
+	if err != nil {
+		return err
+	}
+
+	// Remove databases directory and users.usrs
+	err = os.RemoveAll(fmt.Sprintf("%s%sdatabases", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1], shared.GetOsPathSeparator()))
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(fmt.Sprintf("%s%susers.usrs", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1], shared.GetOsPathSeparator()))
+	if err != nil {
+		return err
+	}
+
+	aria := core.New(&core.Config{
+		DataDir: fmt.Sprintf("%s", strings.Split(w.FilePath, shared.GetOsPathSeparator())[1]),
+	})
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		return err
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	if user == nil {
+		return fmt.Errorf("admin user not found")
+	}
+
+	ex.aria = aria
+	ex.ch = aria.OpenChannel(user)
+
+	for _, stmt := range stmts {
+		err = ex.Execute(stmt)
+		if err != nil {
+			return err
+		}
+	}
+
+	ex.aria.Catalog.Close()
 
 	return nil
 }

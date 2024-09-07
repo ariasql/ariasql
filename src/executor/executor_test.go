@@ -20,6 +20,9 @@ import (
 	"ariasql/catalog"
 	"ariasql/core"
 	"ariasql/parser"
+	"ariasql/wal"
+	"errors"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -7434,6 +7437,222 @@ func TestStmt42(t *testing.T) {
 	stmt = []byte(`
 	SELECT DISTINCT username FROM users;
 `) // inner join/implied join
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+----------------+
+| username       |
++----------------+
+| 'frankenstein' |
+| 'drako'        |
++----------------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+
+	}
+
+}
+
+// setupToRecover sets up a test database to be used for recovery testing
+func setupToRecover() error {
+	aria := core.New(&core.Config{
+		DataDir: "./test",
+	})
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		return err
+	}
+
+	defer aria.Catalog.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		return err
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+	}
+
+	stmt = []byte(`
+	CREATE TABLE users (user_id INT, username CHAR(255));
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		return err
+	}
+
+	stmt = []byte(`
+	INSERT INTO users (user_id, username) VALUES (1, 'frankenstein'), (2, 'frankenstein'), (3, 'drako');
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		return err
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		return err
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		return errors.New(fmt.Sprintf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer)))
+	}
+
+	return nil
+
+}
+
+func TestExecutor_Recover(t *testing.T) {
+	defer os.RemoveAll("./test/")
+	err := setupToRecover()
+	if err != nil {
+		t.Errorf("setupToRecover failed: %v", err)
+		return
+	}
+
+	asts, err := wal.OpenWAL("./test/wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		t.Errorf("OpenWAL failed: %v", err)
+		return
+	}
+
+	ex := New(nil, nil)
+
+	err = ex.Recover(asts)
+	if err != nil {
+		t.Errorf("Recover failed: %v", err)
+		return
+	}
+
+	aria := core.New(&core.Config{
+		DataDir: "./test",
+	})
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Catalog.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+
+	ch := aria.OpenChannel(user)
+
+	ex = New(aria, ch)
+
+	stmt := []byte(`
+	use test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	stmt = []byte(`
+	SELECT DISTINCT username FROM users;
+`)
 
 	lexer = parser.NewLexer(stmt)
 
