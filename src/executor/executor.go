@@ -2699,7 +2699,7 @@ func (ex *Executor) Recover(asts []interface{}) error {
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
-	user := aria.Catalog.GetUser("admin")
+	user := aria.Catalog.GetUser("admin") // will bypass privileges as executor is set to recover
 	if user == nil {
 		return fmt.Errorf("admin user not found")
 	}
@@ -2717,4 +2717,9 @@ func (ex *Executor) Recover(asts []interface{}) error {
 	ex.aria.Close()
 
 	return nil
+}
+
+// SetRecover sets the recover flag
+func (ex *Executor) SetRecover(rec bool) {
+	ex.recover = rec
 }

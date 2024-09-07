@@ -72,6 +72,7 @@ func main() {
 			defer w.Close()
 
 			ex := executor.New(nil, nil)
+			ex.SetRecover(true) // set true to avoid checking permissions
 
 			asts, err := w.RecoverASTs()
 			if err != nil {
