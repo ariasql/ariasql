@@ -810,6 +810,25 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 		}
 
+		if colDef.References != nil {
+			// Check if foreign key exists
+			if _, ok := row[colName]; !ok {
+				return -1, fmt.Errorf("column %s cannot be null", colName)
+			}
+
+			// Check if foreign key exists
+			idx := tbl.CheckIndexedColumn(colName, true)
+			if idx == nil {
+				return -1, fmt.Errorf("foreign key constraint violation on column %s", colName)
+			}
+
+			if idx == nil {
+				return -1, fmt.Errorf("foreign key constraint violation on column %s", colName)
+
+			}
+
+		}
+
 	}
 
 	// Write row to table
