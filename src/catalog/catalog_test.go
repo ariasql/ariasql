@@ -126,7 +126,7 @@ func TestCatalog_Open2(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				Unique:   true,
 				NotNull:  true,
@@ -240,14 +240,14 @@ func TestDatabase_CreateTable(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -316,14 +316,14 @@ func TestDatabase_DropTable(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -393,14 +393,14 @@ func TestDatabase_GetTable(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -443,14 +443,14 @@ func TestTable_CreateIndex(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -515,14 +515,14 @@ func TestTable_GetIndex(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -574,14 +574,14 @@ func TestTable_DropIndex(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -639,14 +639,14 @@ func TestTable_CheckIndexedColumn(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true, // should be indexed
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -694,14 +694,14 @@ func TestTable_IncrementSequence(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -761,14 +761,14 @@ func TestTable_Insert(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -831,14 +831,14 @@ func TestTable_GetRow(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -900,14 +900,14 @@ func TestTable_RowCount(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -966,14 +966,14 @@ func TestTable_NewIterator(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -1042,14 +1042,14 @@ func TestTable_DeleteRow(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,
@@ -1118,14 +1118,14 @@ func TestTable_UpdateRow(t *testing.T) {
 	err = db.CreateTable("table1", &TableSchema{
 		ColumnDefinitions: map[string]*ColumnDefinition{
 			"id": {
-				Name:     "id",
+
 				DataType: "INT",
 				NotNull:  true,
 				Unique:   true,
 				Sequence: true,
 			},
 			"name": {
-				Name:     "name",
+
 				DataType: "CHAR",
 				Length:   50,
 				NotNull:  true,

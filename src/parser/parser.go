@@ -1276,8 +1276,14 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 	p.consume() // Consume (
 
 	for p.peek(0).tokenT != SEMICOLON_TOK {
+
 		if p.peek(0).tokenT != IDENT_TOK {
-			return nil, errors.New("expected identifier")
+
+			err := p.parseTableConstraints(createTableStmt, "")
+			if err != nil {
+				return nil, err
+			}
+			break
 		}
 
 		columnName := p.peek(0).value.(string)
@@ -1357,57 +1363,133 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 			}
 		}
 
-		// Check for constraints
-		if p.peek(0).tokenT == KEYWORD_TOK {
-			for p.peek(0).tokenT == KEYWORD_TOK {
-				switch p.peek(0).value {
-				case "PRIMARY":
-					p.consume() // Consume PRIMARY
-					if p.peek(0).value != "KEY" {
-						return nil, errors.New("expected KEY")
-					}
-
-					p.consume() // Consume KEY
-					// We set not null to true
-					// We set unique to true
-					// We set sequence to true
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
-				case "NOT":
-					p.consume() // Consume NOT
-
-					if p.peek(0).value != "NULL" {
-						return nil, errors.New("expected NULL")
-					}
-
-					p.consume() // Consume NULL
-
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
-					continue
-				case "UNIQUE":
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
-
-					p.consume() // Consume UNIQUE
-					continue
-				case "SEQUENCE":
-					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
-
-					p.consume() // Consume SEQUENCE
-					continue
-				default:
-					return nil, errors.New("expected NOT NULL or UNIQUE or SEQUENCE")
-				}
-
-			}
+		err := p.parseTableConstraints(createTableStmt, columnName)
+		if err != nil {
+			return nil, err
 
 		}
 
-		p.consume() // Consume ,
-
 	}
 
+	p.consume() // Consume ,
+
 	return createTableStmt, nil
+}
+
+func (p *Parser) parseTableConstraints(createTableStmt *CreateTableStmt, columnName string) error {
+	// Check for constraints
+	if p.peek(0).tokenT == KEYWORD_TOK {
+		for p.peek(0).tokenT == KEYWORD_TOK {
+			switch p.peek(0).value {
+			case "PRIMARY":
+				p.consume() // Consume PRIMARY
+				if p.peek(0).value != "KEY" {
+					return errors.New("expected KEY")
+				}
+
+				p.consume() // Consume KEY
+				// We set not null to true
+				// We set unique to true
+				// We set sequence to true
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
+			case "FOREIGN":
+				p.consume() // Consume FOREIGN
+				// FOREIGN KEY (1) REFERENCES Departments(2)
+				// 1, 2 should be the same column identifier
+				if p.peek(0).value != "KEY" {
+					return errors.New("expected KEY")
+				}
+
+				p.consume() // Consume KEY
+
+				if p.peek(0).tokenT != LPAREN_TOK {
+					return errors.New("expected (")
+				}
+
+				p.consume() // Consume (
+
+				refColumn := ""
+
+				if p.peek(0).tokenT != IDENT_TOK {
+					return errors.New("expected identifier")
+				}
+
+				refColumn = p.peek(0).value.(string)
+
+				p.consume() // Consume column name
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				// Check for REFERENCES keyword
+				if p.peek(0).value != "REFERENCES" {
+					return errors.New("expected REFERENCES")
+				}
+
+				p.consume() // Consume REFERENCES
+
+				if p.peek(0).tokenT != IDENT_TOK {
+					return errors.New("expected identifier")
+				}
+
+				refTable := p.peek(0).value.(string)
+
+				p.consume() // Consume table name
+
+				createTableStmt.TableSchema.ColumnDefinitions[refColumn].References = &catalog.Reference{
+					ColumnName: refColumn,
+					TableName:  refTable,
+				}
+
+				if p.peek(0).tokenT != LPAREN_TOK {
+					return errors.New("expected (")
+				}
+
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != IDENT_TOK {
+					return errors.New("expected identifier")
+				}
+
+				// Check if the column name is the same as the reference column name
+				if p.peek(0).value != refColumn {
+					return errors.New("expected column name to be the same as the reference column name")
+				}
+
+			case "NOT":
+				p.consume() // Consume NOT
+
+				if p.peek(0).value != "NULL" {
+					return errors.New("expected NULL")
+				}
+
+				p.consume() // Consume NULL
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+			case "UNIQUE":
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
+
+				p.consume() // Consume UNIQUE
+			case "SEQUENCE":
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
+
+				p.consume() // Consume SEQUENCE
+			default:
+				return errors.New("expected NOT NULL or UNIQUE or SEQUENCE")
+			}
+
+		}
+	}
+
+	p.consume()
+
+	return nil
+
 }
 
 // parseCreateIndexStmt parses a CREATE INDEX statement

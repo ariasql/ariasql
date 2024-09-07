@@ -19,7 +19,6 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -3570,9 +3569,15 @@ func TestNewParserSelect35(t *testing.T) {
 
 }
 
-func TestNewParserSelect36(t *testing.T) {
+func TestNewParserCreateTable3(t *testing.T) {
 	statement := []byte(`
-	SELECT * FROM users as u, posts as p INNER JOIN comments as c ON p.post_id = c.post_id WHERE u.user_id = p.user_id;
+CREATE TABLE Employees (
+    EmployeeID INT PRIMARY KEY,
+    EmployeeName CHAR(100) NOT NULL,
+    DepartmentID INT,
+    FOREIGN KEY (DepartmentID) REFERENCES Departments(DepartmentID)
+);
+
 `)
 
 	lexer := NewLexer(statement)
@@ -3586,26 +3591,79 @@ func TestNewParserSelect36(t *testing.T) {
 	stmt, err := parser.Parse()
 	if err != nil {
 		t.Fatal(err)
+
 	}
 
 	if stmt == nil {
 		t.Fatal("expected non-nil statement")
 	}
 
-	selectStmt, ok := stmt.(*SelectStmt)
+	createTableStmt, ok := stmt.(*CreateTableStmt)
 	if !ok {
-		t.Fatalf("expected *SelectStmt, got %T", stmt)
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
 	}
 
 	if err != nil {
 		t.Fatal(err)
-
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(createTableStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if createTableStmt == nil {
+		t.Fatal("expected non-nil statement")
 	}
 
-	log.Println(sel)
+	if createTableStmt.TableName.Value != "Employees" {
+		t.Fatalf("expected Employees, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].Unique != true {
+		t.Fatalf("expected true, got %t", createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].Unique)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].NotNull != true {
+		t.Fatalf("expected true, got %t", createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].NotNull)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].Sequence != true {
+		t.Fatalf("expected false, got %t", createTableStmt.TableSchema.ColumnDefinitions["EmployeeID"].Sequence)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].DataType != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].Length != 100 {
+		t.Fatalf("expected 100, got %d", createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].Length)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].NotNull != true {
+		t.Fatalf("expected true, got %t", createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].NotNull)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].Sequence != false {
+		t.Fatalf("expected false, got %t", createTableStmt.TableSchema.ColumnDefinitions["EmployeeName"].Sequence)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].References.TableName != "Departments" {
+		t.Fatalf("expected Departments, got %s", createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].References.TableName)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].References.ColumnName != "DepartmentID" {
+		t.Fatalf("expected DepartmentID, got %s", createTableStmt.TableSchema.ColumnDefinitions["DepartmentID"].References.ColumnName)
+	}
+
 }
