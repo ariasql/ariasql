@@ -19,7 +19,6 @@ package shared
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"io"
@@ -239,18 +238,37 @@ func CopyDir(srcDir, destDir string) error {
 	})
 }
 
-// DistinctMap returns a distinct map
-func DistinctMap(data []map[string]interface{}) []map[string]interface{} {
-	unique := make(map[string]map[string]interface{})
+// GetColumns returns the columns of the data
+func GetColumns(data []map[string]interface{}) []string {
+	columns := make([]string, 0)
 
-	for _, row := range data {
-		b, _ := json.Marshal(row)
-		unique[string(b)] = row
+	if len(data) == 0 {
+		return columns
 	}
 
-	distinct := make([]map[string]interface{}, 0, len(unique))
-	for _, value := range unique {
-		distinct = append(distinct, value)
+	for column := range data[0] {
+		columns = append(columns, column)
+	}
+
+	sort.Sort(sort.StringSlice(columns))
+
+	return columns
+}
+
+// DistinctMap returns a distinct map
+func DistinctMap(data []map[string]interface{}, keys ...string) []map[string]interface{} {
+	unique := make(map[string]bool)
+
+	distinct := make([]map[string]interface{}, 0)
+	for _, row := range data {
+		key := ""
+		for _, k := range keys {
+			key += fmt.Sprintf("%v", row[k])
+		}
+		if _, ok := unique[key]; !ok {
+			unique[key] = true
+			distinct = append(distinct, row)
+		}
 	}
 
 	return distinct

@@ -830,11 +830,6 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		// Pass rows to result set
 		results = rows
 
-		// Check for distinct
-		if stmt.Distinct {
-			results = shared.DistinctMap(results)
-		}
-
 	}
 
 	//If there is a group by clause
@@ -908,6 +903,11 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	if subquery {
 		return results, nil
+	}
+
+	// Check for distinct
+	if stmt.Distinct {
+		results = shared.DistinctMap(results, shared.GetColumns(results)...)
 	}
 
 	// Now we format the results

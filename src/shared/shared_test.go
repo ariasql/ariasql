@@ -109,8 +109,9 @@ func TestDistinctMap(t *testing.T) {
 		},
 	}
 
-	distinct := DistinctMap(data)
+	distinct := DistinctMap(data, GetColumns(data)...)
 	if len(distinct) != 2 {
 		t.Errorf("expected 2 rows, got %d", len(distinct))
 	}
+
 }
