@@ -18,7 +18,9 @@ package wal
 
 import (
 	"ariasql/parser"
+	"log"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -50,7 +52,7 @@ func TestWAL_Append(t *testing.T) {
 	}
 }
 
-func TestWAL_Recover(t *testing.T) {
+func TestWAL_RecoverASTs(t *testing.T) {
 	defer os.Remove("wal.dat")
 	defer os.Remove("wal.dat.del")
 
@@ -66,9 +68,14 @@ func TestWAL_Recover(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = wal.Recover()
+	asts, err := wal.RecoverASTs()
 	if err != nil {
 		t.Fatal(err)
+	}
+	log.Println(reflect.TypeOf(asts[0]))
+
+	if len(asts) != 1 {
+		t.Fatalf("expected 1 ast, got %d", len(asts))
 	}
 
 }
