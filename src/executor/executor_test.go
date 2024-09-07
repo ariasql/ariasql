@@ -8005,6 +8005,7 @@ func TestExecutor_Recover(t *testing.T) {
 	ch := aria.OpenChannel(user)
 
 	ex := New(aria, ch)
+	ex.SetRecover(true)
 
 	err = ex.Recover(asts)
 	if err != nil {
