@@ -37,7 +37,8 @@ import (
 // you can pass the -recover flag to recover the AriaSQL instance from the WAL if it was not shut down properly, crashed, etc
 func main() {
 	var (
-		recov = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
+		recov     = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
+		recovFile = flag.String("recover-file", "wal.dat", "Recover AriaSQL instance from WAL file")
 	)
 
 	flag.Parse()
@@ -50,18 +51,35 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			var w *wal.WAL
+			var err error
 
-			w, err := wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+			// Will look in default data directory for wal.dat unless specified
+			if *recovFile == "" {
+				w, err = wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+			} else {
+				w, err = wal.OpenWAL(*recovFile, os.O_CREATE|os.O_RDWR, 0644)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
 			}
 
 			defer w.Close()
 
 			ex := executor.New(nil, nil)
 
-			err = ex.Recover(w, shared.GetDefaultDataDir())
+			asts, err := w.RecoverASTs()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			err = ex.Recover(asts)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -76,6 +94,8 @@ func main() {
 		s.Stop()
 
 		fmt.Sprintf("AriaSQL instance recovered from WAL successfully")
+
+		os.Exit(0)
 
 	} else {
 

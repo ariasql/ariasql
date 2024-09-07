@@ -2666,14 +2666,21 @@ func (ex *Executor) rollback() error {
 // Recover recovers an AriaSQL instance from a WAL file
 func (ex *Executor) Recover(asts []interface{}) error {
 
-	err := os.RemoveAll(fmt.Sprintf("%s%sdatabases", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
-	if err != nil {
-		return err
+	// check if data directory exists
+	if _, err := os.Stat(ex.aria.Config.DataDir); !os.IsNotExist(err) {
+
+		err := os.RemoveAll(fmt.Sprintf("%s%sdatabases", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
+		if err != nil {
+			return err
+		}
 	}
 
-	err = os.Remove(fmt.Sprintf("%s%susers.usrs", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
-	if err != nil {
-		return err
+	if _, err := os.Stat(ex.aria.Config.DataDir); !os.IsNotExist(err) {
+
+		err := os.RemoveAll(fmt.Sprintf("%s%susers.usrs", ex.aria.Config.DataDir, shared.GetOsPathSeparator()))
+		if err != nil {
+			return err
+		}
 	}
 
 	aria, err := core.New(&core.Config{
