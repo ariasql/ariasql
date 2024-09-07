@@ -1361,6 +1361,19 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 		if p.peek(0).tokenT == KEYWORD_TOK {
 			for p.peek(0).tokenT == KEYWORD_TOK {
 				switch p.peek(0).value {
+				case "PRIMARY":
+					p.consume() // Consume PRIMARY
+					if p.peek(0).value != "KEY" {
+						return nil, errors.New("expected KEY")
+					}
+
+					p.consume() // Consume KEY
+					// We set not null to true
+					// We set unique to true
+					// We set sequence to true
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].NotNull = true
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Unique = true
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
 				case "NOT":
 					p.consume() // Consume NOT
 
