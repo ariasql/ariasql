@@ -1552,9 +1552,15 @@ func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Ta
 
 				if _, ok := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification); ok {
 					col := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification)
-					tbl := ex.ch.Database.GetTable(col.TableName.Value)
-					if tbl == nil {
-						return errors.New("table does not exist")
+
+					var tbl *catalog.Table
+
+					// In case of aliases
+					for _, t := range tbls {
+						if t.Name == col.TableName.Value {
+							tbl = t
+							break
+						}
 					}
 
 					iter := tbl.NewIterator()
@@ -1795,9 +1801,13 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 	if len(optimize.Tables) > 0 {
 		for tblName, colsValues := range optimize.Tables {
-			tbl := ex.ch.Database.GetTable(tblName)
-			if tbl == nil {
-				return errors.New("table does not exist")
+			var tbl *catalog.Table
+
+			for _, t := range tbls {
+				if t.Name == tblName {
+					tbl = t
+					break
+				}
 			}
 
 			for _, colValue := range colsValues {
