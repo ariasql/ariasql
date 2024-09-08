@@ -64,6 +64,12 @@ const (
 // You grant privileges to a user on a database or table
 // GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
 
+// PrivilegeActionToString converts a privilege action to a string
+func (pa PrivilegeAction) String() string {
+	return [...]string{"", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP", "CREATE", "GRANT", "REVOKE", "SHOW", "CONNECT", "ALL", "COMMIT", "ROLLBACK", "BEGIN"}[pa]
+
+}
+
 // GetDefaultDataDir returns the default data directory for the current OS
 func GetDefaultDataDir() string {
 	// A user of AriaSQL can set the data directory, if not set we use the default which would be preferred

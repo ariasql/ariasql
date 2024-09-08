@@ -1592,3 +1592,23 @@ func (cat *Catalog) AlterUserPassword(username, password string) error {
 
 	return nil
 }
+
+// GetPrivileges gets a user's privileges
+func (u *User) GetPrivileges() []string {
+	var formattedStr []string
+
+	for _, priv := range u.Privileges {
+		var privActionsStr []string
+
+		for _, action := range priv.PrivilegeActions {
+			privActionsStr = append(privActionsStr, action.String())
+		}
+
+		formattedStr = append(formattedStr, fmt.Sprintf("%s.%s: %s", priv.DatabaseName, priv.TableName, strings.Join(privActionsStr, ", ")))
+
+	}
+
+	return formattedStr
+}
+
+// @todo AlterTable

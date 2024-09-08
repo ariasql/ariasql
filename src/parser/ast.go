@@ -397,6 +397,8 @@ const (
 	SHOW_DATABASES
 	SHOW_TABLES
 	SHOW_USERS
+	SHOW_INDEXES
+	SHOW_GRANTS
 )
 
 // ShowStmt represents a SHOW statement

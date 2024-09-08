@@ -121,7 +121,7 @@ func (ariasql *AriaSQL) GetChannel(channelID uint64) *Channel {
 
 }
 
-// Close
+// Close closes the AriaSQL instance
 func (ariasql *AriaSQL) Close() error {
 	ariasql.Catalog.Close()
 	return ariasql.WAL.Close()

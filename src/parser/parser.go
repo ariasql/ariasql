@@ -615,6 +615,10 @@ func (p *Parser) parseShowStmt() (Node, error) {
 		return &ShowStmt{ShowType: SHOW_TABLES}, nil
 	case "USERS":
 		return &ShowStmt{ShowType: SHOW_USERS}, nil
+	case "INDEXES":
+		return &ShowStmt{ShowType: SHOW_INDEXES}, nil
+	case "GRANTS":
+		return &ShowStmt{ShowType: SHOW_GRANTS}, nil
 	}
 
 	return nil, errors.New("expected DATABASES, TABLES, or USERS")

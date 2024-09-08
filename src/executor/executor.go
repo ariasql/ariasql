@@ -74,6 +74,29 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 	return &Executor{ch: ch, aria: aria}
 }
 
+// BEGIN
+// GRANT
+// REVOKE
+// COMMIT
+// ROLLBACK
+// CREATE DATABASE
+// CREATE USER
+// DROP DATABASE
+// DROP USER
+// SHOW
+// ALTER USER
+// Are system wide privileges
+// Thus they should be assigned as below
+// *.* PRIV_CREATE
+// *.* PRIV_DROP
+// *.* PRIV_GRANT
+// *.* PRIV_REVOKE
+// *.* PRIV_SHOW
+// *.* PRIV_ALTER
+// *.* PRIV_COMMIT
+// *.* PRIV_ROLLBACK
+// *.* PRIV_BEGIN
+
 // Execute executes an abstract syntax tree statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
 
