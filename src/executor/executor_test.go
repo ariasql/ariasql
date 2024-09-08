@@ -8298,6 +8298,8 @@ func TestStmt46(t *testing.T) {
 
 	}
 
+	defer aria.Close()
+
 	aria.Catalog = catalog.New(aria.Config.DataDir)
 
 	if err := aria.Catalog.Open(); err != nil {

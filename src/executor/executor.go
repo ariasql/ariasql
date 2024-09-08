@@ -1416,12 +1416,27 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 	var columns []string // The columns to be selected
 
-	for _, expr := range selectList.Expressions {
+	for i, expr := range selectList.Expressions {
 
 		switch expr := expr.Value.(type) {
 		case *parser.Wildcard:
+
 			return results, nil
 		case *parser.ColumnSpecification:
+			// Check for alias
+			if selectList.Expressions[i].Alias == nil {
+				columns = append(columns, expr.ColumnName.Value)
+			} else {
+				columns = append(columns, selectList.Expressions[i].Alias.Value)
+				// Replace all instances of the column name with the alias
+				for _, row := range results {
+					if _, ok := row[expr.ColumnName.Value]; ok {
+						row[selectList.Expressions[i].Alias.Value] = row[expr.ColumnName.Value]
+						delete(row, expr.ColumnName.Value)
+					}
+				}
+			}
+
 			columns = append(columns, expr.ColumnName.Value)
 		case *parser.AggregateFunc:
 			switch expr.FuncName {
@@ -1442,8 +1457,14 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 					}
 				}
 
-				results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
-				columns = []string{"COUNT"}
+				if selectList.Expressions[i].Alias == nil {
+					results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
+					columns = []string{"COUNT"}
+				} else {
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: count}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
+				}
+
 			case "SUM":
 				// Sum the values
 				var sum int
@@ -1471,8 +1492,13 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 				}
 
-				results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
-				columns = []string{"SUM"}
+				if selectList.Expressions[i].Alias == nil {
+					results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
+					columns = []string{"SUM"}
+				} else {
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: sum}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
+				}
 
 			case "AVG":
 				// Average the values
@@ -1505,8 +1531,13 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 				avg := sum / count
 
-				results = []map[string]interface{}{map[string]interface{}{"AVG": avg}}
-				columns = []string{"AVG"}
+				if selectList.Expressions[i].Alias == nil {
+					results = []map[string]interface{}{map[string]interface{}{"AVG": avg}}
+					columns = []string{"AVG"}
+				} else {
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: avg}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
+				}
 
 			case "MAX":
 				// Find the maximum value
@@ -1534,13 +1565,17 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 									mx = int(row[arg.ColumnName.Value].(float64))
 								}
 							}
-							// @todo case binary expression
 						}
 					}
 				}
 
-				results = []map[string]interface{}{map[string]interface{}{"MAX": mx}}
-				columns = []string{"MAX"}
+				if selectList.Expressions[i].Alias == nil {
+					results = []map[string]interface{}{map[string]interface{}{"MAX": mx}}
+					columns = []string{"MAX"}
+				} else {
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: mx}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
+				}
 
 			case "MIN":
 				// Find the minimum value
@@ -1569,13 +1604,17 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 									mn = int(row[arg.ColumnName.Value].(float64))
 								}
 							}
-							// @todo case binary expression
 						}
 					}
 				}
 
-				results = []map[string]interface{}{map[string]interface{}{"MIN": mn}}
-				columns = []string{"MIN"}
+				if selectList.Expressions[i].Alias == nil {
+					results = []map[string]interface{}{map[string]interface{}{"MIN": mn}}
+					columns = []string{"MIN"}
+				} else {
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: mn}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
+				}
 			}
 		}
 
