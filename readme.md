@@ -113,6 +113,15 @@ All but username and password are optional.
     <h1 align="center"><img width="760" src="artwork/asql_rec2.gif"></h1>
 </div>
 
+### Setting server for JSON responses
+By default, the server will return responses in a tabular format.
+To change this to JSON, you can set the `json` field in the `ariaserver.yaml` file to `true`.
+
+OR
+
+You can execute `json on` or `json off` from client programs.
+
+
 
 ### SQL
 AriaSQL Supports SQL1
