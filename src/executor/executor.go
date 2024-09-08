@@ -871,7 +871,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	}
 
 	if stmt.SelectList != nil && stmt.TableExpression == nil {
-		for _, expr := range stmt.SelectList.Expressions {
+		for i, expr := range stmt.SelectList.Expressions {
 			switch expr := expr.Value.(type) {
 			case *parser.Literal:
 				results = append(results, map[string]interface{}{fmt.Sprintf("%v", expr.Value): expr.Value})
@@ -884,7 +884,13 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 					return nil, err
 				}
 
-				results = append(results, map[string]interface{}{fmt.Sprintf("%v", val): val})
+				if stmt.SelectList.Expressions[i].Alias == nil {
+					results = append(results, map[string]interface{}{fmt.Sprintf("%v", val): val})
+				} else {
+
+					results = append(results, map[string]interface{}{stmt.SelectList.Expressions[i].Alias.Value: val})
+				}
+
 			}
 		}
 
@@ -938,99 +944,99 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		// Pass rows to result set
 		results = rows
 
-	}
-
-	//If there is a group by clause
-	if stmt.TableExpression.GroupByClause != nil {
-		// Group the results
-		groupedRows, err := ex.group(results, stmt.TableExpression.GroupByClause)
-		if err != nil {
-			return nil, err
-		}
-		// Check for having clause
-		if stmt.TableExpression.HavingClause != nil {
-			// Filter the results based on the having clause
-			results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause)
+		//If there is a group by clause
+		if stmt.TableExpression.GroupByClause != nil {
+			// Group the results
+			groupedRows, err := ex.group(results, stmt.TableExpression.GroupByClause)
 			if err != nil {
 				return nil, err
 			}
+			// Check for having clause
+			if stmt.TableExpression.HavingClause != nil {
+				// Filter the results based on the having clause
+				results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// No having clause, return the grouped rows
+				results = []map[string]interface{}{}
+				for _, row := range groupedRows {
+					results = append(results, row[0])
+				}
+
+			}
 		} else {
-			// No having clause, return the grouped rows
-			results = []map[string]interface{}{}
-			for _, row := range groupedRows {
-				results = append(results, row[0])
+			// We should evaluate the select list
+			// Based on projection (select list), we can filter the columns
+			var err error
+			results, err = ex.selectListFilter(results, stmt.SelectList)
+			if err != nil {
+				return nil, err
+
+			}
+		}
+
+		// Check for order by
+		if stmt.TableExpression.OrderByClause != nil {
+			var err error
+			results, err = ex.orderBy(results, stmt.TableExpression.OrderByClause)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		// Check for limit and offset
+		if stmt.TableExpression.LimitClause != nil {
+			offset := 0
+			count := len(results)
+
+			if stmt.TableExpression.LimitClause.Offset != nil {
+				// Type assertion to uint64
+				offset = int(stmt.TableExpression.LimitClause.Offset.Value.(uint64))
+			}
+			if stmt.TableExpression.LimitClause.Count != nil {
+				// Type assertion to uint64
+				count = int(stmt.TableExpression.LimitClause.Count.Value.(uint64))
 			}
 
-		}
-	} else {
-		// We should evaluate the select list
-		// Based on projection (select list), we can filter the columns
-		var err error
-		results, err = ex.selectListFilter(results, stmt.SelectList)
-		if err != nil {
-			return nil, err
-
-		}
-	}
-
-	// Check for order by
-	if stmt.TableExpression.OrderByClause != nil {
-		var err error
-		results, err = ex.orderBy(results, stmt.TableExpression.OrderByClause)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Check for limit and offset
-	if stmt.TableExpression.LimitClause != nil {
-		offset := 0
-		count := len(results)
-
-		if stmt.TableExpression.LimitClause.Offset != nil {
-			// Type assertion to uint64
-			offset = int(stmt.TableExpression.LimitClause.Offset.Value.(uint64))
-		}
-		if stmt.TableExpression.LimitClause.Count != nil {
-			// Type assertion to uint64
-			count = int(stmt.TableExpression.LimitClause.Count.Value.(uint64))
-		}
-
-		// Ensure offset and count are within bounds
-		if offset > len(results) {
-			// If offset is beyond the length of results, return an empty slice
-			results = []map[string]interface{}{}
-		} else {
-			end := offset + count
-			if end > len(results) {
-				end = len(results) // Adjust end if it exceeds the length of results
+			// Ensure offset and count are within bounds
+			if offset > len(results) {
+				// If offset is beyond the length of results, return an empty slice
+				results = []map[string]interface{}{}
+			} else {
+				end := offset + count
+				if end > len(results) {
+					end = len(results) // Adjust end if it exceeds the length of results
+				}
+				results = results[offset:end]
 			}
-			results = results[offset:end]
-		}
-	}
-
-	if subquery {
-		return results, nil
-	}
-
-	// Check for distinct
-	if stmt.Distinct {
-		results = shared.DistinctMap(results, shared.GetColumns(results)...)
-	}
-
-	if stmt.Union != nil {
-		// Evaluate the union
-		unionResults, err := ex.executeSelectStmt(stmt.Union, true)
-		if err != nil {
-			return nil, err
 		}
 
-		// Merge the results
-		results = append(results, unionResults...)
+		if subquery {
+			return results, nil
+		}
 
-		if !stmt.UnionAll {
+		// Check for distinct
+		if stmt.Distinct {
 			results = shared.DistinctMap(results, shared.GetColumns(results)...)
 		}
+
+		if stmt.Union != nil {
+			// Evaluate the union
+			unionResults, err := ex.executeSelectStmt(stmt.Union, true)
+			if err != nil {
+				return nil, err
+			}
+
+			// Merge the results
+			results = append(results, unionResults...)
+
+			if !stmt.UnionAll {
+				results = shared.DistinctMap(results, shared.GetColumns(results)...)
+			}
+		}
+
 	}
 
 	// Now we format the results
@@ -2572,7 +2578,21 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 					case float64:
 						*val = left.Value.(int) + int(right.Value.(float64))
 					default:
-						return errors.New("unsupported type")
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				case uint64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(uint64)) + right.Value.(int)
+					case int64:
+						*val = int(left.Value.(uint64)) + int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(uint64)) + int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(uint64)) + int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
 					}
 				case int64:
 					switch right.Value.(type) {
@@ -2582,6 +2602,10 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 						*val = int(left.Value.(int64)) + int(right.Value.(int64))
 					case float64:
 						*val = int(left.Value.(int64)) + int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(int64)) + int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
 					}
 				case float64:
 					switch right.Value.(type) {
@@ -2591,8 +2615,13 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 						*val = int(left.Value.(float64)) + int(right.Value.(int64))
 					case float64:
 						*val = int(left.Value.(float64)) + int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(float64)) + int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
 					}
 				default:
+					return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
 
 				}
 
@@ -2600,12 +2629,30 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 				switch left.Value.(type) {
 				case int:
 					switch right.Value.(type) {
+					case uint64:
+						*val = left.Value.(int) - int(right.Value.(uint64))
 					case int:
 						*val = left.Value.(int) - right.Value.(int)
 					case int64:
 						*val = left.Value.(int) - int(right.Value.(int64))
 					case float64:
 						*val = left.Value.(int) - int(right.Value.(float64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				case uint64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(uint64)) - right.Value.(int)
+					case int64:
+						*val = int(left.Value.(uint64)) - int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(uint64)) - int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(uint64)) - int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
 					}
 				case int64:
 					switch right.Value.(type) {
@@ -2615,6 +2662,10 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 						*val = int(left.Value.(int64)) - int(right.Value.(int64))
 					case float64:
 						*val = int(left.Value.(int64)) - int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(int64)) - int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
 					}
 				case float64:
 					switch right.Value.(type) {
@@ -2624,18 +2675,138 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 						*val = int(left.Value.(float64)) - int(right.Value.(int64))
 					case float64:
 						*val = int(left.Value.(float64)) - int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(float64)) - int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
 					}
+				default:
+					return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
 				}
 			case parser.OP_MULT:
-				switch right.Value.(type) {
+				switch left.Value.(type) {
 				case int:
-					*val = int(left.Value.(float64)) * right.Value.(int)
+					switch right.Value.(type) {
+					case uint64:
+						*val = left.Value.(int) * int(right.Value.(uint64))
+					case int:
+						*val = left.Value.(int) * right.Value.(int)
+					case int64:
+						*val = left.Value.(int) * int(right.Value.(int64))
+					case float64:
+						*val = left.Value.(int) * int(right.Value.(float64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				case uint64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(uint64)) * right.Value.(int)
+					case int64:
+						*val = int(left.Value.(uint64)) * int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(uint64)) * int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(uint64)) * int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
+					}
 				case int64:
-					*val = int(left.Value.(float64)) * int(right.Value.(int64))
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(int64)) * right.Value.(int)
+					case int64:
+						*val = int(left.Value.(int64)) * int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(int64)) * int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(int64)) * int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
 				case float64:
-					*val = int(left.Value.(float64)) * int(right.Value.(float64))
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(float64)) * right.Value.(int)
+					case int64:
+						*val = int(left.Value.(float64)) * int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(float64)) * int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(float64)) * int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				default:
+					return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
 				}
+			case parser.OP_DIV:
+				switch left.Value.(type) {
+				case int:
+					switch right.Value.(type) {
+					case uint64:
+						*val = left.Value.(int) / int(right.Value.(uint64))
+					case int:
+						*val = left.Value.(int) / right.Value.(int)
+					case int64:
+						*val = left.Value.(int) / int(right.Value.(int64))
+					case float64:
+						*val = left.Value.(int) / int(right.Value.(float64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				case uint64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(uint64)) / right.Value.(int)
+					case int64:
+						*val = int(left.Value.(uint64)) / int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(uint64)) / int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(uint64)) / int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
+					}
+				case int64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(int64)) / right.Value.(int)
+					case int64:
+						*val = int(left.Value.(int64)) / int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(int64)) / int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(int64)) / int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				case float64:
+					switch right.Value.(type) {
+					case int:
+						*val = int(left.Value.(float64)) / right.Value.(int)
+					case int64:
+						*val = int(left.Value.(float64)) / int(right.Value.(int64))
+					case float64:
+						*val = int(left.Value.(float64)) / int(right.Value.(float64))
+					case uint64:
+						*val = int(left.Value.(float64)) / int(right.Value.(uint64))
+					default:
+						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					}
+				default:
+					return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+
+				}
+			default:
+				return errors.New("unsupported operator ")
+
 			}
+
 		}
 	}
 
