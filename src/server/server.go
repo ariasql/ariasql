@@ -200,6 +200,11 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 	exe := executor.New(s.aria, channel)
 
+	if s.Json {
+		exe.SetJsonOutput(true)
+
+	}
+
 	for {
 		// Read from the connection
 		n, err := conn.Read(buf)
@@ -213,6 +218,18 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		case bytes.Equal([]byte("close"), q):
 			// Close the connection
 			return
+		case bytes.Equal([]byte("json on"), q):
+			// Enable JSON output
+			s.Json = true
+			exe.SetJsonOutput(false)
+			conn.Write([]byte("OK\n"))
+			continue
+		case bytes.Equal([]byte("json off"), q):
+			// Disable JSON output
+			s.Json = false
+			exe.SetJsonOutput(false)
+			conn.Write([]byte("OK\n"))
+			continue
 		default:
 
 			lexer := parser.NewLexer(q)

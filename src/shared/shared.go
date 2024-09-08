@@ -19,6 +19,7 @@ package shared
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"io"
@@ -278,4 +279,14 @@ func DistinctMap(data []map[string]interface{}, keys ...string) []map[string]int
 	}
 
 	return distinct
+}
+
+// CreateJSONByteArray converts row data to JSON
+func CreateJSONByteArray(data []map[string]interface{}) ([]byte, error) {
+	marshal, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return marshal, nil
 }

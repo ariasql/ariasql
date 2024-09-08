@@ -36,6 +36,7 @@ import (
 type Executor struct {
 	aria             *core.AriaSQL // AriaSQL instance pointer
 	ch               *core.Channel // Channel pointer
+	json             bool          // Enable JSON output, default is false, set by client from server usually
 	recover          bool          // Recover flag
 	Transaction      *Transaction  // Transaction statements
 	TransactionBegun bool          // Transaction begun
@@ -741,8 +742,15 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				results[i] = map[string]interface{}{"User": user, "Grants": strings.Join(privs, ",")}
 			}
 
-			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
-
+			if !ex.json {
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			} else {
+				var err error
+				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
+				if err != nil {
+					return err
+				}
+			}
 			return nil
 		case parser.SHOW_INDEXES:
 
@@ -780,7 +788,15 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				results[i] = map[string]interface{}{"Database": db}
 			}
 
-			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			if !ex.json {
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			} else {
+				var err error
+				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
+				if err != nil {
+					return err
+				}
+			}
 			return nil
 		case parser.SHOW_TABLES:
 			if ex.ch.Database == nil {
@@ -793,7 +809,16 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			for i, db := range tables {
 				results[i] = map[string]interface{}{"Table": db}
 			}
-			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+
+			if !ex.json {
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			} else {
+				var err error
+				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
+				if err != nil {
+					return err
+				}
+			}
 
 			return nil
 
@@ -811,7 +836,15 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				results[i] = map[string]interface{}{"User": db}
 			}
 
-			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			if !ex.json {
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+			} else {
+				var err error
+				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
+				if err != nil {
+					return err
+				}
+			}
 
 			return nil
 		default:
@@ -1040,7 +1073,16 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	}
 
 	// Now we format the results
-	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+	if !ex.json {
+		ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+	} else {
+		var err error
+		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
+		if err != nil {
+			return nil, err
+		}
+
+	}
 
 	return nil, nil // We return rows in result set buffer
 
@@ -1085,7 +1127,16 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 	rows = []map[string]interface{}{rowsAffected}
 
 	// Now we format the results
-	ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+	if !ex.json {
+		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+	} else {
+		var err error
+		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(rows)
+		if err != nil {
+			return nil, nil, err
+		}
+
+	}
 
 	return nil, nil, nil
 
@@ -1126,7 +1177,16 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 	rows = []map[string]interface{}{rowsAffected}
 
 	// Now we format the results
-	ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+	if !ex.json {
+		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+	} else {
+		var err error
+		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(rows)
+		if err != nil {
+			return nil, nil, err
+		}
+
+	}
 
 	return rowIds, rows, nil
 
@@ -3178,4 +3238,9 @@ func (ex *Executor) SetRecover(rec bool) {
 // GetResultSet returns the result set buffer
 func (ex *Executor) GetResultSet() []byte {
 	return ex.ResultSetBuffer
+}
+
+// SetJsonOutput sets the json output flag
+func (ex *Executor) SetJsonOutput(jsonOutput bool) {
+	ex.json = jsonOutput
 }
