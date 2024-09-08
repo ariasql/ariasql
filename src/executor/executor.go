@@ -1567,8 +1567,9 @@ func evaluateAggregate(expr *parser.AggregateFunc, results *[]map[string]interfa
 			for _, arg := range expr.Args {
 				switch arg := arg.(type) {
 				case *parser.ColumnSpecification:
+
 					if _, ok := row[arg.ColumnName.Value]; !ok {
-						return errors.New("column does not exist")
+						return errors.New("column does not exist ")
 					}
 
 					switch row[arg.ColumnName.Value].(type) {
