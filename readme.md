@@ -38,6 +38,8 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 ## Clients/Drivers
 No official clients/drivers are available at this time.
 
+## User Guide
+The user guide will be released with the first stable release of AriaSQL for now it's best to reference executor tests or SQL1+ standard.
 
 ## Getting Started
 
