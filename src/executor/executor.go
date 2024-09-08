@@ -1550,13 +1550,26 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 			return results, nil
 		case *parser.ColumnSpecification:
+
 			// Check for alias
 			if selectList.Expressions[i].Alias == nil {
-				columns = append(columns, expr.ColumnName.Value)
+				if expr.ColumnName.Value == "*" && expr.TableName != nil {
+					for _, row := range results {
+						for k, v := range row {
+							if strings.HasPrefix(k, expr.TableName.Value+".") {
+								row[k] = v
+								columns = append(columns, k)
+							}
+						}
+					}
+
+				}
+
 			} else {
 				columns = append(columns, selectList.Expressions[i].Alias.Value)
 				// Replace all instances of the column name with the alias
 				for _, row := range results {
+
 					if _, ok := row[expr.ColumnName.Value]; ok {
 						row[selectList.Expressions[i].Alias.Value] = row[expr.ColumnName.Value]
 						delete(row, expr.ColumnName.Value)
