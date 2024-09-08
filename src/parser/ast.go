@@ -418,11 +418,46 @@ const (
 	ALTER_USER_SET_USERNAME
 )
 
+// AlterUserStmt represents an ALTER USER statement
 type AlterUserStmt struct {
 	SetType  AlterUserSetType
 	Username *Identifier
 	Value    *Literal
 }
+
+// ProcedureStmt represents a CREATE PROCEDURE statement
+type ProcedureStmt struct {
+	Name       *Identifier
+	Parameters []*Identifier
+	Body       []Statement
+}
+
+// Parameter represents a parameter in a procedure
+type Parameter struct {
+	Name     *Identifier
+	DataType *Identifier
+}
+
+/*
+CREATE PROCEDURE test_procedure
+    @param1 INT,
+    @param2 CHAR(20)
+AS
+BEGIN
+    SELECT *
+    FROM test_table
+    WHERE col1 = @param1 AND col2 = @param2;
+END;
+
+-- Calling the stored procedure
+EXEC test_procedure @param1 = 1, @param2 = 'test';
+*/
+
+// ExecStmt represents a CALL statement
+type ExecStmt struct {
+	Name *Identifier
+	Args []*Literal
+} // i.e. EXEC test_procedure @param1 = 1, @param2 = 'test';
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
