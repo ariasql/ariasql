@@ -43,7 +43,7 @@ var (
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "SHOW",
-		"PRIMARY", "FOREIGN", "KEY", "REFERENCES",
+		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS", "NATURAL",
 	}, shared.DataTypes...)
 )
 
@@ -1681,6 +1681,65 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 
 	}
 
+	// Any join expression to be converted to implicit join
+	/*
+		=INNER JOIN=
+		SELECT * FROM TableA INNER JOIN TableB ON TableA.common_column = TableB.common_column;
+		SELECT * FROM TableA JOIN TableB ON TableA.common_column = TableB.common_column;
+
+		=CONVERT TO=
+		SELECT * FROM TableA, TableB WHERE TableA.common_column = TableB.common_column;
+
+		=LEFT JOIN=
+		SELECT * FROM TableA LEFT JOIN TableB ON TableA.common_column = TableB.common_column;
+
+		=CONVERT TO=
+		SELECT TableA.*, TableB.*
+		FROM TableA, TableB
+		WHERE TableA.common_column = TableB.common_column
+		   OR TableB.common_column IS NULL;
+
+		=RIGHT JOIN=
+		SELECT * FROM TableA RIGHT JOIN TableB ON TableA.common_column = TableB.common_column;
+
+		=CONVERT TO=
+		SELECT TableA.*, TableB.*
+		FROM TableB, TableA
+		WHERE TableA.common_column = TableB.common_column
+		   OR TableA.common_column IS NULL;
+
+		=CROSS JOIN=
+		SELECT * FROM TableA CROSS JOIN TableB;
+
+		=CONVERT TO=
+		SELECT TableA.*, TableB.* FROM TableA, TableB;
+
+		=NATURAL JOIN=
+		SELECT * FROM TableA NATURAL JOIN TableB;
+
+		=CONVERT TO=
+		SELECT TableA.*, TableB.*
+		FROM TableA, TableB
+		WHERE TableA.common_column = TableB.common_column;
+
+		=FULL OUTER JOIN=
+		SELECT * FROM TableA FULL OUTER JOIN TableB ON TableA.common_column = TableB.common_column;
+
+		=CONVERT TO=
+		SELECT TableA.*, TableB.*
+		FROM TableA, TableB
+		WHERE TableA.ID = TableB.ID
+
+		UNION
+
+		SELECT TableA.*, TableB.*
+		FROM TableA, TableB
+		WHERE TableA.ID = TableB.ID
+		   OR TableA.ID IS NULL
+		   OR TableB.ID IS NULL;
+
+	*/
+
 	// Check for WHERE
 	if p.peek(0).value == "WHERE" {
 
@@ -2315,13 +2374,13 @@ func (p *Parser) parseFromClause() (*FromClause, error) {
 		Tables: make([]*Table, 0),
 	}
 
-	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" {
+	for p.peek(0).tokenT != SEMICOLON_TOK || p.peek(0).value != "WHERE" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "UNION" || p.peek(0).value != "JOIN" {
 		if p.peek(0).tokenT == COMMA_TOK {
 			p.consume()
 			continue
 		}
 
-		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" || p.peek(0).tokenT == LPAREN_TOK || p.peek(0).tokenT == RPAREN_TOK || p.peek(0).value == "GROUP" || p.peek(0).value == "HAVING" || p.peek(0).value == "ORDER" || p.peek(0).value == "LIMIT" {
+		if p.peek(0).tokenT == SEMICOLON_TOK || p.peek(0).value == "WHERE" || p.peek(0).tokenT == LPAREN_TOK || p.peek(0).tokenT == RPAREN_TOK || p.peek(0).value == "GROUP" || p.peek(0).value == "HAVING" || p.peek(0).value == "ORDER" || p.peek(0).value == "LIMIT" || p.peek(0).value != "INNER" || p.peek(0).value != "LEFT" || p.peek(0).value != "RIGHT" || p.peek(0).value != "FULL" || p.peek(0).value != "GROUP" || p.peek(0).value != "HAVING" || p.peek(0).value != "ORDER" || p.peek(0).value != "LIMIT" || p.peek(0).value != "UNION" || p.peek(0).value != "JOIN" {
 			break
 		}
 
