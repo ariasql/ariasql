@@ -19,6 +19,7 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
+	"log"
 	"testing"
 )
 
@@ -4020,6 +4021,116 @@ func TestNewParserSelect36(t *testing.T) {
 
 	if selectStmt.SelectList.Expressions[0].Alias.Value != "RESULT" {
 		t.Fatalf("expected RESULT, got %s", selectStmt.SelectList.Expressions[0].Alias.Value)
+	}
+
+}
+
+func TestNewParserSelect37(t *testing.T) {
+	statement := []byte(`
+	SELECT x AS xCol, y AS yCol;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "x" {
+		t.Fatalf("expected x, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Alias.Value != "xCol" {
+		t.Fatalf("expected xCol, got %s", selectStmt.SelectList.Expressions[0].Alias.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*ColumnSpecification).ColumnName.Value != "y" {
+		t.Fatalf("expected y, got %s", selectStmt.SelectList.Expressions[1].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Alias.Value != "yCol" {
+		t.Fatalf("expected yCol, got %s", selectStmt.SelectList.Expressions[1].Alias.Value)
+	}
+}
+
+func TestNewParserSelect38(t *testing.T) {
+	statement := []byte(`
+	SELECT COUNT(*) AS C;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).FuncName != "COUNT" {
+		t.Fatalf("expected COUNT, got %s", selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).FuncName)
+	}
+
+	// Check if selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).Args[0] is *Wildcard
+	if _, ok := selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).Args[0].(*Wildcard); !ok {
+		t.Fatalf("expected *Wildcard, got %T", selectStmt.SelectList.Expressions[0].Value.(*AggregateFunc).Args[0])
+	}
+
+	if selectStmt.SelectList.Expressions[0].Alias.Value != "C" {
+		t.Fatalf("expected C, got %s", selectStmt.SelectList.Expressions[0].Alias.Value)
 	}
 
 }
