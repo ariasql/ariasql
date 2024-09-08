@@ -580,6 +580,7 @@ func (tbl *Table) CreateIndex(name string, columns []string, unique bool) error 
 		Columns: columns,
 		Unique:  unique,
 		btree:   bt,
+		lock:    &sync.Mutex{},
 	}
 
 	// Create index file
@@ -1516,6 +1517,8 @@ func (cat *Catalog) GetUsers() []string {
 	for k := range cat.Users {
 		users = append(users, k)
 	}
+
+	slices.Sort(users)
 
 	return users
 }
