@@ -114,16 +114,12 @@ All but username and password are optional.
 </div>
 
 ### Setting server for JSON responses
-By default, the server will return responses in a tabular format.
-To change this to JSON, you can set the `json` field in the `ariaserver.yaml` file to `true`.
-
-OR
 
 You can execute `json on` or `json off` from client programs.
 
 
 <div>
-    <h1 align="center"><img width="760" src="artwork/jsonsql.png"></h1>
+    <h1 align="center"><img width="460" src="artwork/jsonsql.png"></h1>
 </div>
 
 

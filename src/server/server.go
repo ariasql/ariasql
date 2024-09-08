@@ -42,7 +42,7 @@ type TCPServer struct {
 	TLS        bool          // Enable TLS, default is false
 	TLSCert    string        // TLS certificate file
 	TLSKey     string        // TLS key file
-	Json       bool          // Enable JSON output, default is false
+	json       bool          // Enable JSON output, default is false
 }
 
 // NewTCPServer creates a new TCPServer
@@ -200,7 +200,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 	exe := executor.New(s.aria, channel)
 
-	if s.Json {
+	if s.json {
 		exe.SetJsonOutput(true)
 
 	}
@@ -220,13 +220,13 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			return
 		case bytes.HasPrefix([]byte("json on"), bytes.TrimSpace(bytes.TrimSuffix(q, []byte(";")))):
 			// Enable JSON output
-			s.Json = true
+			s.json = true
 			exe.SetJsonOutput(true)
 			conn.Write([]byte(`{"status":"OK"}` + "\n"))
 			continue
 		case bytes.HasPrefix([]byte("json off"), bytes.TrimSpace(bytes.TrimSuffix(q, []byte(";")))):
 			// Disable JSON output
-			s.Json = false
+			s.json = false
 			exe.SetJsonOutput(false)
 			conn.Write([]byte("OK\n"))
 			continue
@@ -250,7 +250,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 			// Write the response to the connection
 			if len(exe.GetResultSet()) == 0 {
-				if s.Json {
+				if s.json {
 					conn.Write([]byte(`{"status":"OK"}` + "\n"))
 				} else {
 					conn.Write([]byte("OK\n"))
