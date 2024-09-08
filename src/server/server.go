@@ -215,16 +215,16 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		q := buf[:n]
 
 		switch {
-		case bytes.Equal([]byte("close"), q):
+		case bytes.Equal([]byte("close"), bytes.TrimSpace(bytes.TrimSuffix(q, []byte(";")))):
 			// Close the connection
 			return
-		case bytes.Equal([]byte("json on"), q):
+		case bytes.HasPrefix([]byte("json on"), bytes.TrimSpace(bytes.TrimSuffix(q, []byte(";")))):
 			// Enable JSON output
 			s.Json = true
 			exe.SetJsonOutput(true)
 			conn.Write([]byte(`{"status":"OK"}` + "\n"))
 			continue
-		case bytes.Equal([]byte("json off"), q):
+		case bytes.HasPrefix([]byte("json off"), bytes.TrimSpace(bytes.TrimSuffix(q, []byte(";")))):
 			// Disable JSON output
 			s.Json = false
 			exe.SetJsonOutput(false)

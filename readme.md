@@ -122,6 +122,10 @@ OR
 You can execute `json on` or `json off` from client programs.
 
 
+<div>
+    <h1 align="center"><img width="760" src="artwork/jsonsql.png"></h1>
+</div>
+
 
 ### SQL
 AriaSQL Supports SQL1
