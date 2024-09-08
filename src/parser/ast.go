@@ -92,6 +92,8 @@ type SelectStmt struct {
 	Distinct        bool
 	SelectList      *SelectList
 	TableExpression *TableExpression
+	Union           *SelectStmt
+	UnionAll        bool
 }
 
 // UpdateStmt represents an UPDATE statement

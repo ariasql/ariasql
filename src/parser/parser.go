@@ -1751,6 +1751,23 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 		selectStmt.TableExpression.LimitClause = limitClause
 	}
 
+	// Look for union
+	if p.peek(0).value == "UNION" {
+		p.consume()
+		if p.peek(0).value == "ALL" {
+			selectStmt.UnionAll = true
+			p.consume()
+		}
+
+		unionStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		selectStmt.Union = unionStmt.(*SelectStmt)
+
+	}
+
 	return selectStmt, nil
 
 }

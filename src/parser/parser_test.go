@@ -3772,3 +3772,181 @@ SHOW INDEXES FROM tbl_name;
 		t.Fatalf("expected tbl_name, got %s", showIndexesStmt.From.Value)
 	}
 }
+
+func TestNewParserUnion(t *testing.T) {
+	statement := []byte(`
+	SELECT * FROM tbl1 WHERE col1 = 1
+	UNION
+	SELECT * FROM tbl2 WHERE col2 = 2
+	UNION
+	SELECT * FROM tbl2 WHERE col3 = 3;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	unionStmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+	//
+	//sel, err := PrintAST(unionStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if unionStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", unionStmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.FromClause.Tables[0].Name.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", unionStmt.(*SelectStmt).Union.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.FromClause.Tables[0].Name.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", unionStmt.(*SelectStmt).Union.Union.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col3" {
+		t.Fatalf("expected col3, got %s", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(3) {
+		t.Fatalf("expected 3, got %d", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+}
+
+func TestNewParserUnionAll(t *testing.T) {
+	statement := []byte(`
+	SELECT * FROM tbl1 WHERE col1 = 1
+	UNION ALL
+	SELECT * FROM tbl2 WHERE col2 = 2
+	UNION ALL
+	SELECT * FROM tbl2 WHERE col3 = 3;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	unionStmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(unionStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if unionStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value != "tbl1" {
+		t.Fatalf("expected tbl1, got %s", unionStmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).UnionAll != true {
+		t.Fatalf("expected true, got %t", unionStmt.(*SelectStmt).UnionAll)
+	}
+
+	if unionStmt.(*SelectStmt).Union.UnionAll != true {
+		t.Fatalf("expected true, got %t", unionStmt.(*SelectStmt).Union.UnionAll)
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", unionStmt.(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.FromClause.Tables[0].Name.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", unionStmt.(*SelectStmt).Union.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", unionStmt.(*SelectStmt).Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.FromClause.Tables[0].Name.Value != "tbl2" {
+		t.Fatalf("expected tbl2, got %s", unionStmt.(*SelectStmt).Union.Union.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col3" {
+		t.Fatalf("expected col3, got %s", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64) != uint64(3) {
+		t.Fatalf("expected 3, got %d", unionStmt.(*SelectStmt).Union.Union.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value.(uint64))
+	}
+
+}
