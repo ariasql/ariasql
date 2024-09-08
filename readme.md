@@ -27,6 +27,18 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 - [x] Foreign keys
 - [x] DML, DQL, DDL, DCL, TCL Support
 
+## Whats coming?
+- [ ] LEFT, RIGHT, INNER JOIN, CROSS JOIN, NATURAL JOIN, FULL OUTER JOIN
+- [ ] Views
+- [ ] Triggers
+- [ ] Stored Procedures
+- [ ] Functions
+- [ ] Cursors
+
+## Clients/Drivers
+No official clients/drivers are available at this time.
+
+
 ## Getting Started
 
 The default user is `admin` with password `admin`.
