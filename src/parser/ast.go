@@ -241,7 +241,7 @@ type SelectList struct {
 // ValueExpression represents a value expression
 type ValueExpression struct {
 	Value interface{}
-	Alias *Literal
+	Alias *Identifier
 }
 
 // Wildcard represents a wildcard in a select list

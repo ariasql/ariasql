@@ -2430,6 +2430,24 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 			return nil, err
 		}
 
+		var alias *Identifier
+
+		// Check for alias
+		if p.peek(0).value == "AS" {
+			p.consume()
+
+			alias, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if alias != nil {
+			return &ValueExpression{
+				Value: expr,
+				Alias: alias,
+			}, nil
+		}
+
 		return &ValueExpression{
 			Value: expr,
 		}, nil
@@ -2441,6 +2459,26 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		subquery, err := p.parseSubquery()
 		if err != nil {
 			return nil, err
+		}
+
+		// Eat )
+
+		var alias *Identifier
+
+		// Check for alias
+		if p.peek(0).value == "AS" {
+			p.consume()
+
+			alias, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if alias != nil {
+			return &ValueExpression{
+				Value: subquery,
+				Alias: alias,
+			}, nil
 		}
 
 		return &ValueExpression{
@@ -2456,6 +2494,24 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 			return nil, err
 		}
 
+		var alias *Identifier
+
+		// Check for alias
+		if p.peek(0).value == "AS" {
+			p.consume()
+
+			alias, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if alias != nil {
+			return &ValueExpression{
+				Value: lit,
+				Alias: alias,
+			}, nil
+		}
+
 		return &ValueExpression{
 			Value: lit,
 		}, nil
@@ -2468,9 +2524,28 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 				return nil, err
 			}
 
+			var alias *Identifier
+
+			// Check for alias
+			if p.peek(0).value == "AS" {
+				p.consume()
+
+				alias, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+			}
+			if alias != nil {
+				return &ValueExpression{
+					Value: expr,
+					Alias: alias,
+				}, nil
+			}
+
 			return &ValueExpression{
 				Value: expr,
 			}, nil
+
 		default:
 			return nil, errors.New("expected aggregate function")
 		}
@@ -2480,6 +2555,24 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		colSpec, err := p.parseColumnSpecification()
 		if err != nil {
 			return nil, err
+		}
+
+		var alias *Identifier
+
+		// Check for alias
+		if p.peek(0).value == "AS" {
+			p.consume()
+
+			alias, err = p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if alias != nil {
+			return &ValueExpression{
+				Value: colSpec,
+				Alias: alias,
+			}, nil
 		}
 
 		return &ValueExpression{
