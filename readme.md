@@ -193,6 +193,8 @@ CREATE TABLE test (id INT NOT NULL UNIQUE, name CHAR(255));
 ##### Create Index
 ```
 CREATE INDEX test_id ON test (id);
+OR
+CREATE UNIQUE INDEX test_id ON test (id);
 ```
 
 #### Show
