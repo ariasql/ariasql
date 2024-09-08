@@ -42,6 +42,7 @@ type TCPServer struct {
 	TLS        bool          // Enable TLS, default is false
 	TLSCert    string        // TLS certificate file
 	TLSKey     string        // TLS key file
+	Json       bool          // Enable JSON output, default is false
 }
 
 // NewTCPServer creates a new TCPServer
