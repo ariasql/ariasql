@@ -178,21 +178,7 @@ type ComparisonPredicate struct {
 	Left  *ValueExpression
 	Op    ComparisonOperator
 	Right *ValueExpression
-	Join  JoinType
 }
-
-// JoinType represents a join type
-type JoinType int
-
-const (
-	_               JoinType = iota
-	JOIN                     // INNER JOIN
-	LEFT_JOIN                // LEFT JOIN
-	RIGHT_JOIN               // RIGHT JOIN
-	CROSS_JOIN               // CROSS JOIN
-	NATURAL_JOIN             // NATURAL JOIN
-	FULL_OUTER_JOIN          // FULL OUTER JOIN
-)
 
 // LogicalOperator represents a logical operator
 type LogicalOperator int
