@@ -221,8 +221,8 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 		case bytes.Equal([]byte("json on"), q):
 			// Enable JSON output
 			s.Json = true
-			exe.SetJsonOutput(false)
-			conn.Write([]byte("OK\n"))
+			exe.SetJsonOutput(true)
+			conn.Write([]byte(`{"status":"OK"}` + "\n"))
 			continue
 		case bytes.Equal([]byte("json off"), q):
 			// Disable JSON output
@@ -250,7 +250,11 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 			// Write the response to the connection
 			if len(exe.GetResultSet()) == 0 {
-				conn.Write([]byte("OK\n"))
+				if s.Json {
+					conn.Write([]byte(`{"status":"OK"}` + "\n"))
+				} else {
+					conn.Write([]byte("OK\n"))
+				}
 			} else {
 				conn.Write(append(exe.GetResultSet(), []byte("\n")...))
 
