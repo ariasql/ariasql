@@ -4134,3 +4134,111 @@ func TestNewParserSelect38(t *testing.T) {
 	}
 
 }
+
+func TestNewParserCreateTable4(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT, col2 INT DEFAULT 1);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Default.(*Literal).Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Default.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserCreateTable5(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT, col2 INT CHECK(col2 > 22));
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if createTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Op != OP_GT {
+		t.Fatalf("expected >, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Op)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(22) {
+		t.Fatalf("expected 22, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Check.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+}

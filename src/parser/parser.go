@@ -1462,7 +1462,7 @@ func (p *Parser) parseTableConstraints(createTableStmt *CreateTableStmt, columnN
 			case "DEFAULT":
 				p.consume() // Consume DEFAULT
 
-				if p.peek(0).tokenT != LITERAL_TOK || p.peek(0).tokenT != KEYWORD_TOK {
+				if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != KEYWORD_TOK {
 					return errors.New("expected literal or keyword")
 				}
 
