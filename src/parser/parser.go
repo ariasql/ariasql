@@ -43,7 +43,7 @@ var (
 		"SQL", "SQLCODE", "SQLERROR", "SUM",
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "SHOW",
-		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FULL", "CROSS", "NATURAL",
+		"PRIMARY", "FOREIGN", "KEY", "REFERENCES",
 	}, shared.DataTypes...)
 )
 
@@ -116,11 +116,6 @@ func checkKeyword(s string) bool {
 	}
 	return false
 }
-
-//func rewrites(in *[]byte) {
-//	//
-//
-//}
 
 // nextToken returns the next token
 func (l *Lexer) nextToken() Token {

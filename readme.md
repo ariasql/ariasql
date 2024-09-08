@@ -28,7 +28,6 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 - [x] DML, DQL, DDL, DCL, TCL Support
 
 ## Whats coming?
-- [ ] LEFT, RIGHT, INNER JOIN, CROSS JOIN, NATURAL JOIN, FULL OUTER JOIN
 - [ ] Views
 - [ ] Triggers
 - [ ] Stored Procedures
