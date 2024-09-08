@@ -44,7 +44,13 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 Above is expected for v1.0.0 release.
 
 ## Clients/Drivers
-No official clients/drivers are available at this time.
+- GO - [github.com/ariasql/ariasql-go]() `IN DEVELOPMENT`
+- Python - [github.com/ariasql/ariasql-py]()  `IN DEVELOPMENT`
+- NodeJS - [github.com/ariasql/ariasql-node]()  `IN DEVELOPMENT`
+- Java - [github.com/ariasql/ariasql-java]()  `IN DEVELOPMENT`
+
+## GUI
+- AriaSQL Developer - [github.com/ariasql/developer]() `IN DEVELOPMENT`
 
 ## User Guide
 The user guide will be released with the first stable release of AriaSQL for now it's best to reference executor tests or SQL1+ standard.
