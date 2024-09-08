@@ -1018,6 +1018,21 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		results = shared.DistinctMap(results, shared.GetColumns(results)...)
 	}
 
+	if stmt.Union != nil {
+		// Evaluate the union
+		unionResults, err := ex.executeSelectStmt(stmt.Union, true)
+		if err != nil {
+			return nil, err
+		}
+
+		// Merge the results
+		results = append(results, unionResults...)
+
+		if !stmt.UnionAll {
+			results = shared.DistinctMap(results, shared.GetColumns(results)...)
+		}
+	}
+
 	// Now we format the results
 	ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 
