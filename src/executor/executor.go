@@ -1420,12 +1420,41 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 		switch expr := expr.Value.(type) {
 		case *parser.BinaryExpression:
-			var val interface{}
 
-			err := evaluateBinaryExpression(expr, &val, &results)
-			if err != nil {
-				return nil, err
+			// Left should be a column
+
+			copyResults := make([]map[string]interface{}, len(results))
+			copy(copyResults, results)
+
+			col := getFirstLeftBinaryExpressionColumn(expr)
+
+			for j, row := range results {
+				var val interface{}
+
+				err := evaluateBinaryExpression(expr, &val, &[]map[string]interface{}{row})
+				if err != nil {
+					return nil, err
+				}
+
+				if selectList.Expressions[i].Alias == nil {
+
+					// update corresponding column
+					results[j][col.ColumnName.Value] = val
+				} else {
+					// update corresponding column
+					results[j][selectList.Expressions[i].Alias.Value] = val
+					// delete the old column
+					delete(results[j], col.ColumnName.Value)
+				}
+
 			}
+
+			if selectList.Expressions[i].Alias == nil {
+				columns = append(columns, col.ColumnName.Value)
+			} else {
+				columns = append(columns, selectList.Expressions[i].Alias.Value)
+			}
+
 		case *parser.Wildcard:
 
 			return results, nil
@@ -2560,6 +2589,20 @@ func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *
 	return nil
 }
 
+// getFirstLeftBinaryExpressionColumn gets the first left binary expression column
+func getFirstLeftBinaryExpressionColumn(expr *parser.BinaryExpression) *parser.ColumnSpecification {
+	if _, ok := expr.Left.(*parser.ColumnSpecification); ok {
+		return expr.Left.(*parser.ColumnSpecification)
+	}
+
+	if _, ok := expr.Left.(*parser.BinaryExpression); ok {
+		return getFirstLeftBinaryExpressionColumn(expr.Left.(*parser.BinaryExpression))
+	}
+
+	return nil
+
+}
+
 // evaluateBinaryExpression evaluates a binary expression
 func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, rows *[]map[string]interface{}) error {
 
@@ -2599,15 +2642,22 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 		left = &parser.Literal{Value: row[left.(*parser.ColumnSpecification).ColumnName.Value]}
 	}
 
+	// Check if left is binary expr
+	if _, ok := left.(*parser.BinaryExpression); ok {
+		var valInner interface{}
+		err := evaluateBinaryExpression(left.(*parser.BinaryExpression), &valInner, rows)
+		if err != nil {
+			return err
+		}
+
+		left = &parser.Literal{Value: valInner}
+
+	}
+
 	switch left := left.(type) {
+
 	case *parser.Literal:
 		switch right := right.(type) {
-		case *parser.BinaryExpression:
-			var valInner interface{}
-			err := evaluateBinaryExpression(right, &valInner, rows)
-			if err != nil {
-				return err
-			}
 		case *parser.Literal:
 			switch expr.Op {
 			case parser.OP_PLUS:
