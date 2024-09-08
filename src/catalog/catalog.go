@@ -92,14 +92,16 @@ type TableSchema struct {
 
 // ColumnDefinition is a column definition
 type ColumnDefinition struct {
-	DataType   string     // Column data type
-	NotNull    bool       // Column cannot be null
-	Sequence   bool       // Column is auto increment/sequence
-	Unique     bool       // Column is unique
-	Length     int        // Column length
-	Scale      int        // Column scale
-	Precision  int        // Column precision
-	References *Reference // References is a foreign key reference
+	DataType   string      // Column data type
+	NotNull    bool        // Column cannot be null
+	Sequence   bool        // Column is auto increment/sequence
+	Unique     bool        // Column is unique
+	Length     int         // Column length
+	Scale      int         // Column scale
+	Precision  int         // Column precision
+	References *Reference  // References is a foreign key reference
+	Default    interface{} // Default value for the column
+	Check      interface{} // Check constraint for the column
 }
 
 // Reference is a reference to another table
@@ -665,6 +667,14 @@ func (tbl *Table) Insert(rows []map[string]interface{}) ([]int64, []map[string]i
 func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 	// Check row against schema
 	for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
+
+		if colDef.Default != nil {
+			// check if column is null
+			if _, ok := row[colName]; !ok {
+				// set default value
+				row[colName] = colDef.Default
+			}
+		}
 
 		if colDef.NotNull && !colDef.Sequence {
 			if _, ok := row[colName]; !ok {

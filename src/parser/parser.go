@@ -1437,6 +1437,41 @@ func (p *Parser) parseTableConstraints(createTableStmt *CreateTableStmt, columnN
 	if p.peek(0).tokenT == KEYWORD_TOK {
 		for p.peek(0).tokenT == KEYWORD_TOK {
 			switch p.peek(0).value {
+			case "CHECK":
+				p.consume() // Consume CHECK
+
+				if p.peek(0).tokenT != LPAREN_TOK {
+					return errors.New("expected (")
+				}
+
+				p.consume() // Consume (
+
+				searchCond, err := p.parseSearchCondition()
+				if err != nil {
+					return err
+				}
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Check = searchCond
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+			case "DEFAULT":
+				p.consume() // Consume DEFAULT
+
+				if p.peek(0).tokenT != LITERAL_TOK || p.peek(0).tokenT != KEYWORD_TOK {
+					return errors.New("expected literal or keyword")
+				}
+
+				defaultValue := p.peek(0).value
+
+				createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &Literal{Value: defaultValue}
+
+				p.consume() // Consume literal or keyword
+
 			case "PRIMARY":
 				p.consume() // Consume PRIMARY
 				if p.peek(0).value != "KEY" {

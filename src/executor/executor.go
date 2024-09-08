@@ -437,6 +437,20 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 
+		// Check table schema constraints for check
+		for name, colDef := range tbl.TableSchema.ColumnDefinitions {
+			if colDef.Check != nil {
+				for _, row := range rows {
+					r := []map[string]interface{}{row}
+					t := []*catalog.Table{tbl}
+					var fr []map[string]interface{}
+
+					if !ex.EvaluateCondition(colDef.Check, &r, t, &fr) {
+						return errors.New("check constraint failed for column " + name)
+					}
+				}
+			}
+		}
 		if ex.TransactionBegun {
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
 				Id:       len(ex.Transaction.Statements),
@@ -1270,7 +1284,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"COUNT": count},
 				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1309,7 +1323,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: sum},
 				}
 
-				ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+				ok := ex.EvaluateCondition(newComparisonPredicate, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1347,7 +1361,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"AVG": avg},
 				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1386,7 +1400,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"MIN": mx},
 				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1427,7 +1441,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"MIN": mn},
 				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -2268,11 +2282,11 @@ func (ex *Executor) evaluateWhereClause(where *parser.WhereClause, rows *[]map[s
 	}
 
 	// If there is a where clause, we evaluate the condition
-	return ex.evaluateCondition(where.SearchCondition, rows, tbls, filteredRows)
+	return ex.EvaluateCondition(where.SearchCondition, rows, tbls, filteredRows)
 }
 
-// evaluateCondition evaluates a condition
-func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
+// EvaluateCondition evaluates a condition
+func (ex *Executor) EvaluateCondition(condition interface{}, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
 	// If there is no condition, we return true
 	if condition == nil {
 		return true
@@ -2288,11 +2302,11 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 	case *parser.LogicalCondition:
 		switch condition.Op {
 		case parser.OP_AND:
-			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) && ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return ex.EvaluateCondition(condition.Left, rows, tbls, filteredRows) && ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
 		case parser.OP_OR:
-			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) || ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return ex.EvaluateCondition(condition.Left, rows, tbls, filteredRows) || ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
 		case parser.OP_NOT:
-			return !ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return !ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
 		}
 	case *parser.InPredicate:
 		// check if left is column spec
