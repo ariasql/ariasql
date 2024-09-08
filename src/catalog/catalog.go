@@ -115,6 +115,7 @@ type Index struct {
 	Columns []string     // Columns is a list of column names in the index
 	Unique  bool         // Unique is true if the index is unique, there can only be one row with the same value
 	btree   *btree.BTree // BTree is the Btree object for the index
+	lock    *sync.Mutex  // Lock is the lock for the index
 }
 
 // User is a user object
@@ -250,6 +251,7 @@ func (cat *Catalog) Open() error {
 							idx.btree = bt
 
 							tbl.Indexes[idx.Name] = idx
+							tbl.Indexes[idx.Name].lock = &sync.Mutex{}
 
 						}
 
@@ -372,6 +374,11 @@ func (tbl *Table) GetIndexes() []*Index {
 
 	return indexes
 
+}
+
+// GetLock get btree lock
+func (idx *Index) GetLock() *sync.Mutex {
+	return idx.lock
 }
 
 // DropTable drops a table by name

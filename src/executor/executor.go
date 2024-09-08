@@ -1957,10 +1957,14 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				}
 
 				if idx != nil {
+					idx.GetLock().Lock()
 					key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", val)))
 					if err != nil {
+						idx.GetLock().Unlock()
 						return err
 					}
+
+					idx.GetLock().Unlock()
 
 					if key != nil {
 						for _, v := range key.V {
