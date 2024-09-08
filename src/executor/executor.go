@@ -743,6 +743,39 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		switch s.ShowType {
+		case parser.SHOW_GRANTS:
+			users := ex.aria.Catalog.GetUsers()
+
+			results := make([]map[string]interface{}, len(users))
+
+			for i, user := range users {
+				u := ex.aria.Catalog.GetUser(user)
+				privs := u.GetPrivileges()
+				results[i] = map[string]interface{}{"User": user, "Grants": strings.Join(privs, ",")}
+			}
+
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+
+			return nil
+		case parser.SHOW_INDEXES:
+			if ex.ch.Database == nil {
+				return errors.New("no database selected")
+			}
+
+			table := ex.ch.Database.GetTable(s.From.Value)
+			if table == nil {
+				return errors.New("table does not exist")
+			}
+
+			indexes := table.GetIndexes()
+
+			results := make([]map[string]interface{}, len(indexes))
+
+			for i, index := range indexes {
+				results[i] = map[string]interface{}{"Index": index.Name, "Columns": strings.Join(index.Columns, ","), "Unique": index.Unique}
+			}
+
+			return nil
 		case parser.SHOW_DATABASES:
 			databases := ex.aria.Catalog.GetDatabases()
 			results := make([]map[string]interface{}, len(databases))

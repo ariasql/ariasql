@@ -361,9 +361,16 @@ func (cat *Catalog) DropDatabase(name string) error {
 	return nil
 }
 
-func (db *Database) CopyEntireTable(tbl *Table) {
-	// Makes copy of entire table directory
-	// tablename_copy
+// GetIndexes gets the indexes for a table
+func (tbl *Table) GetIndexes() []*Index {
+	indexes := make([]*Index, 0)
+
+	for _, idx := range tbl.Indexes {
+		indexes = append(indexes, idx)
+
+	}
+
+	return indexes
 
 }
 
