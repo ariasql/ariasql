@@ -792,28 +792,43 @@ func (p *Parser) parsePrivilegeStmt(revoke bool) (Node, error) {
 		p.consume() // Consume ON
 
 		if p.peek(0).tokenT != IDENT_TOK {
-			return nil, errors.New("expected identifier")
+			if p.peek(0).value != "*" {
+				return nil, errors.New("expected identifier or * ")
+			}
 		}
 
-		object := p.peek(0).value.(string)
+		db := &Identifier{}
+		table := &Identifier{}
 
-		if len(strings.Split(object, ".")) != 2 {
-			// Check if *
-			if object != "*" {
+		// if asterisk is found, set database to *
+		if p.peek(0).value == "*" {
+			db = &Identifier{Value: "*"}
+			p.consume()
 
-				return nil, errors.New("expected database.table, *, or database.*")
+			// check if next value is * or identifier
+			if p.peek(0).value == ".*" {
+				table = &Identifier{Value: "*"}
+			}
+			p.consume() // Consume table name
+			privilegeDefinition.Object = &Identifier{Value: db.Value + "." + table.Value}
+
+		} else {
+			if len(strings.Split(p.peek(0).value.(string), ".")) != 2 {
+				return nil, errors.New("expected database.table, *.*, or database.*")
 			}
 
+			db = &Identifier{Value: strings.Split(p.peek(0).value.(string), ".")[0]}
+			table = &Identifier{Value: strings.Split(p.peek(0).value.(string), ".")[1]}
+
+			privilegeDefinition.Object = &Identifier{Value: db.Value + "." + table.Value}
+
+			p.consume() // Consume table name
+
 		}
-
-		p.consume() // Consume table name
-
-		privilegeDefinition.Object = &Identifier{Value: object}
 
 		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "TO" {
 			return nil, errors.New("expected TO")
 		}
-
 	}
 
 	p.consume() // Consume TO

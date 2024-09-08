@@ -638,7 +638,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if s.PrivilegeDefinition.Object != nil {
 
 			if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
-				return errors.New("invalid object")
+				return errors.New("invalid object ")
 			}
 
 			databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]
@@ -693,7 +693,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if s.PrivilegeDefinition.Object != nil {
 
 			if len(strings.Split(s.PrivilegeDefinition.Object.Value, ".")) < 2 {
-				return errors.New("invalid object")
+				return errors.New("invalid object ")
 			}
 
 			databaseName := strings.Split(s.PrivilegeDefinition.Object.Value, ".")[0]

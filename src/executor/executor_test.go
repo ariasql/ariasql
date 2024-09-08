@@ -8154,7 +8154,130 @@ func TestStmt44(t *testing.T) {
 		return
 	}
 
-	expect := ``
+	expect := `+-------+
+| User  |
++-------+
+| admin |
+| alex  |
++-------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
+}
+
+func TestStmt45(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	create user alex identified by 'password';
+`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	stmt = []byte(`
+	grant all ON *.* to alex;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	stmt = []byte(`
+	grant select, insert ON db1.* to alex;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	stmt = []byte(`
+	show grants;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+--------------------------------+-------+
+| Grants                         | User  |
++--------------------------------+-------+
+| *.*: ALL                       | admin |
+| *.*: ALL,db1.*: SELECT, INSERT | alex  |
++--------------------------------+-------+
+`
 
 	if string(ex.ResultSetBuffer) != expect {
 		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
