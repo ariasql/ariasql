@@ -1419,6 +1419,13 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 	for i, expr := range selectList.Expressions {
 
 		switch expr := expr.Value.(type) {
+		case *parser.BinaryExpression:
+			var val interface{}
+
+			err := evaluateBinaryExpression(expr, &val, &results)
+			if err != nil {
+				return nil, err
+			}
 		case *parser.Wildcard:
 
 			return results, nil
@@ -2657,10 +2664,10 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 					case uint64:
 						*val = int(left.Value.(float64)) + int(right.Value.(uint64))
 					default:
-						return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+						return errors.New("unsupported type ")
 					}
 				default:
-					return errors.New("unsupported type " + reflect.TypeOf(left.Value).String())
+					return errors.New("unsupported type ")
 
 				}
 
