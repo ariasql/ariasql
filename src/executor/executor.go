@@ -1403,6 +1403,19 @@ func (ex *Executor) group(results []map[string]interface{}, groupBy *parser.Grou
 	return grouped, nil
 }
 
+// getFirstAggFuncFromBinaryExpression gets the first aggregate function from a binary expression
+func getFirstAggFuncFromBinaryExpression(expr *parser.BinaryExpression) *parser.AggregateFunc {
+	switch expr.Left.(type) {
+	case *parser.AggregateFunc:
+		return expr.Left.(*parser.AggregateFunc)
+	case *parser.BinaryExpression:
+		return getFirstAggFuncFromBinaryExpression(expr.Left.(*parser.BinaryExpression))
+	}
+
+	return nil
+
+}
+
 // selectListFilter filters the results based on the select list
 func (ex *Executor) selectListFilter(results []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
 
@@ -1423,36 +1436,54 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 			// Left should be a column
 
-			copyResults := make([]map[string]interface{}, len(results))
-			copy(copyResults, results)
-
 			col := getFirstLeftBinaryExpressionColumn(expr)
 
-			for j, row := range results {
+			if col != nil {
+
+				for j, row := range results {
+					var val interface{}
+
+					err := evaluateBinaryExpression(expr, &val, &[]map[string]interface{}{row})
+					if err != nil {
+						return nil, err
+					}
+
+					if selectList.Expressions[i].Alias == nil {
+
+						// update corresponding column
+						results[j][col.ColumnName.Value] = val
+					} else {
+						// update corresponding column
+						results[j][selectList.Expressions[i].Alias.Value] = val
+						// delete the old column
+						delete(results[j], col.ColumnName.Value)
+					}
+
+				}
+
+				if selectList.Expressions[i].Alias == nil {
+					columns = append(columns, col.ColumnName.Value)
+				} else {
+					columns = append(columns, selectList.Expressions[i].Alias.Value)
+				}
+			} else {
+				// is aggregate function
+				// evaluate the expression
 				var val interface{}
 
-				err := evaluateBinaryExpression(expr, &val, &[]map[string]interface{}{row})
+				err := evaluateBinaryExpression(expr, &val, &results)
 				if err != nil {
 					return nil, err
 				}
 
 				if selectList.Expressions[i].Alias == nil {
-
-					// update corresponding column
-					results[j][col.ColumnName.Value] = val
+					results = []map[string]interface{}{map[string]interface{}{getFirstAggFuncFromBinaryExpression(expr).FuncName: val}}
+					columns = []string{getFirstAggFuncFromBinaryExpression(expr).FuncName}
 				} else {
-					// update corresponding column
-					results[j][selectList.Expressions[i].Alias.Value] = val
-					// delete the old column
-					delete(results[j], col.ColumnName.Value)
+					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: val}}
+					columns = []string{selectList.Expressions[i].Alias.Value}
 				}
 
-			}
-
-			if selectList.Expressions[i].Alias == nil {
-				columns = append(columns, col.ColumnName.Value)
-			} else {
-				columns = append(columns, selectList.Expressions[i].Alias.Value)
 			}
 
 		case *parser.Wildcard:
@@ -1475,183 +1506,14 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 			columns = append(columns, expr.ColumnName.Value)
 		case *parser.AggregateFunc:
-			switch expr.FuncName {
-			case "COUNT":
-				count := 0
+			var err error
 
-				for _, row := range results {
-					for _, arg := range expr.Args {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := row[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-							count++
-						case *parser.Wildcard:
-							count++
-						}
-					}
-				}
-
-				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
-					columns = []string{"COUNT"}
-				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: count}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
-				}
-
-			case "SUM":
-				// Sum the values
-				var sum int
-
-				for _, row := range results {
-					for _, arg := range expr.Args {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := row[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch row[arg.ColumnName.Value].(type) {
-							case int:
-								sum += row[arg.ColumnName.Value].(int)
-							case int64:
-								sum += int(row[arg.ColumnName.Value].(int64))
-							case float64:
-								sum += int(row[arg.ColumnName.Value].(float64))
-
-							}
-						}
-
-					}
-
-				}
-
-				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
-					columns = []string{"SUM"}
-				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: sum}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
-				}
-
-			case "AVG":
-				// Average the values
-				var sum int
-				var count int
-
-				for _, row := range results {
-					for _, arg := range expr.Args {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := row[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch row[arg.ColumnName.Value].(type) {
-							case int:
-								sum += row[arg.ColumnName.Value].(int)
-							case int64:
-								sum += int(row[arg.ColumnName.Value].(int64))
-							case float64:
-								sum += int(row[arg.ColumnName.Value].(float64))
-
-							}
-						}
-
-					}
-				}
-
-				count = len(results)
-
-				avg := sum / count
-
-				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{"AVG": avg}}
-					columns = []string{"AVG"}
-				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: avg}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
-				}
-
-			case "MAX":
-				// Find the maximum value
-				var mx int
-
-				for _, row := range results {
-					for _, arg := range expr.Args {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := row[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch row[arg.ColumnName.Value].(type) {
-							case int:
-								if row[arg.ColumnName.Value].(int) > mx {
-									mx = row[arg.ColumnName.Value].(int)
-								}
-							case int64:
-								if int(row[arg.ColumnName.Value].(int64)) > mx {
-									mx = int(row[arg.ColumnName.Value].(int64))
-								}
-							case float64:
-								if int(row[arg.ColumnName.Value].(float64)) > mx {
-									mx = int(row[arg.ColumnName.Value].(float64))
-								}
-							}
-						}
-					}
-				}
-
-				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{"MAX": mx}}
-					columns = []string{"MAX"}
-				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: mx}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
-				}
-
-			case "MIN":
-				// Find the minimum value
-				var mn int
-				mn = int(^uint(0) >> 1)
-
-				for _, row := range results {
-					for _, arg := range expr.Args {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := row[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch row[arg.ColumnName.Value].(type) {
-							case int:
-								if row[arg.ColumnName.Value].(int) < mn {
-									mn = row[arg.ColumnName.Value].(int)
-								}
-							case int64:
-								if int(row[arg.ColumnName.Value].(int64)) < mn {
-									mn = int(row[arg.ColumnName.Value].(int64))
-								}
-							case float64:
-								if int(row[arg.ColumnName.Value].(float64)) < mn {
-									mn = int(row[arg.ColumnName.Value].(float64))
-								}
-							}
-						}
-					}
-				}
-
-				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{"MIN": mn}}
-					columns = []string{"MIN"}
-				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: mn}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
-				}
+			// evaluate the aggregate function
+			err = evaluateAggregate(expr, &results, &columns, selectList.Expressions[i].Alias)
+			if err != nil {
+				return nil, err
 			}
+
 		}
 
 	}
@@ -1667,6 +1529,189 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 	return results, nil
 
+}
+
+// evaluateAggregate evaluates an aggregate function
+func evaluateAggregate(expr *parser.AggregateFunc, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
+	switch expr.FuncName {
+	case "COUNT":
+		count := 0
+
+		for _, row := range *results {
+			for _, arg := range expr.Args {
+				switch arg := arg.(type) {
+				case *parser.ColumnSpecification:
+					if _, ok := row[arg.ColumnName.Value]; !ok {
+						return errors.New("column does not exist")
+					}
+					count++
+				case *parser.Wildcard:
+					count++
+				}
+			}
+		}
+
+		if alias == nil {
+			*results = []map[string]interface{}{map[string]interface{}{"COUNT": count}}
+			*columns = []string{"COUNT"}
+		} else {
+			*results = []map[string]interface{}{map[string]interface{}{alias.Value: count}}
+			*columns = []string{alias.Value}
+		}
+
+	case "SUM":
+		// Sum the values
+		var sum int
+
+		for _, row := range *results {
+			for _, arg := range expr.Args {
+				switch arg := arg.(type) {
+				case *parser.ColumnSpecification:
+					if _, ok := row[arg.ColumnName.Value]; !ok {
+						return errors.New("column does not exist")
+					}
+
+					switch row[arg.ColumnName.Value].(type) {
+					case int:
+						sum += row[arg.ColumnName.Value].(int)
+					case int64:
+						sum += int(row[arg.ColumnName.Value].(int64))
+					case float64:
+						sum += int(row[arg.ColumnName.Value].(float64))
+
+					}
+				}
+
+			}
+
+		}
+
+		if alias == nil {
+			*results = []map[string]interface{}{map[string]interface{}{"SUM": sum}}
+			*columns = []string{"SUM"}
+		} else {
+			*results = []map[string]interface{}{map[string]interface{}{alias.Value: sum}}
+			*columns = []string{alias.Value}
+		}
+
+	case "AVG":
+		// Average the values
+		var sum int
+		var count int
+
+		for _, row := range *results {
+			for _, arg := range expr.Args {
+				switch arg := arg.(type) {
+				case *parser.ColumnSpecification:
+					if _, ok := row[arg.ColumnName.Value]; !ok {
+						return errors.New("column does not exist")
+					}
+
+					switch row[arg.ColumnName.Value].(type) {
+					case int:
+						sum += row[arg.ColumnName.Value].(int)
+					case int64:
+						sum += int(row[arg.ColumnName.Value].(int64))
+					case float64:
+						sum += int(row[arg.ColumnName.Value].(float64))
+
+					}
+				}
+
+			}
+		}
+
+		count = len(*results)
+
+		avg := sum / count
+
+		if alias == nil {
+			*results = []map[string]interface{}{map[string]interface{}{"AVG": avg}}
+			*columns = []string{"AVG"}
+		} else {
+			*results = []map[string]interface{}{map[string]interface{}{alias.Value: avg}}
+			*columns = []string{alias.Value}
+		}
+
+	case "MAX":
+		// Find the maximum value
+		var mx int
+
+		for _, row := range *results {
+			for _, arg := range expr.Args {
+				switch arg := arg.(type) {
+				case *parser.ColumnSpecification:
+					if _, ok := row[arg.ColumnName.Value]; !ok {
+						return errors.New("column does not exist")
+					}
+
+					switch row[arg.ColumnName.Value].(type) {
+					case int:
+						if row[arg.ColumnName.Value].(int) > mx {
+							mx = row[arg.ColumnName.Value].(int)
+						}
+					case int64:
+						if int(row[arg.ColumnName.Value].(int64)) > mx {
+							mx = int(row[arg.ColumnName.Value].(int64))
+						}
+					case float64:
+						if int(row[arg.ColumnName.Value].(float64)) > mx {
+							mx = int(row[arg.ColumnName.Value].(float64))
+						}
+					}
+				}
+			}
+		}
+
+		if alias == nil {
+			*results = []map[string]interface{}{map[string]interface{}{"MAX": mx}}
+			*columns = []string{"MAX"}
+		} else {
+			*results = []map[string]interface{}{map[string]interface{}{alias.Value: mx}}
+			*columns = []string{alias.Value}
+		}
+
+	case "MIN":
+		// Find the minimum value
+		var mn int
+		mn = int(^uint(0) >> 1)
+
+		for _, row := range *results {
+			for _, arg := range expr.Args {
+				switch arg := arg.(type) {
+				case *parser.ColumnSpecification:
+					if _, ok := row[arg.ColumnName.Value]; !ok {
+						return errors.New("column does not exist")
+					}
+
+					switch row[arg.ColumnName.Value].(type) {
+					case int:
+						if row[arg.ColumnName.Value].(int) < mn {
+							mn = row[arg.ColumnName.Value].(int)
+						}
+					case int64:
+						if int(row[arg.ColumnName.Value].(int64)) < mn {
+							mn = int(row[arg.ColumnName.Value].(int64))
+						}
+					case float64:
+						if int(row[arg.ColumnName.Value].(float64)) < mn {
+							mn = int(row[arg.ColumnName.Value].(float64))
+						}
+					}
+				}
+			}
+		}
+
+		if alias == nil {
+			*results = []map[string]interface{}{map[string]interface{}{"MIN": mn}}
+			*columns = []string{"MIN"}
+		} else {
+			*results = []map[string]interface{}{map[string]interface{}{alias.Value: mn}}
+			*columns = []string{alias.Value}
+		}
+	}
+
+	return nil
 }
 
 // search searches tables based on the where clause
@@ -2640,6 +2685,20 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 		}
 
 		left = &parser.Literal{Value: row[left.(*parser.ColumnSpecification).ColumnName.Value]}
+	} else if _, ok := left.(*parser.AggregateFunc); ok {
+		// Check if left is aggregate function
+
+		var columns []string
+		err := evaluateAggregate(left.(*parser.AggregateFunc), rows, &columns, nil)
+		if err != nil {
+			return err
+		}
+
+		// Get first row value
+		for _, r := range *rows {
+			left = &parser.Literal{Value: r[columns[0]]}
+		}
+
 	}
 
 	// Check if left is binary expr
