@@ -616,8 +616,41 @@ func (p *Parser) parseShowStmt() (Node, error) {
 	case "USERS":
 		return &ShowStmt{ShowType: SHOW_USERS}, nil
 	case "INDEXES":
-		return &ShowStmt{ShowType: SHOW_INDEXES}, nil
+		p.consume() // Consume INDEXES
+
+		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "FROM" {
+			return nil, errors.New("expected FROM")
+		}
+
+		p.consume() // Consume FROM
+
+		if p.peek(0).tokenT != IDENT_TOK {
+
+			return nil, errors.New("expected identifier")
+		}
+
+		tableName := p.peek(0).value.(string)
+
+		return &ShowStmt{ShowType: SHOW_INDEXES, From: &Identifier{
+			Value: tableName,
+		}}, nil
 	case "GRANTS":
+
+		p.consume() // Consume GRANTS
+
+		if p.peek(0).tokenT == KEYWORD_TOK && p.peek(0).value == "FOR" {
+			p.consume() // Consume ON
+
+			if p.peek(0).tokenT != IDENT_TOK {
+				return nil, errors.New("expected identifier")
+			}
+
+			tableName := p.peek(0).value.(string)
+			p.consume() // Consume username
+
+			return &ShowStmt{ShowType: SHOW_GRANTS, For: &Identifier{Value: tableName}}, nil
+		}
+
 		return &ShowStmt{ShowType: SHOW_GRANTS}, nil
 	}
 

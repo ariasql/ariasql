@@ -404,6 +404,8 @@ const (
 // ShowStmt represents a SHOW statement
 type ShowStmt struct {
 	ShowType ShowType
+	For      *Identifier
+	From     *Identifier
 }
 
 type AlterUserSetType int

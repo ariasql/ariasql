@@ -3691,9 +3691,9 @@ SHOW GRANTS FOR username;
 		t.Fatal("expected non-nil statement")
 	}
 
-	createTableStmt, ok := stmt.(*CreateTableStmt)
+	showGrantsStmt, ok := stmt.(*ShowStmt)
 	if !ok {
-		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+		t.Fatalf("expected *ShowStmt, got %T", stmt)
 	}
 
 	if err != nil {
@@ -3707,8 +3707,68 @@ SHOW GRANTS FOR username;
 	//
 	//log.Println(sel)
 
-	if createTableStmt == nil {
+	if showGrantsStmt == nil {
 		t.Fatal("expected non-nil statement")
 	}
 
+	if showGrantsStmt.ShowType != SHOW_GRANTS {
+		t.Fatalf("expected SHOW GRANTS, got %d", showGrantsStmt.ShowType)
+	}
+
+	if showGrantsStmt.For.Value != "username" {
+		t.Fatalf("expected username, got %s", showGrantsStmt.For.Value)
+	}
+
+}
+
+func TestNewParserShowIndexes(t *testing.T) {
+	statement := []byte(`
+SHOW INDEXES FROM tbl_name;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	showIndexesStmt, ok := stmt.(*ShowStmt)
+	if !ok {
+		t.Fatalf("expected *ShowStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//sel, err := PrintAST(createTableStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if showIndexesStmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	if showIndexesStmt.ShowType != SHOW_INDEXES {
+		t.Fatalf("expected SHOW INDEXES, got %d", showIndexesStmt.ShowType)
+	}
+
+	if showIndexesStmt.From.Value != "tbl_name" {
+		t.Fatalf("expected tbl_name, got %s", showIndexesStmt.From.Value)
+	}
 }
