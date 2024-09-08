@@ -1547,6 +1547,8 @@ func (cat *Catalog) GetDatabases() []string {
 		dbs = append(dbs, k)
 	}
 
+	slices.Sort(dbs)
+
 	return dbs
 }
 
