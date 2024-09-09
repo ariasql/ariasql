@@ -40,7 +40,7 @@ const VERSION = "ALPHA" // Version of AriaSQL
 // DataTypes is a list of valid system data types
 var DataTypes = []string{
 	"CHAR", "CHARACTER", "DEC", "DECIMAL", "DOUBLE", "FLOAT", "SMALLINT", "INT", "INTEGER", "REAL", "NUMERIC",
-	"DATE", "TIME", "TIMESTAMP", "DATETIME", "BINARY", "UUID",
+	"DATE", "TIME", "TIMESTAMP", "DATETIME", "BINARY", "UUID", "BOOLEAN", "BOOL", "TEXT", "BLOB",
 }
 
 // PrivilegeAction represents a privilege action
