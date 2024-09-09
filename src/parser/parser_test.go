@@ -4318,7 +4318,11 @@ func TestNewParserSelect39(t *testing.T) {
 	// REVERSE, FORMAT, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM,
 	// GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP
 	statement := []byte(`
-	 
+	 SELECT UPPER('hello') AS upper, LOWER('HELLO') AS lower, CAST(1 AS CHAR) AS cast, COALESCE(NULL, 1) AS coalesce, 
+	 REVERSE('hello') AS reverse, FORMAT(1, 2) AS format, ROUND(1.1) AS round, POSITION('e' IN 'hello') AS position,
+	 LENGTH('hello') AS length, REPLACE('hello', 'e', 'a') AS replace, CONCAT('hello', 'world') AS concat,
+	 SUBSTRING('hello', 1, 2) AS substring, TRIM(' hello ') AS trim, GENERATE_UUID AS uuid, SYS_DATE AS sys_date,
+	 SYS_TIME AS sys_time, SYS_TIMESTAMP AS sys_timestamp;
 `)
 
 	lexer := NewLexer(statement)
@@ -4350,22 +4354,6 @@ func TestNewParserSelect39(t *testing.T) {
 
 	if selectStmt.SelectList == nil {
 		t.Fatal("expected non-nil SelectList")
-	}
-
-	if len(selectStmt.SelectList.Expressions) != 1 {
-		t.Fatalf("expected 1 expression, got %d", len(selectStmt.SelectList.Expressions))
-	}
-
-	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Op != OP_PLUS {
-		t.Fatalf("expected +, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Op)
-	}
-
-	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Left.(*Literal).Value.(uint64) != uint64(1) {
-		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Left.(*Literal).Value)
-	}
-
-	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Right.(*Literal).Value.(uint64) != uint64(1) {
-		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Right.(*Literal).Value)
 	}
 
 }
