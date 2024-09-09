@@ -22,8 +22,10 @@ import (
 	"ariasql/storage/btree"
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"os"
 	"slices"
 	"strconv"
@@ -696,9 +698,33 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 		}
 
 		switch strings.ToUpper(colDef.DataType) {
+		case "BINARY":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			// Check length
+			if len(row[colName].(string)) > colDef.Length {
+				return -1, fmt.Errorf("column %s is too long", colName)
+			}
+
+			var err error
+
+			// Decode hex (0x0102030405060708090A0B0C0D0E0F10)
+			row[colName], err = hex.DecodeString(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid binary", colName)
+			}
+
 		case "UUID":
 			if _, ok := row[colName].(string); !ok {
 				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			// Check if valid UUID
+			_, err := uuid.Parse(row[colName].(string))
+			if err != nil {
+				return -1, errors.New(fmt.Sprintf("'%s' is not a valid UUID\n", row[colName].(string)))
 			}
 		case "DATE":
 			if _, ok := row[colName].(string); !ok {
