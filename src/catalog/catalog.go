@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const MAX_COLUMN_NAME_SIZE = 64 // Max 64 bytes for column name
@@ -671,6 +672,18 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 		if colDef.Default != nil {
 			// check if column is null
 			if _, ok := row[colName]; !ok {
+				// check if default is string
+				if _, ok := colDef.Default.(string); ok {
+					if colDef.Default.(string) == "GENERATE_UUID" {
+						// generate uuid
+						row[colName] = shared.GenerateUUID()
+					} else if colDef.Default.(string) == "SYS_DATE" || colDef.Default.(string) == "SYS_DATETIME" || colDef.Default.(string) == "SYS_TIMESTAMP" || colDef.Default.(string) == "SYS_TIME" {
+						// generate date
+						row[colName] = time.Now()
+					}
+
+				}
+
 				// set default value
 				row[colName] = colDef.Default
 			}

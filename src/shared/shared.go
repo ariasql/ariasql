@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"io"
 	"io/fs"
@@ -371,4 +372,9 @@ func FormatToDateTime(date time.Time) string {
 // FormatToTimeStamp converts a time.Time to a string
 func FormatToTimeStamp(date time.Time) string {
 	return date.Format("2006-01-02T15:04:05")
+}
+
+// GenerateUUID generates a UUID
+func GenerateUUID() string {
+	return uuid.New().String()
 }
