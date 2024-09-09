@@ -29,15 +29,17 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Shared between all packages
 
-const VERSION = "ALPHA"
+const VERSION = "ALPHA" // Version of AriaSQL
 
 // DataTypes is a list of valid system data types
 var DataTypes = []string{
 	"CHAR", "CHARACTER", "DEC", "DECIMAL", "DOUBLE", "FLOAT", "SMALLINT", "INT", "INTEGER", "REAL", "NUMERIC",
+	"DATE", "TIME", "TIMESTAMP", "DATETIME", "BINARY", "UUID",
 }
 
 // PrivilegeAction represents a privilege action
@@ -289,4 +291,84 @@ func CreateJSONByteArray(data []map[string]interface{}) ([]byte, error) {
 	}
 
 	return marshal, nil
+}
+
+// IsValidDateTimeFormat checks if the date time format is valid or not (format is YYYY-MM-DD HH:MM:SS)
+func IsValidDateTimeFormat(dateTimeFormat string) bool {
+	if len(dateTimeFormat) != 19 {
+		return false
+	}
+
+	if dateTimeFormat[4] != '-' || dateTimeFormat[7] != '-' || dateTimeFormat[10] != ' ' || dateTimeFormat[13] != ':' || dateTimeFormat[16] != ':' {
+		return false
+	}
+
+	return true
+}
+
+// IsValidTimeFormat checks if the time format is valid or not (format is HH:MM:SS)
+func IsValidTimeFormat(timeFormat string) bool {
+	if len(timeFormat) != 8 {
+		return false
+	}
+
+	if timeFormat[2] != ':' || timeFormat[5] != ':' {
+		return false
+	}
+
+	return true
+}
+
+// IsValidDateFormat checks if the date format is valid or not (format is YYYY-MM-DD)
+func IsValidDateFormat(dateFormat string) bool {
+	if len(dateFormat) != 10 {
+		return false
+	}
+
+	if dateFormat[4] != '-' || dateFormat[7] != '-' {
+		return false
+	}
+
+	return true
+}
+
+// StringToGOTime converts a string to a time.Time
+func StringToGOTime(date string) (time.Time, error) {
+	// DATE, TIME, TIMESTAMP, DATETIME
+	toParse := []string{
+		"2006-01-02",
+		"15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+	}
+
+	for _, layout := range toParse {
+		t, err := time.Parse(layout, date)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("invalid date format")
+
+}
+
+// FormatToDate converts a time.Time to a string
+func FormatToDate(date time.Time) string {
+	return date.Format("2006-01-02")
+}
+
+// FormatToTime converts a time.Time to a string
+func FormatToTime(date time.Time) string {
+	return date.Format("15:04:05")
+}
+
+// FormatToDateTime converts a time.Time to a string
+func FormatToDateTime(date time.Time) string {
+	return date.Format("2006-01-02 15:04:05")
+}
+
+// FormatToTimeStamp converts a time.Time to a string
+func FormatToTimeStamp(date time.Time) string {
+	return date.Format("2006-01-02T15:04:05")
 }

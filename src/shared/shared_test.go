@@ -115,3 +115,12 @@ func TestDistinctMap(t *testing.T) {
 	}
 
 }
+
+func TestIsValidDateFormat(t *testing.T) {
+	date := "2006-01-02"
+
+	if !IsValidDateFormat(date) {
+		t.Errorf("expected %v to be valid", date)
+	}
+
+}

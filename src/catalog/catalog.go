@@ -683,6 +683,67 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 		}
 
 		switch strings.ToUpper(colDef.DataType) {
+		case "UUID":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+		case "DATE":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			// Check date format
+			// Should be in the format YYYY-MM-DD
+			if !shared.IsValidDateFormat(row[colName].(string)) {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			// convert to time.Time
+			t, err := shared.StringToGOTime(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			row[colName] = t
+		case "DATETIME", "TIMESTAMP":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			// Check date format
+			// Should be in the format YYYY-MM-DD HH:MM:SS
+			if !shared.IsValidDateTimeFormat(row[colName].(string)) {
+				return -1, fmt.Errorf("column %s is not a valid datetime", colName)
+			}
+
+			// convert to time.Time
+			t, err := shared.StringToGOTime(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			row[colName] = t
+
+		case "TIME":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			// Check date format
+			// Should be in the format HH:MM:SS
+
+			if !shared.IsValidTimeFormat(row[colName].(string)) {
+				return -1, fmt.Errorf("column %s is not a valid time", colName)
+			}
+
+			// convert to time.Time
+			t, err := shared.StringToGOTime(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			row[colName] = t
+
 		case "CHARACTER", "CHAR":
 			if _, ok := row[colName].(string); !ok {
 
