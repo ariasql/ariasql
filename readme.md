@@ -36,7 +36,7 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
 - [x] CHECK constraint
-- [ ] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP functions
+- [ ] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
 - [ ] Roles
 - [ ] Alter table
 
