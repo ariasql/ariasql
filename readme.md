@@ -165,6 +165,12 @@ AriaSQL Supports SQL1
 - DEC
 - REAL
 - NUMERIC
+- DATE
+- TIME
+- TIMESTAMP
+- DATETIME
+- UUID
+- BINARY
 
 #### Constraints
 - UNIQUE
