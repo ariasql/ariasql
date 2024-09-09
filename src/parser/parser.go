@@ -1362,9 +1362,8 @@ func (p *Parser) parseCreateTableStmt() (Node, error) {
 		// check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
 		if p.peek(0).tokenT == LPAREN_TOK {
 			switch dataType {
-			case "DATE", "TIME", "TIMESTAMP", "DATETIME":
 
-			case "CHAR", "CHARACTER":
+			case "CHAR", "CHARACTER", "BINARY":
 				p.consume() // Consume (
 
 				if p.peek(0).tokenT != LITERAL_TOK {

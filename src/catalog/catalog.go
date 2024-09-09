@@ -698,6 +698,27 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 		}
 
 		switch strings.ToUpper(colDef.DataType) {
+		case "TEXT":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+		case "BOOL", "BOOLEAN":
+			if _, ok := row[colName].(bool); !ok {
+				return -1, fmt.Errorf("column %s is not a boolean", colName)
+			}
+		case "BLOB":
+			if _, ok := row[colName].(string); !ok {
+				return -1, fmt.Errorf("column %s is not a string", colName)
+			}
+
+			var err error
+
+			// Decode hex (0x0102030405060708090A0B0C0D0E0F10)
+			row[colName], err = hex.DecodeString(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid binary", colName)
+			}
 		case "BINARY":
 			if _, ok := row[colName].(string); !ok {
 				return -1, fmt.Errorf("column %s is not a string", colName)
