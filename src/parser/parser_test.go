@@ -4312,3 +4312,60 @@ func TestNewParserInsert2(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect39(t *testing.T) {
+	// Testing UPPER, LOWER, CAST, COALESCE,
+	// REVERSE, FORMAT, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM,
+	// GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP
+	statement := []byte(`
+	 
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if len(selectStmt.SelectList.Expressions) != 1 {
+		t.Fatalf("expected 1 expression, got %d", len(selectStmt.SelectList.Expressions))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Op != OP_PLUS {
+		t.Fatalf("expected +, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Op)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Left.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Left.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Right.(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*BinaryExpression).Right.(*Literal).Value)
+	}
+
+}

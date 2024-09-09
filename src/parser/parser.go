@@ -2588,7 +2588,7 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 			}, nil
 
 		default:
-			return nil, errors.New("expected aggregate function")
+			return nil, errors.New("expected keyword")
 		}
 	case IDENT_TOK:
 
