@@ -4242,3 +4242,73 @@ func TestNewParserCreateTable5(t *testing.T) {
 	}
 
 }
+
+func TestNewParserInsert2(t *testing.T) {
+	statement := []byte(`
+	INSERT INTO TEST (col1, col2) VALUES (1, GENERATE_UUID), (2, SYS_DATE);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	insertStmt, ok := stmt.(*InsertStmt)
+	if !ok {
+		t.Fatalf("expected *InsertStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if insertStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", insertStmt.TableName.Value)
+	}
+
+	if len(insertStmt.ColumnNames) != 2 {
+		t.Fatalf("expected 2, got %d", len(insertStmt.ColumnNames))
+	}
+
+	for i, col := range insertStmt.ColumnNames {
+		if col.Value != fmt.Sprintf("col%d", i+1) {
+			t.Fatalf("expected col%d, got %s", i+1, col.Value)
+		}
+
+	}
+
+	if len(insertStmt.Values) != 2 {
+		t.Fatalf("expected 2, got %d", len(insertStmt.Values))
+	}
+
+	if insertStmt.Values[0][0].Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].Value)
+	}
+
+	if insertStmt.Values[0][1].Value.(string) != "GENERATE_UUID" {
+		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].Value)
+
+	}
+
+	if insertStmt.Values[1][0].Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", insertStmt.Values[1][0].Value)
+	}
+
+	if insertStmt.Values[1][1].Value.(string) != "SYS_DATE" {
+		t.Fatalf("expected SYS_DATE, got %s", insertStmt.Values[1][1].Value)
+	}
+
+}

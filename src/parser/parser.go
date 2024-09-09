@@ -1178,7 +1178,7 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 				break
 			}
 
-			if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" {
+			if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" && p.peek(0).value != "SYS_DATE" && p.peek(0).value != "SYS_TIME" && p.peek(0).value != "SYS_DATETIME" && p.peek(0).value != "SYS_TIMESTAMP" && p.peek(0).value != "GENERATE_UUID" {
 
 				return nil, errors.New("expected literal or NULL")
 
