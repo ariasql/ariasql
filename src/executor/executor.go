@@ -30,6 +30,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Executor is the main executor structure
@@ -445,7 +446,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 					t := []*catalog.Table{tbl}
 					var fr []map[string]interface{}
 
-					if !ex.EvaluateCondition(colDef.Check, &r, t, &fr) {
+					if !ex.evaluateCondition(colDef.Check, &r, t, &fr) {
 						return errors.New("check constraint failed for column " + name)
 					}
 				}
@@ -1284,7 +1285,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"COUNT": count},
 				}
-				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1323,7 +1324,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 					{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: sum},
 				}
 
-				ok := ex.EvaluateCondition(newComparisonPredicate, &rows, nil, nil)
+				ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1361,7 +1362,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"AVG": avg},
 				}
-				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1400,7 +1401,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"MIN": mx},
 				}
-				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -1441,7 +1442,7 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 				rows := []map[string]interface{}{
 					{"MIN": mn},
 				}
-				ok := ex.EvaluateCondition(having.SearchCondition, &rows, nil, nil)
+				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
 				if ok {
 					results = append(results, row[0])
 				}
@@ -2255,7 +2256,55 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 			// add the columns to the new row
 			for _, row := range currentRows {
+
 				for k, v := range row {
+					// Check if value is time.Time
+					if _, ok := v.(time.Time); ok {
+						// if so we need to read the schema to get the type
+						if len(tbls) > 1 {
+							// split the key and get the table name
+							tblName := strings.Split(k, ".")[0]
+
+							// get the table
+							for _, tbl := range tbls {
+								if tbl.Name == tblName {
+									// get the column type
+									for name, col := range tbl.TableSchema.ColumnDefinitions {
+										if name == strings.Split(k, ".")[1] {
+											switch col.DataType {
+											case "DATE":
+												newRow[k] = v.(time.Time).Format("2006-01-02")
+											case "TIME":
+												newRow[k] = v.(time.Time).Format("15:04:05")
+											case "TIMESTAMP":
+												newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+											case "DATETIME":
+												newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+											}
+										}
+									}
+								}
+							}
+						} else {
+							tbl := tbls[0]
+							// get the column type
+							for name, col := range tbl.TableSchema.ColumnDefinitions {
+								if name == k {
+									switch col.DataType {
+									case "DATE":
+										newRow[k] = v.(time.Time).Format("2006-01-02")
+									case "TIME":
+										newRow[k] = v.(time.Time).Format("15:04:05")
+									case "TIMESTAMP":
+										newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+									case "DATETIME":
+										newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+									}
+								}
+							}
+						}
+					}
+
 					newRow[k] = v
 				}
 			}
@@ -2282,11 +2331,11 @@ func (ex *Executor) evaluateWhereClause(where *parser.WhereClause, rows *[]map[s
 	}
 
 	// If there is a where clause, we evaluate the condition
-	return ex.EvaluateCondition(where.SearchCondition, rows, tbls, filteredRows)
+	return ex.evaluateCondition(where.SearchCondition, rows, tbls, filteredRows)
 }
 
 // EvaluateCondition evaluates a condition
-func (ex *Executor) EvaluateCondition(condition interface{}, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
+func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) bool {
 	// If there is no condition, we return true
 	if condition == nil {
 		return true
@@ -2302,11 +2351,11 @@ func (ex *Executor) EvaluateCondition(condition interface{}, rows *[]map[string]
 	case *parser.LogicalCondition:
 		switch condition.Op {
 		case parser.OP_AND:
-			return ex.EvaluateCondition(condition.Left, rows, tbls, filteredRows) && ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) && ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		case parser.OP_OR:
-			return ex.EvaluateCondition(condition.Left, rows, tbls, filteredRows) || ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return ex.evaluateCondition(condition.Left, rows, tbls, filteredRows) || ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		case parser.OP_NOT:
-			return !ex.EvaluateCondition(condition.Right, rows, tbls, filteredRows)
+			return !ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		}
 	case *parser.InPredicate:
 		// check if left is column spec
