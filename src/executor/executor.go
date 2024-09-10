@@ -2762,6 +2762,176 @@ func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *
 			}
 
 		}
+	case *parser.LowerFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = strings.ToLower(v.(string))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+	case *parser.CastFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Expr.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					switch expr.DataType.Value {
+					case "INT", "INTEGER", "SMALLINT":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							// Convert string to int
+							intVal, err := strconv.Atoi(v.(string))
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = intVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+
+						}
+					case "FLOAT", "DOUBLE", "DECIMAL", "REAL", "NUMERIC":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							// Convert string to float
+							floatVal, err := strconv.ParseFloat(v.(string), 64)
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = floatVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+						}
+					case "DATE":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							// Convert string to time.Time
+							dateVal, err := time.Parse("2006-01-02", v.(string))
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = dateVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+						}
+					case "DATETIME", "TIMESTAMP":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							// Convert string to time.Time
+							dateVal, err := time.Parse("2006-01-02 15:04:05", v.(string))
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = dateVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+
+						}
+					case "TIME":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							// Convert string to time.Time
+							dateVal, err := time.Parse("15:04:05", v.(string))
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = dateVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+						}
+					case "BOOL", "BOOLEAN":
+						// check if row value is string
+						if _, ok := v.(string); ok {
+							if v.(string) == "T" || v.(string) == "t" {
+								v = "true"
+							} else if v.(string) == "F" || v.(string) == "f" {
+								v = "false"
+							} else if v.(string) == "'true'" {
+								v = "true"
+							} else if v.(string) == "'false'" {
+								v = "false"
+							}
+
+							// Convert string to bool
+							boolVal, err := strconv.ParseBool(v.(string))
+							if err != nil {
+								return nil
+							}
+
+							newRow[k] = boolVal
+
+							*rows = append(*rows, newRow)
+
+							*rows = append((*rows)[:i], (*rows)[i+1:]...)
+
+							return newRow[k]
+
+						}
+					}
+
+				}
+			}
+
+		}
 
 	case *parser.Literal:
 		return expr.Value

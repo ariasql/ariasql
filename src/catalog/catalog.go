@@ -511,6 +511,12 @@ func (db *Database) CreateTable(name string, tblSchema *TableSchema) error {
 				return fmt.Errorf("column %s requires a scale", colName)
 			}
 		case "INT", "INTEGER", "SMALLINT":
+		case "DATE", "TIME", "TIMESTAMP", "DATETIME":
+		case "BINARY":
+		case "UUID":
+		case "BOOLEAN", "BOOL":
+		case "TEXT":
+		case "BLOB":
 
 		default:
 			delete(db.Tables, name)
@@ -906,7 +912,6 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 					return -1, fmt.Errorf("column %s is too large for SMALLINT", colName)
 				}
 			}
-
 		default:
 			return -1, fmt.Errorf("invalid data type %s", colDef.DataType)
 		}

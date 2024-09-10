@@ -120,7 +120,7 @@ func GetOsPathSeparator() string {
 // IsValidDataType checks if the data type is valid
 func IsValidDataType(dataType string) bool {
 	for _, dt := range DataTypes {
-		if dt == strings.ToUpper(dataType) {
+		if dt == strings.ToUpper(strings.TrimSpace(dataType)) {
 			return true
 		}
 	}
