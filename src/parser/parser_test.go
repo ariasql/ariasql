@@ -5406,3 +5406,103 @@ func TestNewParserSelect58(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect59(t *testing.T) {
+	statement := []byte(`
+	 SELECT SUBSTRING('hello world', 1, 5) AS sub_test FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Arg.(*ValueExpression).Value.(*Literal).Value != "'hello world'" {
+		t.Fatalf("expected 'hello world', got %s", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Arg.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).StartPos.Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).StartPos.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Length.Value != uint64(5) {
+		t.Fatalf("expected 5, got %d", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Length.Value)
+	}
+
+}
+
+func TestNewParserSelect60(t *testing.T) {
+	statement := []byte(`
+	 SELECT SUBSTRING(col1, 1, 5) AS sub_test FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).StartPos.Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).StartPos.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Length.Value != uint64(5) {
+		t.Fatalf("expected 5, got %d", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Length.Value)
+	}
+
+}

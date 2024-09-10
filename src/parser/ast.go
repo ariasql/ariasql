@@ -457,7 +457,7 @@ func PrintAST(node Node) (string, error) {
 
 }
 
-// Functions
+// System Functions
 
 // UpperFunc represents an UPPER function
 type UpperFunc struct {
@@ -508,11 +508,11 @@ type TrimFunc struct {
 	Arg interface{} // Can be a column name or a string
 }
 
-// SubstringFunc represents a SUBSTRING function
-type SubstringFunc struct {
-	Arg  interface{} // Can be a column name or a string
-	From *Literal
-	For  *Literal
+// SubstrFunc represents a SUBSTRING function
+type SubstrFunc struct {
+	Arg      interface{} // Can be a column name or a string
+	StartPos *Literal
+	Length   *Literal
 }
 
 // ConcatFunc represents a CONCAT function

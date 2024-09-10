@@ -2668,6 +2668,71 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 // parseSystemFunction parses system function like UPPER, LOWER, CAST, COALESCE, etc
 func (p *Parser) parseSystemFunc() (interface{}, error) {
 	switch p.peek(0).value {
+	case "SUBSTRING":
+		substrFunc := &SubstrFunc{}
+
+		p.consume() // Consume SUBSTRING
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected literal or identifier")
+		}
+
+		// Parse value expression
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		substrFunc.Arg = expr
+
+		// Look for ,
+		if p.peek(0).value != "," {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		// Parse literal
+		startPos, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		// Look for ,
+		if p.peek(0).value != "," {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		leng, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+
+		}
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			p.consume()
+		}
+
+		substrFunc.StartPos = startPos.(*Literal)
+		substrFunc.Length = leng.(*Literal)
+
+		return substrFunc, nil
 	case "CONCAT":
 		concatFunc := &ConcatFunc{}
 
