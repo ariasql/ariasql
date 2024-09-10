@@ -1646,12 +1646,38 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 			for k, v := range row {
 				if _, ok := row[k].(string); ok {
 					if expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
-						(*results)[i][k] = strings.ToUpper(v.(string))
-						*columns = append(*columns, k)
+
+						if alias == nil {
+
+							(*results)[i][k] = strings.ToUpper(v.(string))
+							*columns = append(*columns, k)
+						} else {
+							(*results)[i][alias.Value] = strings.ToUpper(v.(string))
+							*columns = append(*columns, alias.Value)
+						}
 					}
 				}
 			}
 		}
+	case *parser.LowerFunc:
+		for i, row := range *results {
+			for k, v := range row {
+				if _, ok := row[k].(string); ok {
+					if expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+
+						if alias == nil {
+
+							(*results)[i][k] = strings.ToLower(v.(string))
+							*columns = append(*columns, k)
+						} else {
+							(*results)[i][alias.Value] = strings.ToLower(v.(string))
+							*columns = append(*columns, alias.Value)
+						}
+					}
+				}
+			}
+		}
+
 	}
 
 	return nil
