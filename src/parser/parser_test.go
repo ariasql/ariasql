@@ -5506,6 +5506,7 @@ func TestNewParserSelect60(t *testing.T) {
 	}
 
 }
+
 func TestNewParserSelect61(t *testing.T) {
 	statement := []byte(`
 	 SELECT * FROM tbl WHERE col1 = SYS_DATE;
@@ -5538,12 +5539,12 @@ func TestNewParserSelect61(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if selectStmt.SelectList == nil {
 		t.Fatal("expected non-nil SelectList")
@@ -5573,5 +5574,144 @@ func TestNewParserSelect61(t *testing.T) {
 	// Check if correct type
 	if _, ok := selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*shared.SysDate); !ok {
 		t.Fatalf("expected *SysDate, got %T", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value)
+	}
+}
+
+func TestNewParserSelect62(t *testing.T) {
+	statement := []byte(`
+	 SELECT * FROM tbl WHERE CAST(col1 AS INT) = 22;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause == nil {
+		t.Fatal("expected non-nil WhereClause")
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CastFunc).DataType.Value != "INT" {
+		t.Fatalf("expected INT, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CastFunc).DataType.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(22) {
+		t.Fatalf("expected 22, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserSelect63(t *testing.T) {
+	statement := []byte(`
+	 SELECT * FROM tbl WHERE CONCAT(col1, ' padula') = 'alex padula';
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause == nil {
+		t.Fatal("expected non-nil WhereClause")
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ConcatFunc).Args[0].(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ConcatFunc).Args[0].(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ConcatFunc).Args[1].(*ValueExpression).Value.(*Literal).Value != "' padula'" {
+		t.Fatalf("expected ' padula', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ConcatFunc).Args[1].(*ValueExpression).Value.(*Literal).Value)
+
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value != "'alex padula'" {
+		t.Fatalf("expected 'alex padula', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
 	}
 }

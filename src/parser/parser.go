@@ -2048,9 +2048,17 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 	} else if p.peek(0).tokenT == KEYWORD_TOK {
 		currentPos := p.pos
 
-		expr, err = p.parseAggregateFunc()
-		if err != nil {
-			return nil, err
+		if p.peek(0).value == "AVG" || p.peek(0).value == "COUNT" || p.peek(0).value == "MAX" || p.peek(0).value == "MIN" || p.peek(0).value == "SUM" {
+			expr, err = p.parseAggregateFunc()
+			if err != nil {
+				return nil, err
+			}
+		} else if p.peek(0).value == "LENGTH" || p.peek(0).value == "LOWER" || p.peek(0).value == "UPPER" || p.peek(0).value == "TRIM" || p.peek(0).value == "SUBSTRING" || p.peek(0).value == "POSITION" || p.peek(0).value == "CONCAT" || p.peek(0).value == "COALESCE" ||
+			p.peek(0).value == "CAST" || p.peek(0).value == "REVERSE" || p.peek(0).value == "ROUND" || p.peek(0).value == "REPLACE" || p.peek(0).value == "TRIM" || p.peek(0).value == "COALESCE" {
+			expr, err = p.parseSystemFunc()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		if p.peek(0).tokenT == COMPARISON_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == DIVIDE_TOK || p.peek(0).tokenT == MODULUS_TOK || p.peek(0).tokenT == AT_TOK {
@@ -3201,6 +3209,7 @@ func (p *Parser) parseAggregateFunc() (*AggregateFunc, error) {
 		// Catch nested aggregate functions, binary expressions, column specs, and literals
 		if p.peek(0).tokenT == KEYWORD_TOK {
 			switch p.peek(0).value {
+
 			case "AVG", "COUNT", "MAX", "MIN", "SUM":
 				// Parse aggregate function
 				innerAggFunc, err := p.parseAggregateFunc()
