@@ -23,7 +23,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"reflect"
@@ -1885,7 +1884,6 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 									// Convert string to float
 									floatVal, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'"), 64)
 									if err != nil {
-										log.Println(err)
 										return nil
 									}
 
