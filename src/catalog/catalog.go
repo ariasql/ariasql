@@ -694,6 +694,11 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			}
 		}
 
+		// Check if row column exists if not set to NULL
+		if _, ok := row[colName]; !ok {
+			row[colName] = nil
+		}
+
 		switch strings.ToUpper(colDef.DataType) {
 		case "TEXT":
 			if _, ok := row[colName].(string); !ok {
@@ -828,10 +833,12 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			if _, ok := row[colName].(string); !ok {
 
 				// if column can be null, check if it is null
-				if !colDef.NotNull {
+				if colDef.NotNull {
 					if row[colName] != nil {
 						return -1, fmt.Errorf("column %s is not a string", colName)
 					}
+				} else {
+					continue
 				}
 
 			} else {
@@ -843,7 +850,14 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 		case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
 			if _, ok := row[colName].(float64); !ok {
-				return -1, fmt.Errorf("column %s is not a float64", colName)
+
+				if colDef.NotNull {
+					if row[colName] != nil {
+						return -1, fmt.Errorf("column %s is not a floating point number", colName)
+					}
+				} else {
+					continue
+				}
 			}
 
 			str := fmt.Sprintf("%.14g", row[colName].(float64))

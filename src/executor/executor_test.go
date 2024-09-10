@@ -11155,3 +11155,168 @@ func TestStmt63(t *testing.T) {
 
 	}
 }
+
+func TestStmt64(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE users (user_id INT, username CHAR(255), created_on DATETIME DEFAULT SYS_DATE, money DECIMAL(10, 2));
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO users (user_id, username) VALUES (1, 'Jonathan'), (2, 'Joe'), (3, 'Jane');
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	SELECT user_id, username, COALESCE(money, 'no mola') AS mola FROM users;
+`)
+
+	lexer = parser.NewLexer(stmt)
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+-----------+---------+------------+
+| mola      | user_id | username   |
++-----------+---------+------------+
+| 'no mola' | 1       | 'Jonathan' |
+| 'no mola' | 2       | 'Joe'      |
+| 'no mola' | 3       | 'Jane'     |
++-----------+---------+------------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+
+	}
+}

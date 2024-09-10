@@ -1616,7 +1616,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 			}
 		case *parser.UpperFunc, *parser.LowerFunc, *parser.LengthFunc, *parser.PositionFunc, *parser.RoundFunc,
 			*parser.TrimFunc, *parser.SubstrFunc, *parser.ConcatFunc, *parser.CastFunc, *shared.GenUUID, *shared.SysDate,
-			*shared.SysTime, *shared.SysTimestamp:
+			*shared.SysTime, *shared.SysTimestamp, *parser.CoalesceFunc:
 			var err error
 			err = evaluateSystemFunc(expr, &results, &columns, selectList.Expressions[i].Alias)
 			if err != nil {
@@ -1639,9 +1639,30 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 }
 
-// evaluateSystemFunc
+// evaluateSystemFunc evaluates system functions like UPPER within a select list
 func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
+	log.Println(reflect.TypeOf(expr))
 	switch expr := expr.(type) {
+	case *parser.CoalesceFunc:
+		for i, row := range *results {
+			for k, _ := range row {
+				if _, ok := row[k]; ok {
+
+					for _, arg := range expr.Args {
+						if arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+							if alias == nil {
+								(*results)[i][k] = expr.Value.(*parser.ValueExpression).Value.(*parser.Literal).Value
+								*columns = append(*columns, k)
+							} else {
+								(*results)[i][alias.Value] = expr.Value.(*parser.ValueExpression).Value.(*parser.Literal).Value
+								*columns = append(*columns, alias.Value)
+							}
+						}
+					}
+				}
+			}
+		}
+
 	case *parser.UpperFunc:
 		for i, row := range *results {
 			for k, v := range row {
