@@ -65,6 +65,16 @@ const (
 	PRIV_BEGIN
 )
 
+type CascadeOption int
+
+const (
+	_           CascadeOption = iota
+	CASCADE                   // Cascade the action
+	RESTRICT                  // Restrict the action
+	SET_NULL                  // Set the value to NULL
+	SET_DEFAULT               // Set the default value
+)
+
 // You grant privileges to a user on a database or table
 // GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
 

@@ -73,19 +73,23 @@ type Catalog struct {
 type Database struct {
 	Name       string            // Name is the database name
 	Tables     map[string]*Table // Tables within database
-	TablesLock *sync.Mutex       // Tables mutex
+	TablesLock *sync.Mutex       // Tables slice mutex
 	Directory  string            // Directory is the directory where database data is stored
 }
 
 // Table is a table object
 type Table struct {
-	Name         string            // Name is the table name
-	Indexes      map[string]*Index // Indexes is a map of index names to index objects
-	Rows         *btree.Pager      // Rows is the btree pager for the table.  We use the pager to page our table data
-	TableSchema  *TableSchema      // TableSchema is the schema of the table
-	Directory    string            // Directory is the directory where table data is stored
-	SequenceFile *os.File          // Table sequence file
-	SeqLock      *sync.Mutex       // Sequence mutex
+	Name         string               // Name is the table name
+	Indexes      map[string]*Index    // Indexes is a map of index names to index objects
+	Rows         *btree.Pager         // Rows is the btree pager for the table.  We use the pager to page our table data
+	TableSchema  *TableSchema         // TableSchema is the schema of the table
+	Directory    string               // Directory is the directory where table data is stored
+	SequenceFile *os.File             // Table sequence file
+	SeqLock      *sync.Mutex          // Sequence mutex
+	Compress     bool                 // Compress is true if the table data is compressed (not implemented)
+	Encrypt      bool                 // Encrypt is true if the table data is encrypted (not implemented)
+	OnDelete     shared.CascadeOption // (not implemented)
+	OnUpdate     shared.CascadeOption // (not implemented)
 }
 
 // TableSchema is the schema of a table

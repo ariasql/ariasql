@@ -16,7 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package parser
 
-// Parser is following American National Standard SQL 1986
+// Parser is following American National Standard SQL 1986/SQL-87/SQL-89/SQL-92+
 
 import (
 	"ariasql/catalog"

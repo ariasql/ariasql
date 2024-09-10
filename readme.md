@@ -2,7 +2,7 @@
     <h1 align="center"><img width="228" src="artwork/ariasql-logov1.png"></h1>
 </div>
 
-AriaSQL is an open source relational database server.  AriaSQL is designed to be lightweight and fast with a focus on simplicity and ease of use.
+AriaSQL is an open source multi-platform relational database server.  AriaSQL is designed to be lightweight and fast with a focus on simplicity and ease of use.
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
@@ -36,17 +36,37 @@ AriaSQL is an open source relational database server.  AriaSQL is designed to be
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
 - [x] CHECK constraint
+- [ ] CASE Statements
 - [ ] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
 - [ ] Roles
 - [ ] Alter table
 
 Above is expected for v1.0.0 release.
 
+### v1.0.0+
+- [ ] Replication
+- [ ] CTEs (Common Table Expressions)
+- [ ] Window Functions
+- [ ] Import/ Export (CSV, JSON, XML) - Would be from (asql AriaSQL CLI or AriaSQL Developer)
+- [ ] Encryption (ChaCha20)
+- [ ] Compression (ZSTD)
+- [ ] Execution Plan using EXPLAIN
+- [ ] Cascading options for CREATE TABLE i.e `ON DELETE CASCADE|SET NULL|SET DEFAULT|NO ACTION` `ON UPDATE CASCADE|SET NULL|SET DEFAULT|NO ACTION`
+
+Above is expected for v1.0.0+ releases onto v2.0.0.
+
 ## Clients/Drivers
 - GO - [github.com/ariasql/ariasql-go]() `IN DEVELOPMENT`
 - Python - [github.com/ariasql/ariasql-py]()  `IN DEVELOPMENT`
 - NodeJS - [github.com/ariasql/ariasql-node]()  `IN DEVELOPMENT`
 - Java - [github.com/ariasql/ariasql-java]()  `IN DEVELOPMENT`
+- Ruby - [github.com/ariasql/ariasql-ruby]()  `IN DEVELOPMENT`
+- PHP - [github.com/ariasql/ariasql-php]()  `IN DEVELOPMENT`
+- C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
+- Rust - [github.com/ariasql/ariasql-rust]()  `IN DEVELOPMENT`
+- C++ - [github.com/ariasql/ariasql-cpp]()  `IN DEVELOPMENT`
+- Swift - [github.com/ariasql/ariasql-swift]()  `IN DEVELOPMENT`
+- Kotlin - [github.com/ariasql/ariasql-kotlin]()  `IN DEVELOPMENT`
 
 ## GUI
 - AriaSQL Developer - [github.com/ariasql/developer]() `IN DEVELOPMENT`
@@ -179,13 +199,33 @@ AriaSQL Supports SQL1
 #### Constraints
 - UNIQUE
 - NOT NULL
+- DEFAULT
+- CHECK
+- PRIMARY KEY
+- FOREIGN KEY
+- REFERENCES
 
 #### Aggregates
-- COUNT
-- SUM
-- AVG
-- MIN
-- MAX
+- COUNT `COUNT counts the number of rows based on arguments`
+- SUM `SUM sums a column`
+- AVG `AVG averages a column`
+- MIN `MIN returns the minimum value`
+- MAX `MAX returns the maximum value`
+
+#### Functions
+- UPPER `UPPER uppercases a string`
+- LOWER `LOWER lowercases a string`
+- CAST `CAST converts a string to a different data type`
+- COALESCE `COALESCE replaces NULL with a value`
+- REVERSE `REVERSE reverses a string`
+- FORMAT `FORMAT formats a string`
+- ROUND `ROUND rounds a number`
+- POSITION `POSITION returns the position of a substring`
+- LENGTH `LENGTH returns the length of a string`
+- REPLACE `REPLACE replaces a substring`
+- CONCAT `CONCAT concatenates strings`
+- SUBSTRING `SUBSTRING returns a substring`
+- TRIM `TRIM trims a string`
 
 #### Create
 

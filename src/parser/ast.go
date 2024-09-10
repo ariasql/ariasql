@@ -456,3 +456,72 @@ func PrintAST(node Node) (string, error) {
 	return string(marshalled), nil
 
 }
+
+// Functions
+
+// UpperFunc represents an UPPER function
+type UpperFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+// LowerFunc represents a LOWER function
+type LowerFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+type CastFunc struct {
+	Expr interface{}
+	Type *Identifier
+}
+
+// CoalesceFunc represents a COALESCE function
+// i.e COALESCE(column_name, 0)
+type CoalesceFunc struct {
+	Args  interface{} // Can be a column name
+	Value *Literal    // Default value
+}
+
+// ReverseFunc represents a REVERSE function
+type ReverseFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+// RoundFunc represents a ROUND function
+type RoundFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+// PositionFunc represents a POSITION function
+type PositionFunc struct {
+	Arg interface{} // Can be a column name or a string
+	In  interface{} // Can be a column name or a string
+}
+
+// LengthFunc represents a LENGTH function
+type LengthFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+// TrimFunc represents a TRIM function
+type TrimFunc struct {
+	Arg interface{} // Can be a column name or a string
+}
+
+// SubstringFunc represents a SUBSTRING function
+type SubstringFunc struct {
+	Arg  interface{} // Can be a column name or a string
+	From *Literal
+	For  *Literal
+}
+
+// ConcatFunc represents a CONCAT function
+type ConcatFunc struct {
+	Arg     interface{} // Can be a column name or a string
+	Literal *Literal
+}
+
+// FormatFunc represents a FORMAT function
+type FormatFunc struct {
+	Arg interface{} // Can be a column name or a string
+
+}
