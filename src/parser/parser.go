@@ -2698,7 +2698,7 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 	case "LOWER":
 		lowerFunc := &LowerFunc{}
 
-		p.consume() // Consume UPPER
+		p.consume() // Consume LOWER
 
 		// Look for LPAREN
 		if p.peek(0).tokenT != LPAREN_TOK {
@@ -2730,6 +2730,35 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 		p.consume()
 
 		return lowerFunc, nil
+	case "CAST":
+		castFunc := &CastFunc{}
+
+		p.consume() // Consume CAST
+
+		// Parse value expression
+		valueExpr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		castFunc.Expr = valueExpr
+
+		// Look for AS
+		if p.peek(0).value != "AS" {
+			return nil, errors.New("expected AS")
+
+		}
+
+		p.consume() // Consume AS
+
+		// Datatype must be keyword
+		if p.peek(0).tokenT != KEYWORD_TOK {
+			return nil, errors.New("expected keyword")
+		}
+
+		castFunc.Type = &Identifier{
+			Value: p.peek(0).value.(string),
+		}
 
 	default:
 		return nil, errors.New("expected system function")
