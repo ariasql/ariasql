@@ -2559,6 +2559,33 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 
 	case KEYWORD_TOK:
 		switch p.peek(0).value {
+		case "COUNT", "MAX", "MIN", "SUM", "AVG":
+			expr, err := p.parseBinaryExpr(0)
+			if err != nil {
+				return nil, err
+			}
+
+			var alias *Identifier
+
+			// Check for alias
+			if p.peek(0).value == "AS" {
+				p.consume()
+
+				alias, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+			}
+			if alias != nil {
+				return &ValueExpression{
+					Value: expr,
+					Alias: alias,
+				}, nil
+			}
+
+			return &ValueExpression{
+				Value: expr,
+			}, nil
 		case "UPPER", "LOWER", "CAST",
 			"COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE", "CONCAT",
 			"SUBSTRING", "TRIM", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP":
@@ -2590,34 +2617,6 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 					Value: sysFunc,
 				}, nil
 			}
-		case "COUNT", "MAX", "MIN", "SUM":
-			expr, err := p.parseBinaryExpr(0)
-			if err != nil {
-				return nil, err
-			}
-
-			var alias *Identifier
-
-			// Check for alias
-			if p.peek(0).value == "AS" {
-				p.consume()
-
-				alias, err = p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-			}
-			if alias != nil {
-				return &ValueExpression{
-					Value: expr,
-					Alias: alias,
-				}, nil
-			}
-
-			return &ValueExpression{
-				Value: expr,
-			}, nil
-
 		default:
 			return nil, errors.New("expected keyword")
 		}
