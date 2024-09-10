@@ -2695,6 +2695,41 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 		p.consume()
 
 		return upperFunc, nil
+	case "LOWER":
+		lowerFunc := &LowerFunc{}
+
+		p.consume() // Consume UPPER
+
+		// Look for LPAREN
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// Consume LPAREN
+		p.consume()
+
+		// Look for literal or identifier
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected literal or identifier")
+		}
+
+		// Parse literal or identifier
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		lowerFunc.Arg = expr
+
+		// Look for RPAREN
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		// Consume RPAREN
+		p.consume()
+
+		return lowerFunc, nil
 
 	default:
 		return nil, errors.New("expected system function")
