@@ -1642,6 +1642,48 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 // evaluateSystemFunc evaluates system functions like UPPER within a select list
 func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
 	switch expr := expr.(type) {
+	case *parser.ConcatFunc:
+		for i, row := range *results {
+			for k, v := range row {
+
+				if _, ok := row[k].(string); ok {
+					newStr := ""
+
+					replaceK := false
+
+					for _, arg := range expr.Args {
+						switch arg := arg.(type) {
+						case *parser.ValueExpression:
+							switch arg.Value.(type) {
+							case *parser.ColumnSpecification:
+								if arg.Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+									newStr += strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'")
+									replaceK = true
+
+								}
+							case *parser.Literal:
+								newStr += strings.TrimSuffix(strings.TrimPrefix(arg.Value.(*parser.Literal).Value.(string), "'"), "'")
+
+							}
+						}
+
+					}
+
+					if replaceK {
+
+						if alias == nil {
+							(*results)[i][k] = fmt.Sprintf("'%s'", newStr)
+							*columns = append(*columns, k)
+						} else {
+							(*results)[i][alias.Value] = fmt.Sprintf("'%s'", newStr)
+							*columns = append(*columns, alias.Value)
+						}
+					}
+
+				}
+			}
+
+		}
 	case *parser.SubstrFunc:
 		for i, row := range *results {
 			for k, v := range row {

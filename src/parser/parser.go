@@ -322,6 +322,13 @@ func (l *Lexer) nextToken() Token {
 				continue
 			}
 			continue
+		case '$':
+			if insideLiteral {
+				stringLiteral += string(l.input[l.pos])
+				l.pos++
+				continue
+			}
+			continue
 		case ';':
 			if !insideLiteral {
 				l.pos++

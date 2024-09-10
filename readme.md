@@ -31,12 +31,12 @@ AriaSQL is an open source multi-platform relational database server.  AriaSQL is
 - [ ] Views
 - [ ] Triggers
 - [ ] Stored Procedures
-- [ ] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [ ] Cursors
+- [ ] CASE Statements
+- [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
 - [x] CHECK constraint
-- [ ] CASE Statements
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
 - [ ] Roles
 - [ ] Alter table
