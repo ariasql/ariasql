@@ -1642,6 +1642,34 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 // evaluateSystemFunc evaluates system functions like UPPER within a select list
 func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
 	switch expr := expr.(type) {
+	case *parser.SubstrFunc:
+		for i, row := range *results {
+			for k, v := range row {
+				if _, ok := row[k].(string); ok {
+					if expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+						startPos := int(expr.StartPos.Value.(uint64))
+						endPos := int(expr.Length.Value.(uint64))
+
+						if len(v.(string)) < startPos {
+							return errors.New("start position is greater than the length of the string")
+						}
+
+						if len(v.(string)) < endPos {
+							return errors.New("end position is greater than the length of the string")
+						}
+
+						if alias == nil {
+							(*results)[i][k] = fmt.Sprintf("'%s'", strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'")[startPos-1:endPos])
+							*columns = append(*columns, k)
+						} else {
+							(*results)[i][alias.Value] = fmt.Sprintf("'%s'", strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'")[startPos-1:endPos])
+							*columns = append(*columns, alias.Value)
+						}
+					}
+				}
+			}
+
+		}
 	case *parser.TrimFunc:
 		for i, row := range *results {
 			for k, v := range row {
