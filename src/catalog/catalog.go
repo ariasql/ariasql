@@ -150,6 +150,13 @@ func New(directory string) *Catalog {
 
 // Open initializes the catalog, reading all databases, tables, indexes, etc from disk
 func (cat *Catalog) Open() error {
+	gob.Register(&TableSchema{})
+	gob.Register(&shared.SysDate{})
+	gob.Register(&shared.SysTime{})
+	gob.Register(&shared.SysTimestamp{})
+	gob.Register(&shared.GenUUID{})
+	gob.Register(time.Time{})
+
 	cat.Databases = make(map[string]*Database)
 
 	// Check for databases directory
@@ -681,30 +688,6 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 	// Check row against schema
 	for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
 
-		if colDef.Default != nil {
-			// check if column is null
-			if _, ok := row[colName]; !ok {
-				// check if default is string
-				if _, ok := colDef.Default.(string); ok {
-					if _, ok := colDef.Default.(*shared.GenUUID); ok { // Check GenerateUUID type
-						// generate uuid
-						row[colName] = shared.GenerateUUID()
-					} else if _, ok := colDef.Default.(*shared.SysDate); ok {
-						// generate date
-
-						row[colName] = time.Now()
-					} else if _, ok := colDef.Default.(*shared.SysTime); ok {
-						row[colName] = time.Now()
-					} else if _, ok := colDef.Default.(*shared.SysTimestamp); ok {
-						row[colName] = time.Now()
-					}
-				}
-
-				// set default value
-				row[colName] = colDef.Default
-			}
-		}
-
 		if colDef.NotNull && !colDef.Sequence {
 			if _, ok := row[colName]; !ok {
 				return -1, fmt.Errorf("column %s cannot be null", colName)
@@ -761,27 +744,23 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			if err != nil {
 				return -1, errors.New(fmt.Sprintf("'%s' is not a valid UUID\n", row[colName].(string)))
 			}
-		case "DATE":
-			if _, ok := row[colName].(string); !ok {
-				return -1, fmt.Errorf("column %s is not a string", colName)
-			}
-
-			// Check date format
-			// Should be in the format YYYY-MM-DD
-			if !shared.IsValidDateFormat(row[colName].(string)) {
-				return -1, fmt.Errorf("column %s is not a valid date", colName)
-			}
-
-			// convert to time.Time
-			t, err := shared.StringToGOTime(row[colName].(string))
-			if err != nil {
-				return -1, fmt.Errorf("column %s is not a valid date", colName)
-			}
-
-			row[colName] = t
 		case "DATETIME", "TIMESTAMP":
 			if _, ok := row[colName].(string); !ok {
-				return -1, fmt.Errorf("column %s is not a string", colName)
+				if colDef.NotNull {
+					return -1, fmt.Errorf("column %s is not a string", colName)
+				} else if colDef.Default != nil {
+					if _, ok := colDef.Default.(*shared.SysDate); ok {
+						row[colName] = time.Now()
+					} else if _, ok := colDef.Default.(*shared.SysTime); ok {
+						row[colName] = time.Now()
+					} else if _, ok := colDef.Default.(*shared.SysTimestamp); ok {
+						row[colName] = time.Now()
+					}
+
+					continue
+				} else {
+					continue
+				}
 			}
 
 			// Check date format
@@ -798,9 +777,36 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 			row[colName] = t
 
+		case "DATE":
+			if _, ok := row[colName].(string); !ok {
+				if colDef.NotNull {
+					return -1, fmt.Errorf("column %s is not a string", colName)
+				} else {
+					continue
+				}
+			}
+
+			// Check date format
+			// Should be in the format YYYY-MM-DD
+			if !shared.IsValidDateFormat(row[colName].(string)) {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			// convert to time.Time
+			t, err := shared.StringToGOTime(row[colName].(string))
+			if err != nil {
+				return -1, fmt.Errorf("column %s is not a valid date", colName)
+			}
+
+			row[colName] = t
+
 		case "TIME":
 			if _, ok := row[colName].(string); !ok {
-				return -1, fmt.Errorf("column %s is not a string", colName)
+				if colDef.NotNull {
+					return -1, fmt.Errorf("column %s is not a string", colName)
+				} else {
+					continue
+				}
 			}
 
 			// Check date format

@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"slices"
@@ -2262,11 +2263,8 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 		if ex.evaluateWhereClause(where, &currentRows, tbls, filteredRows) {
 
-			// create a new row
-			newRow := map[string]interface{}{}
-
 			// add the columns to the new row
-			for _, row := range currentRows {
+			for i, row := range currentRows {
 
 				for k, v := range row {
 					// Check if value is time.Time
@@ -2284,38 +2282,48 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 										if name == strings.Split(k, ".")[1] {
 											switch col.DataType {
 											case "DATE":
-												newRow[k] = v.(time.Time).Format("2006-01-02")
+												currentRows[i][k] = v.(time.Time).Format("2006-01-02")
 											case "TIME":
-												newRow[k] = v.(time.Time).Format("15:04:05")
-											case "TIMESTAMP":
-												newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
-											case "DATETIME":
-												newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+												currentRows[i][k] = v.(time.Time).Format("15:04:05")
+											case "TIMESTAMP", "DATETIME":
+												currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 											}
 										}
 									}
 								}
 							}
 						} else {
+
 							tbl := tbls[0]
 							// get the column type
 							for name, col := range tbl.TableSchema.ColumnDefinitions {
+
 								if name == k {
 									switch col.DataType {
 									case "DATE":
-										newRow[k] = v.(time.Time).Format("2006-01-02")
+										currentRows[i][k] = v.(time.Time).Format("2006-01-02")
 									case "TIME":
-										newRow[k] = v.(time.Time).Format("15:04:05")
+										currentRows[i][k] = v.(time.Time).Format("15:04:05")
 									case "TIMESTAMP":
-										newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 									case "DATETIME":
-										newRow[k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 									}
 								}
 							}
+
 						}
 					}
 
+				}
+			}
+
+			// create a new row
+			newRow := map[string]interface{}{}
+
+			// add the columns to the new row
+			for _, row := range currentRows {
+				for k, v := range row {
 					newRow[k] = v
 				}
 			}
@@ -2675,7 +2683,15 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				}
 
 				right = int(right.(uint64))
+
 			}
+		case float64:
+			// Check if right is not float64
+			if _, ok := right.(string); ok {
+				return false
+			}
+
+			right = float64(right.(uint64))
 
 		}
 
@@ -2697,27 +2713,101 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 		case parser.OP_LT:
 			if !not {
-				return left.(int) < right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) < right.(int)
+				case float64:
+					return left.(float64) < right.(float64)
+				case uint64:
+					return left.(uint64) < right.(uint64)
+				case string:
+					return left.(uint64) < right.(uint64)
+				}
 			} else {
-				return left.(int) >= right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) >= right.(int)
+				case float64:
+					return left.(float64) >= right.(float64)
+				case uint64:
+					return left.(uint64) >= right.(uint64)
+				case string:
+					return left.(uint64) >= right.(uint64)
+				}
 			}
 		case parser.OP_LTE:
 			if !not {
-				return left.(int) <= right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) <= right.(int)
+				case float64:
+					return left.(float64) <= right.(float64)
+				case uint64:
+					return left.(uint64) <= right.(uint64)
+				case string:
+					return left.(uint64) <= right.(uint64)
+				}
+
 			} else {
-				return left.(int) > right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) > right.(int)
+				case float64:
+					return left.(float64) > right.(float64)
+				case uint64:
+					return left.(uint64) > right.(uint64)
+				case string:
+					return left.(uint64) > right.(uint64)
+				}
 			}
 		case parser.OP_GT:
 			if !not {
-				return left.(int) > right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) > right.(int)
+				case float64:
+					return left.(float64) > right.(float64)
+				case uint64:
+					return left.(uint64) > right.(uint64)
+				case string:
+					return left.(uint64) > right.(uint64)
+				}
 			} else {
-				return left.(int) <= right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) <= right.(int)
+				case float64:
+					return left.(float64) <= right.(float64)
+				case uint64:
+					return left.(uint64) <= right.(uint64)
+				case string:
+					return left.(uint64) <= right.(uint64)
+				}
+
 			}
 		case parser.OP_GTE:
 			if !not {
-				return left.(int) >= right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) >= right.(int)
+				case float64:
+					return left.(float64) >= right.(float64)
+				case uint64:
+					return left.(uint64) >= right.(uint64)
+				case string:
+					return left.(uint64) >= right.(uint64)
+				}
 			} else {
-				return left.(int) < right.(int)
+				switch left.(type) {
+				case int:
+					return left.(int) < right.(int)
+				case float64:
+					return left.(float64) < right.(float64)
+				case uint64:
+					return left.(uint64) < right.(uint64)
+				case string:
+					return left.(uint64) < right.(uint64)
+				}
 			}
 		}
 	default:
@@ -2732,6 +2822,11 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 // EvaluateValueExpression evaluates a value expression
 func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
 	switch expr := expr.Value.(type) {
+	case *shared.GenUUID:
+		return shared.GenerateUUID()
+	case *shared.SysDate, *shared.SysTimestamp, *shared.SysTime:
+		return time.Now()
+
 	case *parser.UpperFunc:
 		for i, row := range *rows {
 
@@ -2788,6 +2883,282 @@ func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *
 						return newRow[k]
 					}
 
+				}
+			}
+
+		}
+	case *parser.RoundFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(float64); ok {
+
+						newRow[k] = math.Round(v.(float64))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					} else if _, ok := v.(int); ok {
+						newRow[k] = math.Round(float64(v.(int)))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					} else if _, ok := v.(uint64); ok {
+						newRow[k] = math.Round(float64(v.(uint64)))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+	case *parser.ReverseFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = shared.ReverseString(v.(string))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+		}
+	case *parser.LengthFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = len(v.(string)) - 2
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+
+	case *parser.PositionFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.In.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = (strings.Index(v.(string), strings.TrimSuffix(strings.TrimPrefix(expr.Arg.(*parser.ValueExpression).Value.(*parser.Literal).Value.(string), "'"), "'"))) + 1
+
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+	case *parser.SubstrFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						start := int(expr.StartPos.Value.(uint64))
+
+						if start == 1 {
+							start = 0
+						}
+
+						end := int(expr.Length.Value.(uint64))
+
+						newRow[k] = strings.TrimPrefix(strings.TrimSuffix(v.(string), "'"), "'")[start:end]
+
+						newRow[k] = fmt.Sprintf("'%s'", newRow[k])
+
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+	case *parser.ConcatFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Args[0].(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						for _, arg := range expr.Args[1:] {
+							if _, ok := arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification); ok {
+								var newStr []string
+								newStr = append(newStr, strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'"))
+								newStr = append(newStr, strings.TrimSuffix(strings.TrimPrefix(newRow[arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value].(string), "'"), "'"))
+								newRow[k] = fmt.Sprintf("'%s'", strings.Join(newStr, ""))
+							} else {
+								var newStr []string
+								newStr = append(newStr, strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'"))
+								newStr = append(newStr, strings.TrimSuffix(strings.TrimPrefix(arg.(*parser.ValueExpression).Value.(*parser.Literal).Value.(string), "'"), "'"))
+								newRow[k] = fmt.Sprintf("'%s'", strings.Join(newStr, ""))
+							}
+						}
+
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+	case *parser.TrimFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = fmt.Sprintf("'%s'", strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'")))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+
+	case *parser.CoalesceFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Args[0].(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// Value should be nil
+					if v == nil {
+						newRow[k] = expr.Value.(*parser.ValueExpression).Value.(*parser.Literal).Value
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
 				}
 			}
 

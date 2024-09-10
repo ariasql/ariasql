@@ -315,6 +315,13 @@ func (l *Lexer) nextToken() Token {
 				l.pos++
 				continue
 			}
+		case '!':
+			if insideLiteral {
+				stringLiteral += string(l.input[l.pos])
+				l.pos++
+				continue
+			}
+			continue
 		case ';':
 			if !insideLiteral {
 				l.pos++
@@ -1184,6 +1191,8 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 
 			}
 
+			//log.Println("BRO", p.peek(0).value)
+
 			if p.peek(0).value == "NULL" {
 				values = append(values, &Literal{Value: nil})
 			} else if p.peek(0).value == "SYS_DATE" {
@@ -1471,7 +1480,17 @@ func (p *Parser) parseTableConstraints(createTableStmt *CreateTableStmt, columnN
 
 				defaultValue := p.peek(0).value
 
-				createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &Literal{Value: defaultValue}
+				if defaultValue == "SYS_DATE" {
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &shared.SysDate{}
+				} else if defaultValue == "SYS_TIME" {
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &shared.SysTime{}
+				} else if defaultValue == "SYS_TIMESTAMP" {
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &shared.SysTimestamp{}
+				} else if defaultValue == "GENERATE_UUID" {
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &shared.GenUUID{}
+				} else {
+					createTableStmt.TableSchema.ColumnDefinitions[columnName].Default = &Literal{Value: defaultValue}
+				}
 
 				p.consume() // Consume literal or keyword
 

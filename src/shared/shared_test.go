@@ -124,3 +124,11 @@ func TestIsValidDateFormat(t *testing.T) {
 	}
 
 }
+
+func TestReverseString(t *testing.T) {
+	str := "hello"
+	reversed := ReverseString(str)
+	if reversed != "olleh" {
+		t.Errorf("expected olleh, got %s", reversed)
+	}
+}
