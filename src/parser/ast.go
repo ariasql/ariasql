@@ -84,7 +84,7 @@ type UseStmt struct {
 type InsertStmt struct {
 	TableName   *Identifier
 	ColumnNames []*Identifier
-	Values      [][]*Literal
+	Values      [][]interface{}
 }
 
 // SelectStmt represents a SELECT statement

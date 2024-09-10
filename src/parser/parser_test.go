@@ -495,12 +495,12 @@ func TestNewParserInsert(t *testing.T) {
 		t.Fatalf("expected 2, got %d", len(insertStmt.Values))
 	}
 
-	if insertStmt.Values[0][0].Value.(uint64) != uint64(1) {
-		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].Value)
+	if insertStmt.Values[0][0].(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].(*Literal).Value)
 	}
 
-	if insertStmt.Values[0][1].Value.(string) != "'hello'" {
-		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].Value)
+	if insertStmt.Values[0][1].(*Literal).Value.(string) != "'hello'" {
+		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].(*Literal).Value)
 
 	}
 
@@ -4294,21 +4294,21 @@ func TestNewParserInsert2(t *testing.T) {
 		t.Fatalf("expected 2, got %d", len(insertStmt.Values))
 	}
 
-	if insertStmt.Values[0][0].Value.(uint64) != uint64(1) {
-		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].Value)
+	if insertStmt.Values[0][0].(*Literal).Value.(uint64) != uint64(1) {
+		t.Fatalf("expected 1, got %d", insertStmt.Values[0][0].(*Literal).Value)
 	}
 
-	if insertStmt.Values[0][1].Value.(string) != "GENERATE_UUID" {
-		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].Value)
+	if insertStmt.Values[0][1].(*Literal).Value.(string) != "GENERATE_UUID" {
+		t.Fatalf("expected 'hello', got %s", insertStmt.Values[0][1].(*Literal).Value)
 
 	}
 
-	if insertStmt.Values[1][0].Value.(uint64) != uint64(2) {
-		t.Fatalf("expected 2, got %d", insertStmt.Values[1][0].Value)
+	if insertStmt.Values[1][0].(*Literal).Value.(uint64) != uint64(2) {
+		t.Fatalf("expected 2, got %d", insertStmt.Values[1][0].(*Literal).Value)
 	}
 
-	if insertStmt.Values[1][1].Value.(string) != "SYS_DATE" {
-		t.Fatalf("expected SYS_DATE, got %s", insertStmt.Values[1][1].Value)
+	if insertStmt.Values[1][1].(*shared.SysDate) == nil {
+		t.Fatalf("expected non-nil SysDate, got nil")
 	}
 
 }
@@ -5505,4 +5505,73 @@ func TestNewParserSelect60(t *testing.T) {
 		t.Fatalf("expected 5, got %d", selectStmt.SelectList.Expressions[0].Value.(*SubstrFunc).Length.Value)
 	}
 
+}
+func TestNewParserSelect61(t *testing.T) {
+	statement := []byte(`
+	 SELECT * FROM tbl WHERE col1 = SYS_DATE;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause == nil {
+		t.Fatal("expected non-nil WhereClause")
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	// check if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value is *shared.SysDate
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*shared.SysDate) == nil {
+		t.Fatalf("expected *SysDate, got %T", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value)
+	}
+
+	// Check if correct type
+	if _, ok := selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*shared.SysDate); !ok {
+		t.Fatalf("expected *SysDate, got %T", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value)
+	}
 }

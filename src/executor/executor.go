@@ -236,7 +236,13 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				for _, row := range ss.Values {
 					data := map[string]interface{}{}
 					for i, col := range ss.ColumnNames {
-						data[col.Value] = row[i].Value
+						switch row[i].(type) {
+						case *parser.Literal:
+							data[col.Value] = row[i].(*parser.Literal).Value
+						case *shared.GenUUID, *shared.SysDate, *shared.SysTime, *shared.SysTimestamp:
+							data[col.Value] = row[i]
+						}
+
 					}
 					rows = append(rows, data)
 
@@ -432,7 +438,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		for _, row := range s.Values {
 			data := map[string]interface{}{}
 			for i, col := range s.ColumnNames {
-				data[col.Value] = row[i].Value
+				switch row[i].(type) {
+				case *parser.Literal:
+					data[col.Value] = row[i].(*parser.Literal).Value
+				case *shared.GenUUID, *shared.SysDate, *shared.SysTime, *shared.SysTimestamp:
+					data[col.Value] = row[i]
+				}
 			}
 			rows = append(rows, data)
 

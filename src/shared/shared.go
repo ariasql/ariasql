@@ -65,6 +65,18 @@ const (
 	PRIV_BEGIN
 )
 
+// SysDate
+type SysDate struct{}
+
+// SysTime
+type SysTime struct{}
+
+// SysTimestamp
+type SysTimestamp struct{}
+
+// GenUUID
+type GenUUID struct{}
+
 type CascadeOption int
 
 const (
@@ -132,6 +144,7 @@ func getColumnWidths(data []map[string]interface{}, headers []string) map[string
 	return widths
 }
 
+// Get Headers Get the headers of the data
 func GetHeaders(data []map[string]interface{}) []string {
 	if len(data) == 0 {
 		return []string{}

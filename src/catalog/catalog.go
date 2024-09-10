@@ -680,14 +680,18 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			if _, ok := row[colName]; !ok {
 				// check if default is string
 				if _, ok := colDef.Default.(string); ok {
-					if colDef.Default.(string) == "GENERATE_UUID" {
+					if _, ok := colDef.Default.(*shared.GenUUID); ok { // Check GenerateUUID type
 						// generate uuid
 						row[colName] = shared.GenerateUUID()
-					} else if colDef.Default.(string) == "SYS_DATE" || colDef.Default.(string) == "SYS_DATETIME" || colDef.Default.(string) == "SYS_TIMESTAMP" || colDef.Default.(string) == "SYS_TIME" {
+					} else if _, ok := colDef.Default.(*shared.SysDate); ok {
 						// generate date
+
+						row[colName] = time.Now()
+					} else if _, ok := colDef.Default.(*shared.SysTime); ok {
+						row[colName] = time.Now()
+					} else if _, ok := colDef.Default.(*shared.SysTimestamp); ok {
 						row[colName] = time.Now()
 					}
-
 				}
 
 				// set default value

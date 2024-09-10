@@ -1115,7 +1115,7 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 
 	insertStmt.TableName = &Identifier{Value: tableName}
 	insertStmt.ColumnNames = make([]*Identifier, 0)
-	insertStmt.Values = make([][]*Literal, 0)
+	insertStmt.Values = make([][]interface{}, 0)
 
 	p.consume() // Consume schema_name.table_name
 
@@ -1171,14 +1171,14 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 
 		p.consume() // Consume (
 
-		values := make([]*Literal, 0)
+		values := make([]interface{}, 0)
 
 		for {
 			if p.peek(0).tokenT == RPAREN_TOK {
 				break
 			}
 
-			if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" && p.peek(0).value != "SYS_DATE" && p.peek(0).value != "SYS_TIME" && p.peek(0).value != "SYS_DATETIME" && p.peek(0).value != "SYS_TIMESTAMP" && p.peek(0).value != "GENERATE_UUID" {
+			if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" && p.peek(0).value != "SYS_DATE" && p.peek(0).value != "SYS_TIME" && p.peek(0).value != "SYS_TIMESTAMP" && p.peek(0).value != "GENERATE_UUID" {
 
 				return nil, errors.New("expected literal or NULL")
 
@@ -1186,6 +1186,8 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 
 			if p.peek(0).value == "NULL" {
 				values = append(values, &Literal{Value: nil})
+			} else if p.peek(0).value == "SYS_DATE" {
+				values = append(values, &shared.SysDate{})
 			} else {
 				values = append(values, &Literal{Value: p.peek(0).value})
 			}
@@ -3123,6 +3125,14 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 		coalesceFunc.Args = coalesceFunc.Args[:len(coalesceFunc.Args)-1]
 
 		return coalesceFunc, nil
+	case "SYS_DATE":
+		return &shared.SysDate{}, nil
+	case "SYS_TIME":
+		return &shared.SysTime{}, nil
+	case "SYS_TIMESTAMP":
+		return &shared.SysTimestamp{}, nil
+	case "GENERATE_UUID":
+		return &shared.GenUUID{}, nil
 	default:
 		return nil, errors.New("expected system function")
 
