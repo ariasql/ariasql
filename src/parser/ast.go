@@ -519,9 +519,3 @@ type ConcatFunc struct {
 	Arg     interface{} // Can be a column name or a string
 	Literal *Literal
 }
-
-// FormatFunc represents a FORMAT function
-type FormatFunc struct {
-	Arg interface{} // Can be a column name or a string
-
-}
