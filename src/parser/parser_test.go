@@ -5018,13 +5018,6 @@ func TestNewParserSelect52(t *testing.T) {
 
 	}
 
-	//sel, err := PrintAST(selectStmt)
-	//if err != nil {
-	//	t.Fatal(err)
-	//}
-	//
-	//log.Println(sel)
-
 	if selectStmt.SelectList == nil {
 		t.Fatal("expected non-nil SelectList")
 
