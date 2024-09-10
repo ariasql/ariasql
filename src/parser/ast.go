@@ -469,6 +469,7 @@ type LowerFunc struct {
 	Arg interface{} // Can be a column name or a string
 }
 
+// CastFunc represents a CAST function
 type CastFunc struct {
 	Expr interface{}
 	Type *Identifier

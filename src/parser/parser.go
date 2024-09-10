@@ -44,7 +44,7 @@ var (
 		"TABLE", "TO", "UNION", "UNIQUE", "UPDATE", "USER",
 		"VALUES", "VIEW", "WHENEVER", "WHERE", "WITH", "WORK", "USE", "LIMIT", "OFFSET", "IDENTIFIED", "CONNECT", "REVOKE", "SHOW",
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
-		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "FORMAT", "ROUND", "POSITION", "LENGTH", "REPLACE",
+		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
 	}, shared.DataTypes...)
 )
@@ -2559,7 +2559,38 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 
 	case KEYWORD_TOK:
 		switch p.peek(0).value {
-		case "COUNT", "MAX", "MIN", "SUM", "AVG":
+		case "UPPER", "LOWER", "CAST",
+			"COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE", "CONCAT",
+			"SUBSTRING", "TRIM", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP":
+			// Parse system function
+			sysFunc, err := p.parseSystemFunc()
+			if err != nil {
+				return nil, err
+			}
+
+			var alias *Identifier
+
+			// Check for alias
+			if p.peek(0).value == "AS" {
+				p.consume()
+
+				alias, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if alias != nil {
+				return &ValueExpression{
+					Value: sysFunc,
+					Alias: alias,
+				}, nil
+			} else {
+				return &ValueExpression{
+					Value: sysFunc,
+				}, nil
+			}
+		case "COUNT", "MAX", "MIN", "SUM":
 			expr, err := p.parseBinaryExpr(0)
 			if err != nil {
 				return nil, err
@@ -2624,6 +2655,51 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		return nil, errors.New("expected column spec or aggregate function or subquery")
 	}
 
+}
+
+// parseSystemFunction parses system function like UPPER, LOWER, CAST, COALESCE, etc
+func (p *Parser) parseSystemFunc() (interface{}, error) {
+	switch p.peek(0).value {
+	case "UPPER":
+		upperFunc := &UpperFunc{}
+
+		p.consume() // Consume UPPER
+
+		// Look for LPAREN
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// Consume LPAREN
+		p.consume()
+
+		// Look for literal or identifier
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected literal or identifier")
+		}
+
+		// Parse literal or identifier
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
+
+		upperFunc.Arg = expr
+
+		// Look for RPAREN
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		// Consume RPAREN
+		p.consume()
+
+		return upperFunc, nil
+
+	default:
+		return nil, errors.New("expected system function")
+
+	}
 }
 
 // parseColumnSpecification parses a column specification
