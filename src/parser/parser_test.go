@@ -4928,3 +4928,121 @@ func TestNewParserSelect50(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect51(t *testing.T) {
+	statement := []byte(`
+	 SELECT POSITION(col1 IN 'hello') FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).In.(*ValueExpression).Value.(*Literal).Value != "'hello'" {
+		t.Fatalf("expected hello, got %s", selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).In.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+}
+
+func TestNewParserSelect52(t *testing.T) {
+	statement := []byte(`
+	 SELECT POSITION(col1 IN col2) AS pos_test FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).In.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col2" {
+		t.Fatalf("expected col2, got %s", selectStmt.SelectList.Expressions[0].Value.(*PositionFunc).In.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Alias.Value != "pos_test" {
+		t.Fatalf("expected pos_test, got %s", selectStmt.SelectList.Expressions[0].Alias.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+}

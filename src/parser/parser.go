@@ -2668,6 +2668,62 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 // parseSystemFunction parses system function like UPPER, LOWER, CAST, COALESCE, etc
 func (p *Parser) parseSystemFunc() (interface{}, error) {
 	switch p.peek(0).value {
+	case "POSITION":
+		positionFunc := &PositionFunc{}
+
+		p.consume() // Consume POSITION
+
+		// Look for LPAREN
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// Consume LPAREN
+		p.consume()
+
+		// Look for literal or identifier
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected literal or identifier")
+		}
+
+		// Parse literal or identifier
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+
+		}
+
+		// look for IN
+		if p.peek(0).value != "IN" {
+			return nil, errors.New("expected IN")
+
+		}
+
+		p.consume() // Consume IN
+
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected literal or identifier")
+		}
+
+		inExpr, err := p.parseValueExpression()
+		if err != nil {
+			return nil, err
+
+		}
+
+		positionFunc.Arg = expr
+		positionFunc.In = inExpr
+
+		// Look for RPAREN
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		// Consume RPAREN
+		p.consume()
+
+		return positionFunc, nil
+
 	case "ROUND":
 		roundFunc := &RoundFunc{}
 
