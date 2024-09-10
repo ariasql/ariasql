@@ -478,8 +478,8 @@ type CastFunc struct {
 // CoalesceFunc represents a COALESCE function
 // i.e COALESCE(column_name, 0)
 type CoalesceFunc struct {
-	Args  interface{} // Can be a column name
-	Value *Literal    // Default value
+	Args  []interface{} // Can be a column name
+	Value interface{}   // Default value
 }
 
 // ReverseFunc represents a REVERSE function

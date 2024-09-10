@@ -2788,7 +2788,40 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 		p.consume() // Consume RPAREN
 
 		return castFunc, nil
+	case "COALESCE":
+		coalesceFunc := &CoalesceFunc{}
 
+		p.consume() // Consume COALESCE
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume LPAREN
+
+		for p.peek(0).tokenT != RPAREN_TOK {
+			// Parse value expression
+			valueExpr, err := p.parseValueExpression()
+			if err != nil {
+				return nil, err
+			}
+
+			coalesceFunc.Args = append(coalesceFunc.Args, valueExpr)
+
+			if p.peek(0).tokenT == COMMA_TOK {
+				p.consume()
+			}
+		}
+
+		p.consume() // Consume RPAREN
+
+		// The last value expression is the default value
+		coalesceFunc.Value = coalesceFunc.Args[len(coalesceFunc.Args)-1]
+
+		// remove the last value expression from the args
+		coalesceFunc.Args = coalesceFunc.Args[:len(coalesceFunc.Args)-1]
+
+		return coalesceFunc, nil
 	default:
 		return nil, errors.New("expected system function")
 
