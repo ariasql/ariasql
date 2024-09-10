@@ -4354,3 +4354,49 @@ func TestNewParserSelect39(t *testing.T) {
 	}
 
 }
+
+func TestNewParserSelect40(t *testing.T) {
+	statement := []byte(`
+	 SELECT UPPER(col1) FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*UpperFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*UpperFunc).Arg.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "tbl" {
+		t.Fatalf("expected tbl, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+}
