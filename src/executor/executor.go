@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"reflect"
@@ -1677,7 +1678,192 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 				}
 			}
 		}
+	case *parser.CastFunc:
+		for i, row := range *results {
+			for k, v := range row {
+				if _, ok := row[k].(string); ok {
+					if expr.Expr.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
 
+						if alias == nil {
+
+							switch expr.DataType.Value {
+							case "INT", "INTEGER", "SMALLINT":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to int
+									intVal, err := strconv.Atoi(v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][k] = intVal
+
+								}
+							case "FLOAT", "DOUBLE", "DECIMAL", "REAL", "NUMERIC":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to float
+									floatVal, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'"), 64)
+									if err != nil {
+										log.Println(err)
+										return nil
+									}
+
+									(*results)[i][k] = floatVal
+
+								}
+							case "DATE":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("2006-01-02", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][k] = dateVal
+
+								}
+							case "DATETIME", "TIMESTAMP":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("2006-01-02 15:04:05", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][k] = dateVal
+
+								}
+							case "TIME":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("15:04:05", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][k] = dateVal
+
+								}
+							case "BOOL", "BOOLEAN":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									if v.(string) == "T" || v.(string) == "t" {
+										v = "true"
+									} else if v.(string) == "F" || v.(string) == "f" {
+										v = "false"
+									} else if v.(string) == "'true'" {
+										v = "true"
+									} else if v.(string) == "'false'" {
+										v = "false"
+									}
+
+									// Convert string to bool
+									boolVal, err := strconv.ParseBool(v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][k] = boolVal
+
+								}
+							}
+
+							*columns = append(*columns, k)
+						} else {
+							switch expr.DataType.Value {
+							case "INT", "INTEGER", "SMALLINT":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to int
+									intVal, err := strconv.Atoi(v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = intVal
+
+								}
+							case "FLOAT", "DOUBLE", "DECIMAL", "REAL", "NUMERIC":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to float
+									floatVal, err := strconv.ParseFloat(strings.TrimSuffix(strings.TrimPrefix(v.(string), "'"), "'"), 64)
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = floatVal
+
+								}
+							case "DATE":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("2006-01-02", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = dateVal
+
+								}
+							case "DATETIME", "TIMESTAMP":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("2006-01-02 15:04:05", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = dateVal
+
+								}
+							case "TIME":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									// Convert string to time.Time
+									dateVal, err := time.Parse("15:04:05", v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = dateVal
+
+								}
+							case "BOOL", "BOOLEAN":
+								// check if row value is string
+								if _, ok := v.(string); ok {
+									if v.(string) == "T" || v.(string) == "t" {
+										v = "true"
+									} else if v.(string) == "F" || v.(string) == "f" {
+										v = "false"
+									} else if v.(string) == "'true'" {
+										v = "true"
+									} else if v.(string) == "'false'" {
+										v = "false"
+									}
+
+									// Convert string to bool
+									boolVal, err := strconv.ParseBool(v.(string))
+									if err != nil {
+										return nil
+									}
+
+									(*results)[i][alias.Value] = boolVal
+
+								}
+							}
+							*columns = append(*columns, alias.Value)
+						}
+					}
+				}
+			}
+		}
 	}
 
 	return nil
