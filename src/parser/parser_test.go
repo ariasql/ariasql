@@ -4521,8 +4521,80 @@ func TestNewParserSelect43(t *testing.T) {
 
 	}
 
-	if selectStmt.SelectList == nil {
-		t.Fatal("expected non-nil SelectList")
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+	//
+	//if selectStmt.SelectList == nil {
+	//	t.Fatal("expected non-nil SelectList")
+	//}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*CastFunc).DataType.Value != "INT" {
+		t.Fatalf("expected INT, got %s", selectStmt.SelectList.Expressions[0].Value.(*CastFunc).DataType)
+	}
+
+}
+
+func TestNewParserSelect44(t *testing.T) {
+	statement := []byte(`
+	 SELECT CAST(col1 AS INT) AS cast_test FROM tbl;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+	//
+	//if selectStmt.SelectList == nil {
+	//	t.Fatal("expected non-nil SelectList")
+	//}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value != "col1" {
+		t.Fatalf("expected col1, got %s", selectStmt.SelectList.Expressions[0].Value.(*CastFunc).Expr.(*ValueExpression).Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*CastFunc).DataType.Value != "INT" {
+		t.Fatalf("expected INT, got %s", selectStmt.SelectList.Expressions[0].Value.(*CastFunc).DataType)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Alias.Value != "cast_test" {
+		t.Fatalf("expected cast_test, got %s", selectStmt.SelectList.Expressions[0].Alias.Value)
 	}
 
 }

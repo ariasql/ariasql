@@ -2635,9 +2635,18 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		if p.peek(0).value == "AS" {
 			p.consume()
 
-			alias, err = p.parseIdentifier()
-			if err != nil {
-				return nil, err
+			// Check if next tok type is a keyword, if so skip alias
+			if p.peek(0).tokenT == DATATYPE_TOK {
+				p.rewind(1)
+
+				alias = nil
+
+			} else {
+
+				alias, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		if alias != nil {
@@ -2731,9 +2740,19 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 
 		return lowerFunc, nil
 	case "CAST":
+
 		castFunc := &CastFunc{}
 
 		p.consume() // Consume CAST
+
+		// Look for LPAREN
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// Consume LPAREN
+
+		p.consume() // Consume LPAREN
 
 		// Parse value expression
 		valueExpr, err := p.parseValueExpression()
@@ -2751,14 +2770,24 @@ func (p *Parser) parseSystemFunc() (interface{}, error) {
 
 		p.consume() // Consume AS
 
-		// Datatype must be keyword
-		if p.peek(0).tokenT != KEYWORD_TOK {
+		if p.peek(0).tokenT != DATATYPE_TOK {
 			return nil, errors.New("expected keyword")
 		}
 
-		castFunc.Type = &Identifier{
+		castFunc.DataType = &Identifier{
 			Value: p.peek(0).value.(string),
 		}
+
+		p.consume() // Consume datatype
+
+		// Look for RPAREN
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume RPAREN
+
+		return castFunc, nil
 
 	default:
 		return nil, errors.New("expected system function")

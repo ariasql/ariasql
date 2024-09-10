@@ -471,8 +471,8 @@ type LowerFunc struct {
 
 // CastFunc represents a CAST function
 type CastFunc struct {
-	Expr interface{}
-	Type *Identifier
+	Expr     interface{}
+	DataType *Identifier
 }
 
 // CoalesceFunc represents a COALESCE function
