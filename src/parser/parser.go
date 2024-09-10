@@ -2668,6 +2668,48 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 // parseSystemFunction parses system function like UPPER, LOWER, CAST, COALESCE, etc
 func (p *Parser) parseSystemFunc() (interface{}, error) {
 	switch p.peek(0).value {
+	case "CONCAT":
+		concatFunc := &ConcatFunc{}
+
+		p.consume() // Consume POSITION
+
+		// Look for LPAREN
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// Consume LPAREN
+		p.consume()
+		for p.peek(0).tokenT != RPAREN_TOK || p.peek(0).tokenT != EOF_TOK {
+
+			if p.peek(0).tokenT == RPAREN_TOK {
+				break
+			}
+
+			// Parse value expression
+			expr, err := p.parseValueExpression()
+			if err != nil {
+				return nil, err
+			}
+
+			concatFunc.Args = append(concatFunc.Args, expr)
+
+			// Look for ,
+			if p.peek(0).value == "," {
+				p.consume() // Consume ,
+			}
+
+		}
+
+		// Look for RPAREN
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume RPAREN
+
+		return concatFunc, nil
+
 	case "POSITION":
 		positionFunc := &PositionFunc{}
 

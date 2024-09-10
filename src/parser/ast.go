@@ -517,6 +517,5 @@ type SubstringFunc struct {
 
 // ConcatFunc represents a CONCAT function
 type ConcatFunc struct {
-	Arg     interface{} // Can be a column name or a string
-	Literal *Literal
+	Args []interface{} // Can be a column name or a string
 }
