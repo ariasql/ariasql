@@ -1642,6 +1642,25 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 // evaluateSystemFunc evaluates system functions like UPPER within a select list
 func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
 	switch expr := expr.(type) {
+	case *parser.RoundFunc:
+		for i, row := range *results {
+			for k, v := range row {
+				if _, ok := row[k].(float64); ok {
+					if expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+
+						if alias == nil {
+
+							(*results)[i][k] = math.Round(v.(float64))
+							*columns = append(*columns, k)
+						} else {
+							(*results)[i][alias.Value] = math.Round(v.(float64))
+							*columns = append(*columns, alias.Value)
+						}
+					}
+				}
+			}
+
+		}
 	case *parser.ReverseFunc:
 
 		for i, row := range *results {
