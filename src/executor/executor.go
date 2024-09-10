@@ -1613,7 +1613,14 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 			if err != nil {
 				return nil, err
 			}
-
+		case *parser.UpperFunc, *parser.LowerFunc, *parser.LengthFunc, *parser.PositionFunc, *parser.RoundFunc,
+			*parser.TrimFunc, *parser.SubstrFunc, *parser.ConcatFunc, *parser.CastFunc, *shared.GenUUID, *shared.SysDate,
+			*shared.SysTime, *shared.SysTimestamp:
+			var err error
+			err = evaluateSystemFunc(expr, &results, &columns, selectList.Expressions[i].Alias)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 	}
@@ -1629,6 +1636,25 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 	return results, nil
 
+}
+
+// evaluateSystemFunc
+func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
+	switch expr := expr.(type) {
+	case *parser.UpperFunc:
+		for i, row := range *results {
+			for k, v := range row {
+				if _, ok := row[k].(string); ok {
+					if expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value == k {
+						(*results)[i][k] = strings.ToUpper(v.(string))
+						*columns = append(*columns, k)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // evaluateAggregate evaluates an aggregate function
