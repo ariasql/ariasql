@@ -2732,6 +2732,37 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 // EvaluateValueExpression evaluates a value expression
 func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
 	switch expr := expr.Value.(type) {
+	case *parser.UpperFunc:
+		for i, row := range *rows {
+
+			newRow := map[string]interface{}{}
+			for k, v := range row {
+				// trim off the tablename if it exists
+
+				if strings.Contains(k, ".") {
+					newRow[strings.Split(k, ".")[1]] = v
+				} else {
+					newRow[k] = v
+
+				}
+			}
+
+			for k, v := range newRow {
+
+				if k == expr.Arg.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value {
+					// check if row value is string
+					if _, ok := v.(string); ok {
+						newRow[k] = strings.ToUpper(v.(string))
+						*rows = append(*rows, newRow)
+						*rows = append((*rows)[:i], (*rows)[i+1:]...)
+						return newRow[k]
+					}
+
+				}
+			}
+
+		}
+
 	case *parser.Literal:
 		return expr.Value
 	case *parser.ColumnSpecification:
