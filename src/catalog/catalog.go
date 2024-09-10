@@ -740,8 +740,14 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			}
 
 		case "UUID":
-			if _, ok := row[colName].(string); !ok {
+			if colDef.NotNull {
 				return -1, fmt.Errorf("column %s is not a string", colName)
+			} else if colDef.Default != nil {
+				if _, ok := colDef.Default.(*shared.GenUUID); ok {
+					row[colName] = uuid.New().String()
+				} else {
+					continue
+				}
 			}
 
 			// Check if valid UUID
