@@ -69,7 +69,6 @@ Above is expected for v1.0.0+ releases onto v2.0.0.
 - Java - [github.com/ariasql/ariasql-java]()  `IN DEVELOPMENT`
 - Ruby - [github.com/ariasql/ariasql-ruby]()  `IN DEVELOPMENT`
 - PHP - [github.com/ariasql/ariasql-php]()  `IN DEVELOPMENT`
-- C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
 - Rust - [github.com/ariasql/ariasql-rust]()  `IN DEVELOPMENT`
 - C - [github.com/ariasql/ariasql-c]()  `IN DEVELOPMENT`
 - C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
