@@ -63,7 +63,7 @@ Above is expected for v1.0.0 release.
 Above is expected for v1.0.0+ releases onto v2.0.0.
 
 ## Clients/Drivers
-- GO - [github.com/ariasql/ariasql-go]() `IN DEVELOPMENT`
+- GO - [github.com/ariasql/ariasql-go](github.com/ariasql/ariasql-go) `IN DEVELOPMENT`
 - Python - [github.com/ariasql/ariasql-py]()  `IN DEVELOPMENT`
 - NodeJS - [github.com/ariasql/ariasql-node]()  `IN DEVELOPMENT`
 - Java - [github.com/ariasql/ariasql-java]()  `IN DEVELOPMENT`
