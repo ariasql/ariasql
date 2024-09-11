@@ -5715,3 +5715,158 @@ func TestNewParserSelect63(t *testing.T) {
 		t.Fatalf("expected 'alex padula', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
 	}
 }
+
+func TestNewParserSelect64(t *testing.T) {
+	statement := []byte(`
+	SELECT
+		employee_name,
+		CASE
+			WHEN salary > 50000 THEN 'High'
+			WHEN salary BETWEEN 30000 AND 50000 THEN 'Medium'
+			ELSE 'Low'
+		END AS salary_category
+	FROM employees;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "employee_name" {
+		t.Fatalf("expected employee_name, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op != OP_GT {
+		t.Fatalf("expected >, got %d", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(50000) {
+		t.Fatalf("expected 50000, got %d", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value != "'High'" {
+		t.Fatalf("expected 'High', got %s", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Lower.Value.(*Literal).Value != uint64(30000) {
+		t.Fatalf("expected 30000, got %d", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Lower.Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Upper.Value.(*Literal).Value != uint64(50000) {
+		t.Fatalf("expected 50000, got %d", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Condition.(*BetweenPredicate).Upper.Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Result.(*ValueExpression).Value.(*Literal).Value != "'Medium'" {
+		t.Fatalf("expected 'Medium', got %s", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).WhenClauses[1].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value != "'Low'" {
+		t.Fatalf("expected 'Low', got %s", selectStmt.SelectList.Expressions[1].Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Alias.Value != "salary_category" {
+		t.Fatalf("expected salary_category, got %s", selectStmt.SelectList.Expressions[1].Alias.Value)
+
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "employees" {
+		t.Fatalf("expected employees, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+}
+
+func TestNewParserSelect65(t *testing.T) {
+	statement := []byte(`
+	SELECT *
+	FROM employees
+	WHERE
+		CASE
+			WHEN department = 'Sales' THEN
+				CASE
+					WHEN salary > 40000 THEN TRUE
+					ELSE FALSE
+				END
+			ELSE
+				CASE
+					WHEN salary > 30000 THEN TRUE
+					ELSE FALSE
+				END
+		END;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	sel, err := PrintAST(selectStmt)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	log.Println(sel)
+
+}

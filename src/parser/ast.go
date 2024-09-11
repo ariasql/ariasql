@@ -520,15 +520,19 @@ type ConcatFunc struct {
 	Args []interface{} // Can be a column name or a string
 }
 
-// CaseClause represents a CASE clause
-type CaseClause struct {
+// CaseExpr represents a CASE expression
+type CaseExpr struct {
 	WhenClauses []*WhenClause
 	ElseClause  interface{}
-	EndAs       interface{}
 }
 
 // WhenClause represents a WHEN clause
 type WhenClause struct {
 	Condition interface{}
-	Then      interface{}
+	Result    interface{}
+}
+
+// ElseClause represents an ELSE clause
+type ElseClause struct {
+	Result interface{}
 }

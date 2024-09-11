@@ -2027,6 +2027,13 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 		}
 
 	} else if p.peek(1).tokenT == KEYWORD_TOK {
+		// Check for case
+		if p.peek(0).value == "CASE" {
+			expr, err = p.parseCaseExpr()
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		switch p.peek(1).value {
 		case "BETWEEN":
@@ -2073,6 +2080,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 		}
 	} else if p.peek(0).tokenT == KEYWORD_TOK {
+
 		currentPos := p.pos
 
 		if p.peek(0).value == "AVG" || p.peek(0).value == "COUNT" || p.peek(0).value == "MAX" || p.peek(0).value == "MIN" || p.peek(0).value == "SUM" {
@@ -2623,6 +2631,35 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 			return &ValueExpression{
 				Value: expr,
 			}, nil
+		case "CASE":
+			caseExpr, err := p.parseCaseExpr()
+			if err != nil {
+				return nil, err
+			}
+
+			var alias *Identifier
+
+			// Check for alias
+			if p.peek(0).value == "AS" {
+				p.consume()
+
+				alias, err = p.parseIdentifier()
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			if alias != nil {
+				return &ValueExpression{
+					Value: caseExpr,
+					Alias: alias,
+				}, nil
+			} else {
+				return &ValueExpression{
+					Value: caseExpr,
+				}, nil
+			}
+
 		case "UPPER", "LOWER", "CAST",
 			"COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE", "CONCAT",
 			"SUBSTRING", "TRIM", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP":
@@ -2700,6 +2737,84 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		return nil, errors.New("expected column spec or aggregate function or subquery")
 	}
 
+}
+
+// parseCaseExpr parses a CASE expression
+func (p *Parser) parseCaseExpr() (*CaseExpr, error) {
+	caseExpr := &CaseExpr{}
+
+	p.consume() // Consume CASE
+
+	// Parse when clauses
+	for p.peek(0).value != "ELSE" {
+		whenClause, err := p.parseWhenClause()
+		if err != nil {
+			return nil, err
+		}
+
+		caseExpr.WhenClauses = append(caseExpr.WhenClauses, whenClause)
+	}
+
+	// Eat ELSE
+	p.consume()
+
+	// Parse else clause
+	elseClause, err := p.parseElseClause()
+	if err != nil {
+		return nil, err
+	}
+
+	caseExpr.ElseClause = elseClause
+
+	// Eat END
+	p.consume()
+
+	return caseExpr, nil
+
+}
+
+// parseWhenClause parses a WHEN clause
+func (p *Parser) parseWhenClause() (*WhenClause, error) {
+	whenClause := &WhenClause{}
+
+	p.consume() // Consume WHEN
+
+	// Parse search condition
+	searchCondition, err := p.parseSearchCondition()
+	if err != nil {
+		return nil, err
+	}
+
+	whenClause.Condition = searchCondition
+
+	// Eat THEN
+	p.consume()
+
+	// Parse result
+	result, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	whenClause.Result = result
+
+	return whenClause, nil
+
+}
+
+// parseElseClause
+func (p *Parser) parseElseClause() (*ElseClause, error) {
+	elseClause := &ElseClause{}
+
+	// Parse result
+	result, err := p.parseValueExpression()
+	if err != nil {
+		return nil, err
+	}
+
+	elseClause.Result = result
+
+	return elseClause, nil
 }
 
 // parseSystemFunction parses system function like UPPER, LOWER, CAST, COALESCE, etc

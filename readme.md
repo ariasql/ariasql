@@ -38,25 +38,26 @@ With AriaSQL in the future, you can expect a dependable and straightforward data
 - [ ] Triggers
 - [ ] Stored Procedures
 - [ ] Cursors
-- [ ] CASE Statements
+- [ ] CASE Statements (Within select list and where clauses)
 - [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
 - [x] CHECK constraint
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
+- [ ] Logging to file (aria.log)
 - [ ] Roles
 - [ ] Alter table
 
 Above is expected for v1.0.0 release.
 
 ### v1.0.0+
-- [ ] Replication
+- [ ] Replication - Replication to slave nodes, replicates data from master to slave nodes.
 - [ ] CTEs (Common Table Expressions)
-- [ ] Window Functions
-- [ ] Import/ Export (CSV, JSON, XML) - Would be from (asql AriaSQL CLI or AriaSQL Developer)
-- [ ] Encryption (ChaCha20)
-- [ ] Compression (ZSTD)
-- [ ] Execution Plan using EXPLAIN
+- [ ] Window Functions - A common function used in SQL to perform calculations across a set of table rows that are related to the current row.
+- [ ] Import/ Export (CSV, JSON, XML) - From (asql AriaSQL CLI or AriaSQL Developer)
+- [ ] Encryption (ChaCha20) - After data is compressed it can be encrypted for storage
+- [ ] Compression (ZSTD) - Compresses row data for storage
+- [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
 - [ ] Cascading options for CREATE TABLE i.e `ON DELETE CASCADE|SET NULL|SET DEFAULT|NO ACTION` `ON UPDATE CASCADE|SET NULL|SET DEFAULT|NO ACTION`
 
 Above is expected for v1.0.0+ releases onto v2.0.0.
@@ -70,9 +71,19 @@ Above is expected for v1.0.0+ releases onto v2.0.0.
 - PHP - [github.com/ariasql/ariasql-php]()  `IN DEVELOPMENT`
 - C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
 - Rust - [github.com/ariasql/ariasql-rust]()  `IN DEVELOPMENT`
+- C - [github.com/ariasql/ariasql-c]()  `IN DEVELOPMENT`
+- C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
+- Objective-C - [github.com/ariasql/ariasql-objc]()  `IN DEVELOPMENT`
 - C++ - [github.com/ariasql/ariasql-cpp]()  `IN DEVELOPMENT`
 - Swift - [github.com/ariasql/ariasql-swift]()  `IN DEVELOPMENT`
 - Kotlin - [github.com/ariasql/ariasql-kotlin]()  `IN DEVELOPMENT`
+- Scala - [github.com/ariasql/ariasql-scala]()  `IN DEVELOPMENT`
+- Perl - [github.com/ariasql/ariasql-perl]()  `IN DEVELOPMENT`
+- Lua - [github.com/ariasql/ariasql-lua]()  `IN DEVELOPMENT`
+- R - [github.com/ariasql/ariasql-r]()  `IN DEVELOPMENT`
+- Julia - [github.com/ariasql/ariasql-julia]()  `IN DEVELOPMENT`
+- Dart - [github.com/ariasql/ariasql-dart]()  `IN DEVELOPMENT`
+
 
 ## GUI
 - AriaSQL Developer - [github.com/ariasql/developer]() `IN DEVELOPMENT`
