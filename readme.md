@@ -2,7 +2,13 @@
     <h1 align="center"><img width="228" src="artwork/ariasql-logov1.png"></h1>
 </div>
 
-AriaSQL is an open source multi-platform relational database server.  AriaSQL is designed to be lightweight and fast with a focus on simplicity and ease of use.
+AriaSQL is a fairly versatile relational database management system designed to address a variety of data management needs with ease and efficiency.
+It combines essential features with practical performance enhancements to provide a solid foundation for handling both simple and complex database tasks.
+
+At its core, AriaSQL supports a range of SQL functionalities with a focus on delivering efficient query execution and data integrity. Its indexing system, based on BTrees, and its optimized execution engine work together to ensure responsive performance and effective data retrieval.
+Some features include support for transactions with rollback capabilities, Write-Ahead Logging (WAL) for data durability, and user authentication for secure access. AriaSQL also supports a variety of data types and constraints, allowing for flexible data modeling and validation.
+Looking ahead, AriaSQL aims to expand its feature set to include additional capabilities such as views, triggers, and stored procedures, further enhancing its versatility and utility.
+With AriaSQL in the future, you can expect a dependable and straightforward database solution that adapts to your needs while maintaining a focus on performance and security.
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
