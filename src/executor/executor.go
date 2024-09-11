@@ -1613,6 +1613,13 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 			if err != nil {
 				return nil, err
 			}
+		case *parser.CaseExpr:
+			var err error
+
+			err = ex.evaluateSelectCase(expr, &results, &columns, selectList.Expressions[i].Alias)
+			if err != nil {
+				return nil, err
+			}
 		case *parser.UpperFunc, *parser.LowerFunc, *parser.LengthFunc, *parser.PositionFunc, *parser.RoundFunc,
 			*parser.TrimFunc, *parser.SubstrFunc, *parser.ConcatFunc, *parser.CastFunc, *shared.GenUUID, *shared.SysDate,
 			*shared.SysTime, *shared.SysTimestamp, *parser.CoalesceFunc, *parser.ReverseFunc:
@@ -1636,6 +1643,56 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 	return results, nil
 
+}
+
+// evaluateSelectCase evaluates a case expression within a select list
+func (ex *Executor) evaluateSelectCase(expr interface{}, results *[]map[string]interface{}, columns *[]string, alias *parser.Identifier) error {
+	switch expr := expr.(type) {
+	case *parser.CaseExpr:
+		for i, _ := range *results {
+
+			if len(expr.WhenClauses) == 0 {
+				return errors.New("no when clauses in case expression")
+			}
+
+			for _, when := range expr.WhenClauses {
+
+				ok := ex.evaluateCondition(when.Condition, results, nil, nil)
+
+				if ok {
+					var result interface{}
+
+					switch when.Result.(*parser.ValueExpression).Value.(type) {
+					case *parser.ColumnSpecification:
+						result = (*results)[i][when.Result.(*parser.ValueExpression).Value.(*parser.ColumnSpecification).ColumnName.Value]
+					case *parser.Literal:
+						result = when.Result.(*parser.ValueExpression).Value.(*parser.Literal).Value
+					case *parser.BinaryExpression:
+						err := evaluateBinaryExpression(when.Result.(*parser.ValueExpression).Value.(*parser.BinaryExpression), &result, results)
+						if err != nil {
+							return err
+						}
+
+					}
+
+					if alias == nil {
+						(*results)[i]["case_result"] = result
+						*columns = append(*columns, "case_result")
+					} else {
+						(*results)[i][alias.Value] = result
+						*columns = append(*columns, alias.Value)
+					}
+				}
+			}
+
+			// in the CASE of CASE ;)
+			// We use the furthest left column, thats the column we are evaluating and updating
+			// We can find that in the first when condition
+
+		}
+	}
+
+	return nil
 }
 
 // evaluateSystemFunc evaluates system functions like UPPER within a select list
