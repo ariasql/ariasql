@@ -5862,11 +5862,70 @@ func TestNewParserSelect65(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
 	}
 
-	log.Println(sel)
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "employees" {
+		t.Fatalf("expected employees, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
 
+	if selectStmt.TableExpression.WhereClause == nil {
+		t.Fatal("expected non-nil WhereClause")
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "department" {
+		t.Fatalf("expected department, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != "'Sales'" {
+		t.Fatalf("expected 'Sales', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op != OP_GT {
+		t.Fatalf("expected >, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(40000) {
+		t.Fatalf("expected 40000, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value != true {
+		t.Fatalf("expected TRUE, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value != false {
+		t.Fatalf("expected FALSE, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op != OP_GT {
+		t.Fatalf("expected >, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(30000) {
+		t.Fatalf("expected 30000, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value != true {
+		t.Fatalf("expected TRUE, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
 }
