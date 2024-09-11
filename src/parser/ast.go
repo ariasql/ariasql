@@ -519,3 +519,16 @@ type SubstrFunc struct {
 type ConcatFunc struct {
 	Args []interface{} // Can be a column name or a string
 }
+
+// CaseClause represents a CASE clause
+type CaseClause struct {
+	WhenClauses []*WhenClause
+	ElseClause  interface{}
+	EndAs       interface{}
+}
+
+// WhenClause represents a WHEN clause
+type WhenClause struct {
+	Condition interface{}
+	Then      interface{}
+}
