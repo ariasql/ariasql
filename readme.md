@@ -64,24 +64,24 @@ Above is expected for v1.0.0+ releases onto v2.0.0.
 
 ## Clients/Drivers
 - GO - [github.com/ariasql/ariasql-go](https://github.com/ariasql/ariasql-go) `IN DEVELOPMENT`
-- Python - [github.com/ariasql/ariasql-py]()  `IN DEVELOPMENT`
-- NodeJS - [github.com/ariasql/ariasql-node]()  `IN DEVELOPMENT`
-- Java - [github.com/ariasql/ariasql-java]()  `IN DEVELOPMENT`
-- Ruby - [github.com/ariasql/ariasql-ruby]()  `IN DEVELOPMENT`
-- PHP - [github.com/ariasql/ariasql-php]()  `IN DEVELOPMENT`
-- Rust - [github.com/ariasql/ariasql-rust]()  `IN DEVELOPMENT`
-- C - [github.com/ariasql/ariasql-c]()  `IN DEVELOPMENT`
-- C# - [github.com/ariasql/ariasql-csharp]()  `IN DEVELOPMENT`
-- Objective-C - [github.com/ariasql/ariasql-objc]()  `IN DEVELOPMENT`
-- C++ - [github.com/ariasql/ariasql-cpp]()  `IN DEVELOPMENT`
-- Swift - [github.com/ariasql/ariasql-swift]()  `IN DEVELOPMENT`
-- Kotlin - [github.com/ariasql/ariasql-kotlin]()  `IN DEVELOPMENT`
-- Scala - [github.com/ariasql/ariasql-scala]()  `IN DEVELOPMENT`
-- Perl - [github.com/ariasql/ariasql-perl]()  `IN DEVELOPMENT`
-- Lua - [github.com/ariasql/ariasql-lua]()  `IN DEVELOPMENT`
-- R - [github.com/ariasql/ariasql-r]()  `IN DEVELOPMENT`
-- Julia - [github.com/ariasql/ariasql-julia]()  `IN DEVELOPMENT`
-- Dart - [github.com/ariasql/ariasql-dart]()  `IN DEVELOPMENT`
+- Python - [github.com/ariasql/ariasql-py](https://github.com/ariasql/ariasql-py)  `IN DEVELOPMENT`
+- NodeJS - [github.com/ariasql/ariasql-node](https://github.com/ariasql/ariasql-node)  `IN DEVELOPMENT`
+- Java - [github.com/ariasql/ariasql-java](https://github.com/ariasql/ariasql-java)  `IN DEVELOPMENT`
+- Ruby - [github.com/ariasql/ariasql-ruby](https://github.com/ariasql/ariasql-ruby)  `IN DEVELOPMENT`
+- PHP - [github.com/ariasql/ariasql-php](https://github.com/ariasql/ariasql-php)  `IN DEVELOPMENT`
+- Rust - [github.com/ariasql/ariasql-rust](https://github.com/ariasql/ariasql-rust)  `IN DEVELOPMENT`
+- C - [github.com/ariasql/ariasql-c](https://github.com/ariasql/ariasql-c)  `IN DEVELOPMENT`
+- C# - [github.com/ariasql/ariasql-csharp](https://github.com/ariasql/ariasql-csharp)  `IN DEVELOPMENT`
+- Objective-C - [github.com/ariasql/ariasql-objc](https://github.com/ariasql/ariasql-objc)  `IN DEVELOPMENT`
+- C++ - [github.com/ariasql/ariasql-cpp](https://github.com/ariasql/ariasql-cpp)  `IN DEVELOPMENT`
+- Swift - [github.com/ariasql/ariasql-swift](https://github.com/ariasql/ariasql-swift)  `IN DEVELOPMENT`
+- Kotlin - [github.com/ariasql/ariasql-kotlin](https://github.com/ariasql/ariasql-kotlin)  `IN DEVELOPMENT`
+- Scala - [github.com/ariasql/ariasql-scala](https://github.com/ariasql/ariasql-scala)  `IN DEVELOPMENT`
+- Perl - [github.com/ariasql/ariasql-perl](https://github.com/ariasql/ariasql-perl)  `IN DEVELOPMENT`
+- Lua - [github.com/ariasql/ariasql-lua](https://github.com/ariasql/ariasql-lua)  `IN DEVELOPMENT`
+- R - [github.com/ariasql/ariasql-r](https://github.com/ariasql/ariasql-r)  `IN DEVELOPMENT`
+- Julia - [github.com/ariasql/ariasql-julia](https://github.com/ariasql/ariasql-julia)  `IN DEVELOPMENT`
+- Dart - [github.com/ariasql/ariasql-dart](https://github.com/ariasql/ariasql-dart)  `IN DEVELOPMENT`
 
 
 ## GUI
