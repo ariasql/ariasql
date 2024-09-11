@@ -1115,7 +1115,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 }
 
-// executeUpdateStmt
+// executeUpdateStmt updates rows in a table
 func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[string]interface{}, error) {
 	var rowIds []int64                // Updated row ids
 	var rows []map[string]interface{} // Rows to update
@@ -1169,6 +1169,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 
 }
 
+// executeDeleteStmt deletes rows from a table
 func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[string]interface{}, error) {
 	var rowIds []int64                // Updated row ids
 	var rows []map[string]interface{} // Rows before deletion
@@ -2849,6 +2850,13 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 		case parser.OP_NOT:
 			return !ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		}
+	case *parser.CaseExpr:
+		// check if left is column spec
+		err := ex.evaluateCaseExpr(condition, rows, tbls, filteredRows)
+		if err != nil {
+			return false
+		}
+
 	case *parser.InPredicate:
 		// check if left is column spec
 		if _, ok := condition.Left.Value.(*parser.ColumnSpecification); ok {
@@ -3290,6 +3298,60 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 	}
 
 	return false
+}
+
+// evaluateCaseExpr evaluates a case expression with a where clause
+func (ex *Executor) evaluateCaseExpr(expr *parser.CaseExpr, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) error {
+	// If there is no where clause, we return true
+	if expr == nil {
+		return nil
+	}
+
+	// If there is a where clause, we evaluate the condition
+	return ex.evaluateCaseCondition(expr, rows, tbls, filteredRows)
+
+}
+
+// EvaluateCaseCondition evaluates a case condition
+func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) error {
+	// If there is no condition, we return true
+	if expr == nil {
+		return nil
+	}
+
+	col := "" // column name of where we will be updating
+
+	// Check first when clause for left column
+	switch expr.WhenClauses[0].Condition.(type) {
+	case *parser.ComparisonPredicate:
+		col = expr.WhenClauses[0].Condition.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+	case *parser.InPredicate:
+		col = expr.WhenClauses[0].Condition.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+	case *parser.BetweenPredicate:
+		col = expr.WhenClauses[0].Condition.(*parser.BetweenPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+	case *parser.LikePredicate:
+		col = expr.WhenClauses[0].Condition.(*parser.LikePredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+	case *parser.IsPredicate:
+		col = expr.WhenClauses[0].Condition.(*parser.IsPredicate).Left.Value.(*parser.ColumnSpecification).ColumnName.Value
+
+	}
+
+	for _, when := range expr.WhenClauses {
+		if when.Condition != nil {
+			if ex.evaluateCondition(when.Condition, rows, tbls, filteredRows) {
+				for i, row := range *rows {
+					for k, _ := range row {
+						if k == col {
+							(*rows)[i][col] = when.Result.(*parser.ValueExpression).Value.(*parser.Literal).Value
+						}
+					}
+				}
+
+			}
+		}
+	}
+
+	return nil
 }
 
 // EvaluateValueExpression evaluates a value expression

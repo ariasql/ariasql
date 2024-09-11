@@ -2021,7 +2021,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 	if p.peek(1).tokenT == COMPARISON_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == DIVIDE_TOK || p.peek(1).tokenT == MODULUS_TOK || p.peek(1).tokenT == AT_TOK {
 		// Parse comparison expression
-		expr, err = p.parseComparisonExpr()
+		expr, err = p.parseComparisonExpr(nil)
 		if err != nil {
 			return nil, err
 		}
@@ -2033,13 +2033,79 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			// Check next token
+			// Case can be evaluated as a left side of a predicate
+			if p.peek(0).tokenT == COMPARISON_TOK || p.peek(0).tokenT == ASTERISK_TOK || p.peek(0).tokenT == PLUS_TOK || p.peek(0).tokenT == MINUS_TOK || p.peek(0).tokenT == DIVIDE_TOK || p.peek(0).tokenT == MODULUS_TOK || p.peek(0).tokenT == AT_TOK {
+				// Parse comparison expression
+				expr, err = p.parseComparisonExpr(&ValueExpression{
+					Value: expr,
+				})
+				if err != nil {
+					return nil, err
+				}
+			} else if p.peek(0).tokenT == KEYWORD_TOK {
+				switch p.peek(0).value {
+				case "BETWEEN":
+					// Parse between expression
+					expr, err = p.parseBetweenExpr(&ValueExpression{
+						Value: expr,
+					})
+					if err != nil {
+						return nil, err
+					}
+
+					if not != nil {
+						not.Expr = expr
+						expr = not
+					}
+				case "IN":
+					// Parse in expression
+					expr, err = p.parseInExpr(&ValueExpression{
+						Value: expr,
+					})
+					if err != nil {
+						return nil, err
+					}
+
+					if not != nil {
+						not.Expr = expr
+						expr = not
+					}
+				case "LIKE":
+					// Parse like expression
+					expr, err = p.parseLikeExpr(&ValueExpression{
+						Value: expr,
+					})
+					if err != nil {
+						return nil, err
+					}
+
+					if not != nil {
+						not.Expr = expr
+						expr = not
+					}
+				case "IS":
+					// Parse is expression
+					expr, err = p.parseIsExpr(&ValueExpression{
+						Value: expr,
+					})
+					if err != nil {
+						return nil, err
+					}
+				default:
+					return nil, errors.New("expected predicate or logical expression")
+
+				}
+			}
+
 		}
 
 		switch p.peek(1).value {
 		case "BETWEEN":
 
 			// Parse between expression
-			expr, err = p.parseBetweenExpr()
+			expr, err = p.parseBetweenExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2051,7 +2117,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 		case "IN":
 			// Parse in expression
-			expr, err = p.parseInExpr()
+			expr, err = p.parseInExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2062,7 +2128,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 		case "LIKE":
 			// Parse like expression
-			expr, err = p.parseLikeExpr()
+			expr, err = p.parseLikeExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2073,7 +2139,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 		case "IS":
 			// Parse is expression
-			expr, err = p.parseIsExpr()
+			expr, err = p.parseIsExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2100,7 +2166,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			// Parse comparison expression
 			p.pos = currentPos
 
-			expr, err = p.parseComparisonExpr()
+			expr, err = p.parseComparisonExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2111,7 +2177,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 		case "BETWEEN":
 
 			// Parse between expression
-			expr, err = p.parseBetweenExpr()
+			expr, err = p.parseBetweenExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2123,7 +2189,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 
 		case "IN":
 			// Parse in expression
-			expr, err = p.parseInExpr()
+			expr, err = p.parseInExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2134,7 +2200,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 		case "LIKE":
 			// Parse like expression
-			expr, err = p.parseLikeExpr()
+			expr, err = p.parseLikeExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2145,7 +2211,7 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 			}
 		case "IS":
 			// Parse is expression
-			expr, err = p.parseIsExpr()
+			expr, err = p.parseIsExpr(nil)
 			if err != nil {
 				return nil, err
 			}
@@ -2171,11 +2237,15 @@ func (p *Parser) parseSearchCondition() (interface{}, error) {
 }
 
 // parseLikeExpr parses a LIKE expression
-func (p *Parser) parseLikeExpr() (*LikePredicate, error) {
+func (p *Parser) parseLikeExpr(left *ValueExpression) (*LikePredicate, error) {
 	// Parse left side of like expression
-	left, err := p.parseValueExpression()
-	if err != nil {
-		return nil, err
+
+	if left == nil {
+		var err error
+		left, err = p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Eat LIKE
@@ -2195,11 +2265,14 @@ func (p *Parser) parseLikeExpr() (*LikePredicate, error) {
 }
 
 // parseIsExpr parses an IS expression
-func (p *Parser) parseIsExpr() (*IsPredicate, error) {
+func (p *Parser) parseIsExpr(left *ValueExpression) (*IsPredicate, error) {
 	// Parse left side of is expression
-	left, err := p.parseValueExpression()
-	if err != nil {
-		return nil, err
+	if left == nil {
+		var err error
+		left, err = p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Eat IS
@@ -2235,11 +2308,15 @@ func (p *Parser) parseIsExpr() (*IsPredicate, error) {
 }
 
 // parseInExpr parses an IN expression
-func (p *Parser) parseInExpr() (*InPredicate, error) {
+func (p *Parser) parseInExpr(left *ValueExpression) (*InPredicate, error) {
 	// Parse left side of in expression
-	left, err := p.parseValueExpression()
-	if err != nil {
-		return nil, err
+
+	if left == nil {
+		var err error
+		left, err = p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Eat IN
@@ -2295,13 +2372,16 @@ func (p *Parser) parseInExpr() (*InPredicate, error) {
 }
 
 // parseBetweenExpr parses a between expression
-func (p *Parser) parseBetweenExpr() (*BetweenPredicate, error) {
+func (p *Parser) parseBetweenExpr(left *ValueExpression) (*BetweenPredicate, error) {
 	// check for not if there remove
 
-	// Parse left side of between expression
-	left, err := p.parseValueExpression()
-	if err != nil {
-		return nil, err
+	if left == nil {
+		var err error
+		// Parse left side of between expression
+		left, err = p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Eat BETWEEN
@@ -2331,11 +2411,14 @@ func (p *Parser) parseBetweenExpr() (*BetweenPredicate, error) {
 }
 
 // parseComparisonExpr parses a comparison expression
-func (p *Parser) parseComparisonExpr() (*ComparisonPredicate, error) {
+func (p *Parser) parseComparisonExpr(left *ValueExpression) (*ComparisonPredicate, error) {
 	// Parse left side of comparison
-	left, err := p.parseValueExpression()
-	if err != nil {
-		return nil, err
+	if left == nil {
+		var err error
+		left, err = p.parseValueExpression()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Parse comparison operator

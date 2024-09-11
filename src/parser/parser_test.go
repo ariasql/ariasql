@@ -5929,3 +5929,111 @@ func TestNewParserSelect65(t *testing.T) {
 		t.Fatalf("expected TRUE, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value)
 	}
 }
+
+func TestNewParserSelect66(t *testing.T) {
+	statement := []byte(`
+	SELECT username
+	FROM users
+	WHERE CASE 
+		WHEN money > 30 THEN 'rich class'
+		WHEN money < 30 THEN 'poor class'
+		ELSE 'middle class'
+		END = 'poor class'
+	;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList == nil {
+		t.Fatal("expected non-nil SelectList")
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "username" {
+		t.Fatalf("expected username, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "users" {
+		t.Fatalf("expected users, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause == nil {
+		t.Fatal("expected non-nil WhereClause")
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op != OP_GT {
+		t.Fatalf("expected >, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "money" {
+		t.Fatalf("expected money, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(30) {
+		t.Fatalf("expected 30, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value != "'rich class'" {
+		t.Fatalf("expected 'rich class', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[0].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Op != OP_LT {
+		t.Fatalf("expected <, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Op)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "money" {
+		t.Fatalf("expected money, got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value != uint64(30) {
+		t.Fatalf("expected 30, got %d", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Condition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Result.(*ValueExpression).Value.(*Literal).Value != "'poor class'" {
+		t.Fatalf("expected 'poor class', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).WhenClauses[1].Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value != "'middle class'" {
+		t.Fatalf("expected 'middle class', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*CaseExpr).ElseClause.(*ElseClause).Result.(*ValueExpression).Value.(*Literal).Value)
+	}
+
+	if selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value != "'poor class'" {
+		t.Fatalf("expected 'poor class', got %s", selectStmt.TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Literal).Value)
+	}
+
+}
