@@ -32,6 +32,10 @@ AriaSQL is a versatile relational database management system designed and engine
 - [ ] Triggers
 - [ ] Stored Procedures
 - [ ] Cursors
+- [ ] CTEs (Common Table Expressions)
+- [ ] Window Functions
+- [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
+- [ ] Cascading options for CREATE TABLE i.e `ON DELETE CASCADE|SET NULL|SET DEFAULT|NO ACTION` `ON UPDATE CASCADE|SET NULL|SET DEFAULT|NO ACTION`
 - [x] CASE expressions (Within select list and where clauses)
 - [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
@@ -40,21 +44,15 @@ AriaSQL is a versatile relational database management system designed and engine
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
 - [ ] Logging to file (aria.log)
 - [ ] Roles
-- [ ] Alter table
+- [ ] Alter table (migration)
 
 Above is expected for v1.0.0 release.
 
-### v1.0.0+
+### v1.0.0+ - v2.0.0
 - [ ] Replication - Replication to slave nodes, replicates data from master to slave nodes.
-- [ ] CTEs (Common Table Expressions)
-- [ ] Window Functions
 - [ ] Import/ Export (CSV, JSON, XML) - From (asql AriaSQL CLI or AriaSQL Developer)
 - [ ] Encryption (ChaCha20) - After data is compressed it can be encrypted for storage
 - [ ] Compression (ZSTD) - Compresses row data for storage
-- [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
-- [ ] Cascading options for CREATE TABLE i.e `ON DELETE CASCADE|SET NULL|SET DEFAULT|NO ACTION` `ON UPDATE CASCADE|SET NULL|SET DEFAULT|NO ACTION`
-
-Above is expected for v1.0.0+ releases onto v2.0.0.
 
 ## Clients/Drivers
 - GO - [github.com/ariasql/ariasql-go](https://github.com/ariasql/ariasql-go) `IN DEVELOPMENT`
