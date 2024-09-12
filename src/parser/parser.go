@@ -554,10 +554,87 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseShowStmt()
 		case "ALTER":
 			return p.parseAlterStmt()
+		case "DECLARE":
+			return p.parseDeclareStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseDeclareStmt
+func (p *Parser) parseDeclareStmt() (Node, error) {
+	p.consume() // Consume DECLARE
+
+	if p.peek(0).tokenT != IDENT_TOK && p.peek(0).value != "@" {
+		return nil, errors.New("expected identifier")
+	}
+
+	// if the ident starts with a @
+	if strings.HasPrefix(p.peek(0).value.(string), "@") {
+		if p.peek(1).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		// we know it's a cursor variable not a cursor
+		cursorVariableName := p.peek(0).value.(string) + p.peek(1).value.(string)
+
+		// consume the cursor variable name
+		p.consume()
+
+		p.consume()
+
+		// Check for datatype
+		if p.peek(0).tokenT != DATATYPE_TOK {
+			return nil, errors.New("expected datatype")
+		}
+
+		// consume the datatype
+		cursorVariableDataType := p.peek(0).value.(string)
+
+		// consume the datatype
+		p.consume()
+
+		return &DeclareStmt{
+			CursorVariableName: &Identifier{Value: cursorVariableName},
+			CursorVariableDataType: &Identifier{
+				Value: cursorVariableDataType,
+			},
+		}, nil
+
+	} else {
+		// we know it's a cursor
+		cursorName := p.peek(0).value.(string)
+
+		// consume the cursor name
+		p.consume()
+
+		// look gor CURSOR FOR
+		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "CURSOR" {
+			return nil, errors.New("expected CURSOR")
+		}
+
+		p.consume() // Consume CURSOR
+
+		if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "FOR" {
+			return nil, errors.New("expected FOR")
+		}
+
+		p.consume() // Consume FOR
+
+		// parse select statement
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		return &DeclareStmt{
+			CursorName: &Identifier{Value: cursorName},
+			CursorStmt: selectStmt.(*SelectStmt),
+		}, nil
+
+	}
 
 }
 

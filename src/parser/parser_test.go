@@ -6037,3 +6037,115 @@ func TestNewParserSelect66(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDeclare(t *testing.T) {
+	statement := []byte(`
+	DECLARE @ProductID INT;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	declareStmt, ok := stmt.(*DeclareStmt)
+	if !ok {
+		t.Fatalf("expected *DeclareStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(declareStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if declareStmt.CursorVariableName.Value != "@ProductID" {
+		t.Fatalf("expected @ProductID, got %s", declareStmt.CursorVariableName.Value)
+	}
+
+	if declareStmt.CursorVariableDataType.Value != "INT" {
+		t.Fatalf("expected INT, got %s", declareStmt.CursorVariableDataType.Value)
+	}
+}
+
+func TestNewParserDeclare2(t *testing.T) {
+	statement := []byte(`
+	DECLARE product_cursor CURSOR FOR SELECT ProductID FROM Products WHERE DiscontinuedDate IS NULL; 
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	declareStmt, ok := stmt.(*DeclareStmt)
+	if !ok {
+		t.Fatalf("expected *DeclareStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(declareStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if declareStmt.CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", declareStmt.CursorName.Value)
+	}
+
+	if declareStmt.CursorStmt == nil {
+		t.Fatal("expected non-nil CursorStmt")
+	}
+
+	if declareStmt.CursorStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "ProductID" {
+		t.Fatalf("expected ProductID, got %s", declareStmt.CursorStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if declareStmt.CursorStmt.TableExpression.FromClause.Tables[0].Name.Value != "Products" {
+		t.Fatalf("expected Products, got %s", declareStmt.CursorStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if declareStmt.CursorStmt.TableExpression.WhereClause.SearchCondition.(*IsPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "DiscontinuedDate" {
+		t.Fatalf("expected DiscontinuedDate, got %s", declareStmt.CursorStmt.TableExpression.WhereClause.SearchCondition.(*IsPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if !declareStmt.CursorStmt.TableExpression.WhereClause.SearchCondition.(*IsPredicate).Null {
+		t.Fatalf("expected true, got %v", declareStmt.CursorStmt.TableExpression.WhereClause.SearchCondition.(*IsPredicate).Null)
+	}
+}

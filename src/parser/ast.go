@@ -541,8 +541,10 @@ type ElseClause struct {
 
 // DeclareStmt declares a cursor variable or cursor
 type DeclareStmt struct {
-	CursorName   *Identifier
-	VariableName *Identifier // @variable_name
+	CursorName             *Identifier
+	CursorStmt             *SelectStmt
+	CursorVariableName     *Identifier // @variable_name
+	CursorVariableDataType *Identifier // variable data type
 }
 
 // OpenStmt opens a cursor

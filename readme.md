@@ -359,7 +359,7 @@ DECLARE @PRODUCT_ID INT;
 Declare a cursor.
 ```
 DECLARE PRODUCT_CURSOR
-CURSOR FOR SELECT ProductID FROM Production.Product WHERE DiscontinuedDate IS NULL;
+CURSOR FOR SELECT ProductID FROM Products WHERE DiscontinuedDate IS NULL;
 ```
 
 Open the cursor.
