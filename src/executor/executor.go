@@ -36,19 +36,20 @@ import (
 
 // Executor is the main executor structure
 type Executor struct {
-	aria             *core.AriaSQL // AriaSQL instance pointer
-	ch               *core.Channel // Channel pointer
-	json             bool          // Enable JSON output, default is false, set by client from server usually
-	recover          bool          // Recover flag
-	Transaction      *Transaction  // Transaction statements
-	TransactionBegun bool          // Transaction begun
-	ResultSetBuffer  []byte        // Result set buffer
-	cursors          map[string]*Cursor
+	aria             *core.AriaSQL      // AriaSQL instance pointer
+	ch               *core.Channel      // Channel pointer
+	json             bool               // Enable JSON output, default is false, set by client from server usually
+	recover          bool               // Recover flag
+	Transaction      *Transaction       // Transaction statements
+	TransactionBegun bool               // Transaction begun
+	ResultSetBuffer  []byte             // Result set buffer
+	cursors          map[string]*Cursor // Allocated cursors
 }
 
 // Cursor represents a cursor
 type Cursor struct {
-
+	vars  map[string]interface{}     // Defined cursor variables
+	iters [][]map[string]interface{} // Iterators
 }
 
 // Transaction represents a transaction

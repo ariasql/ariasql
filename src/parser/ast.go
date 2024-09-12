@@ -536,3 +536,72 @@ type WhenClause struct {
 type ElseClause struct {
 	Result interface{}
 }
+
+// Cursor structures
+
+// DeclareStmt declares a cursor variable or cursor
+type DeclareStmt struct {
+	CursorName   *Identifier
+	VariableName *Identifier // @variable_name
+}
+
+// OpenStmt opens a cursor
+type OpenStmt struct {
+	CursorName *Identifier
+}
+
+// FetchStmt fetches a row from a cursor
+type FetchStmt struct {
+	CursorName *Identifier
+	Into       []*Identifier
+}
+
+// WhileStmt represents a WHILE loop
+type WhileStmt struct {
+	Condition interface{}
+}
+
+// PrintStmt represents a PRINT statement
+type PrintStmt struct {
+	Expr interface{}
+}
+
+// BeginEndBlock represents a BEGIN...END block
+type BeginEndBlock struct {
+	Statements []Statement
+}
+
+// IfStmt represents an IF statement
+type IfStmt struct {
+	Condition interface{}
+}
+
+type ElseIfStmt struct {
+	Condition interface{}
+}
+
+// ExitStmt represents an EXIT statement within a loop
+type ExitStmt struct{}
+
+// BreakStmt represents a BREAK statement within a loop
+type BreakStmt struct{}
+
+// ReturnStmt represents a RETURN statement like RETURN 1;
+type ReturnStmt struct {
+	Expr interface{}
+}
+
+// SetStmt represents a SET statement like SET @variable_name = 1;
+type SetStmt struct {
+	Variable *Identifier
+}
+
+// CloseStmt represents a CLOSE statement
+type CloseStmt struct {
+	CursorName *Identifier
+}
+
+// DeallocateStmt represents a DEALLOCATE statement
+type DeallocateStmt struct {
+	CursorName *Identifier
+}
