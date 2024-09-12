@@ -576,6 +576,7 @@ type IfStmt struct {
 	Condition interface{}
 }
 
+// ElseIfStmt represents an ELSE IF statement
 type ElseIfStmt struct {
 	Condition interface{}
 }
