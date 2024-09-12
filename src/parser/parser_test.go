@@ -6217,7 +6217,7 @@ func TestNewParserClose(t *testing.T) {
 
 	closeStmt, ok := stmt.(*CloseStmt)
 	if !ok {
-		t.Fatalf("expected *OpenStmt, got %T", stmt)
+		t.Fatalf("expected *CloseStmt, got %T", stmt)
 	}
 
 	if err != nil {
@@ -6261,7 +6261,7 @@ func TestNewParserDeallocate(t *testing.T) {
 
 	dealloStmt, ok := stmt.(*DeallocateStmt)
 	if !ok {
-		t.Fatalf("expected *OpenStmt, got %T", stmt)
+		t.Fatalf("expected *DeallocateStmt, got %T", stmt)
 	}
 
 	if err != nil {
@@ -6305,7 +6305,7 @@ func TestNewParserDeallocate2(t *testing.T) {
 
 	dealloStmt, ok := stmt.(*DeallocateStmt)
 	if !ok {
-		t.Fatalf("expected *OpenStmt, got %T", stmt)
+		t.Fatalf("expected *DeallocateStmt, got %T", stmt)
 	}
 
 	if err != nil {
@@ -6322,6 +6322,58 @@ func TestNewParserDeallocate2(t *testing.T) {
 
 	if dealloStmt.CursorName.Value != "product_cursor" {
 		t.Fatalf("expected product_cursor, got %s", dealloStmt.CursorName.Value)
+	}
+
+}
+
+func TestNewParserFetch(t *testing.T) {
+	statement := []byte(`
+	FETCH NEXT FROM product_cursor INTO @ProductID, @ManufacturerID;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	fetchStmt, ok := stmt.(*FetchStmt)
+	if !ok {
+		t.Fatalf("expected *FetchStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(fetchStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if fetchStmt.CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", fetchStmt.CursorName.Value)
+	}
+
+	if fetchStmt.Into[0].Value != "@ProductID" {
+		t.Fatalf("expected @ProductID, got %s", fetchStmt.Into[0].Value)
+	}
+
+	if fetchStmt.Into[1].Value != "@ManufacturerID" {
+		t.Fatalf("expected @ManufacturerID, got %s", fetchStmt.Into[1].Value)
 	}
 
 }

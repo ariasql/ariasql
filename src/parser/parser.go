@@ -46,7 +46,7 @@ var (
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
-		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE",
+		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT",
 	}, shared.DataTypes...)
 )
 
@@ -562,10 +562,78 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseCloseStmt()
 		case "DEALLOCATE":
 			return p.parseDeallocateStmt()
+		case "FETCH":
+			return p.parseFetchStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseFetchStmt parses a FETCH statement
+func (p *Parser) parseFetchStmt() (Node, error) {
+	p.consume() // Consume FETCH
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "NEXT" {
+		return nil, errors.New("expected NEXT")
+	}
+
+	p.consume() // Consume NEXT
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "FROM" {
+		return nil, errors.New("expected FROM")
+	}
+
+	p.consume() // Consume FROM
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	cursorName := p.peek(0).value.(string)
+	p.consume() // Consume cursor name
+
+	// check for INTO
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "INTO" {
+		return nil, errors.New("expected INTO")
+	}
+
+	p.consume() // Consume INTO
+
+	var into []*Identifier
+
+	for {
+		// The cursor variable name must start with a @
+		if p.peek(0).tokenT != IDENT_TOK && !strings.HasPrefix(p.peek(0).value.(string), "@") {
+			return nil, errors.New("expected cursor variable name")
+		}
+
+		varName := p.peek(0).value.(string)
+
+		if p.peek(1).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		varName += p.peek(1).value.(string)
+
+		p.consume() // Consume cursor variable name
+		p.consume()
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			into = append(into, &Identifier{Value: varName})
+			break
+		} else {
+			into = append(into, &Identifier{Value: varName})
+			p.consume()
+		}
+
+	}
+
+	return &FetchStmt{
+		CursorName: &Identifier{Value: cursorName},
+		Into:       into,
+	}, nil
 
 }
 
