@@ -23,7 +23,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"reflect"
@@ -3124,7 +3123,6 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 		left := ex.evaluateValueExpression(condition.Left, rows)
 		right := ex.evaluateValueExpression(condition.Right, rows)
-		log.Println(left, right)
 
 		// check if right is value expression
 		if _, ok := condition.Right.Value.(*parser.ValueExpression); ok {
