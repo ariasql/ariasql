@@ -2,8 +2,7 @@
     <h1 align="center"><img width="228" src="artwork/ariasql-logov1.png"></h1>
 </div>
 
-AriaSQL is a versatile relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency.
-At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.
+AriaSQL is a versatile relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency.  At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
