@@ -2,13 +2,8 @@
     <h1 align="center"><img width="228" src="artwork/ariasql-logov1.png"></h1>
 </div>
 
-AriaSQL is a fairly versatile relational database management system designed and engineered from the ground up to address a variety of data management needs with ease and efficiency.
-It combines essential features with practical performance enhancements to provide a solid foundation for handling both simple and complex database tasks.
-
-At its core, AriaSQL supports a range of SQL functionalities with a focus on delivering efficient query execution and data integrity. Its indexing system, based on BTrees, and its optimized execution engine work together to ensure responsive performance and effective data retrieval.
-Some features include support for transactions with rollback capabilities, Write-Ahead Logging (WAL) for data durability, and user authentication for secure access. AriaSQL also supports a variety of data types and constraints, allowing for flexible data modeling and validation.
-Looking ahead, AriaSQL aims to expand its feature set to include additional capabilities such as views, triggers, and stored procedures, further enhancing its versatility and utility.
-With AriaSQL in the future, you can expect a dependable and straightforward database solution that adapts to your needs while maintaining a focus on performance and security.
+AriaSQL is a versatile relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency.
+At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
