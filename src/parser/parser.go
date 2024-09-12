@@ -558,10 +558,29 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseDeclareStmt()
 		case "OPEN":
 			return p.parseOpenStmt()
+		case "CLOSE":
+			return p.parseCloseStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseCloseStmt parses an CLOSE statement
+func (p *Parser) parseCloseStmt() (Node, error) {
+	p.consume() // Consume OPEN
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	cursorName := p.peek(0).value.(string)
+	p.consume() // Consume cursor name
+
+	return &CloseStmt{
+		CursorName: &Identifier{Value: cursorName},
+	}, nil
 
 }
 

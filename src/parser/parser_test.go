@@ -6193,3 +6193,47 @@ func TestNewParserOpen(t *testing.T) {
 	}
 
 }
+
+func TestNewParserClose(t *testing.T) {
+	statement := []byte(`
+	CLOSE product_cursor;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	closeStmt, ok := stmt.(*CloseStmt)
+	if !ok {
+		t.Fatalf("expected *OpenStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(openStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if closeStmt.CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", closeStmt.CursorName.Value)
+	}
+
+}

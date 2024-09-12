@@ -597,6 +597,7 @@ type ReturnStmt struct {
 // SetStmt represents a SET statement like SET @variable_name = 1;
 type SetStmt struct {
 	Variable *Identifier
+	Value    interface{}
 }
 
 // CloseStmt represents a CLOSE statement
@@ -606,5 +607,6 @@ type CloseStmt struct {
 
 // DeallocateStmt represents a DEALLOCATE statement
 type DeallocateStmt struct {
-	CursorName *Identifier
+	CursorName         *Identifier
+	CursorVariableName *Identifier
 }
