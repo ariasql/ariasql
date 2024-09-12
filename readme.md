@@ -350,6 +350,54 @@ INSERT INTO test (id, name) VALUES (1, 'test'), (2, 'test2');
 ROLLBACK;
 ```
 
+#### Cursors
+Declare a cursor variable.
+```
+DECLARE @PRODUCT_ID INT;
+```
+
+Declare a cursor.
+```
+DECLARE PRODUCT_CURSOR
+CURSOR FOR SELECT ProductID FROM Production.Product WHERE DiscontinuedDate IS NULL;
+```
+
+Open the cursor.
+```
+OPEN PRODUCT_CURSOR;
+```
+
+Fetch the cursor.
+```
+FETCH NEXT FROM PRODUCT_CURSOR INTO @PRODUCT_ID;
+```
+
+Iterate the cursor.
+```
+WHILE @@FETCH_STATUS = 0
+BEGIN
+PRINT @PRODUCT_ID;
+    -- Do something with the product id
+
+    FETCH NEXT FROM PRODUCT_CURSOR INTO @PRODUCT_ID;
+END;
+```
+
+Close the cursor.
+```
+CLOSE PRODUCT_CURSOR;
+```
+
+Deallocate the cursor.
+```
+DEALLOCATE PRODUCT_CURSOR;
+```
+
+Deallocate the cursor variable.
+```
+DEALLOCATE @PRODUCT_ID;
+```
+
 For further examples, please see executor tests or ANSI SQL1 standard.
 
 ## Issues & Requests

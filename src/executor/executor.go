@@ -43,6 +43,12 @@ type Executor struct {
 	Transaction      *Transaction  // Transaction statements
 	TransactionBegun bool          // Transaction begun
 	ResultSetBuffer  []byte        // Result set buffer
+	cursors          map[string]*Cursor
+}
+
+// Cursor represents a cursor
+type Cursor struct {
+
 }
 
 // Transaction represents a transaction
