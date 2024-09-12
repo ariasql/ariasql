@@ -53,7 +53,7 @@ Above is expected for v1.0.0 release.
 ### v1.0.0+
 - [ ] Replication - Replication to slave nodes, replicates data from master to slave nodes.
 - [ ] CTEs (Common Table Expressions)
-- [ ] Window Functions - A common function used in SQL to perform calculations across a set of table rows that are related to the current row.
+- [ ] Window Functions
 - [ ] Import/ Export (CSV, JSON, XML) - From (asql AriaSQL CLI or AriaSQL Developer)
 - [ ] Encryption (ChaCha20) - After data is compressed it can be encrypted for storage
 - [ ] Compression (ZSTD) - Compresses row data for storage
