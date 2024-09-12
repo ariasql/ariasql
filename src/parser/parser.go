@@ -46,7 +46,7 @@ var (
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
-		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF",
+		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE",
 	}, shared.DataTypes...)
 )
 
@@ -560,10 +560,47 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseOpenStmt()
 		case "CLOSE":
 			return p.parseCloseStmt()
+		case "DEALLOCATE":
+			return p.parseDeallocateStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseDeallocateStmt parses a DEALLOCATE statement
+func (p *Parser) parseDeallocateStmt() (Node, error) {
+	p.consume() // Consume DEALLOCATE
+
+	if p.peek(0).tokenT != IDENT_TOK && p.peek(0).value != "@" {
+		return nil, errors.New("expected identifier")
+	}
+
+	// if the ident starts with a @
+	if strings.HasPrefix(p.peek(0).value.(string), "@") {
+		// check next token
+		if p.peek(1).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		variableName := p.peek(0).value.(string) + p.peek(1).value.(string)
+		p.consume()
+		p.consume()
+
+		return &DeallocateStmt{
+			CursorVariableName: &Identifier{Value: variableName},
+		}, nil
+
+	} else {
+
+		cursorName := p.peek(0).value.(string)
+		p.consume() // Consume cursor name
+
+		return &DeallocateStmt{
+			CursorName: &Identifier{Value: cursorName},
+		}, nil
+	}
 
 }
 

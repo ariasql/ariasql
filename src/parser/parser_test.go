@@ -6237,3 +6237,91 @@ func TestNewParserClose(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDeallocate(t *testing.T) {
+	statement := []byte(`
+	DEALLOCATE @ProductID;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dealloStmt, ok := stmt.(*DeallocateStmt)
+	if !ok {
+		t.Fatalf("expected *OpenStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(openStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if dealloStmt.CursorVariableName.Value != "@ProductID" {
+		t.Fatalf("expected @ProductID, got %s", dealloStmt.CursorVariableName.Value)
+	}
+
+}
+
+func TestNewParserDeallocate2(t *testing.T) {
+	statement := []byte(`
+	DEALLOCATE product_cursor;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dealloStmt, ok := stmt.(*DeallocateStmt)
+	if !ok {
+		t.Fatalf("expected *OpenStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(openStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if dealloStmt.CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", dealloStmt.CursorName.Value)
+	}
+
+}
