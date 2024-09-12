@@ -26,7 +26,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"log"
 	"os"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1347,6 +1349,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 
 					if _, ok := row[colName].(int); !ok {
 						if _, ok := row[colName].(uint64); !ok {
+							log.Println(reflect.TypeOf(row[colName]))
 							return fmt.Errorf("column %s is not an int", colName)
 						} else {
 							row[colName] = int(row[colName].(uint64))

@@ -19,7 +19,6 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -29,7 +28,7 @@ func TestNewParserCreateDatabase(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
-	t.Log(string(statement))
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -3279,7 +3278,6 @@ func TestNewParserAlterUser2(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
-
 	t.Log(string(statement))
 
 	parser := NewParser(lexer)
@@ -4057,12 +4055,12 @@ func TestNewParserSelect37(t *testing.T) {
 
 	}
 
-	sel, err := PrintAST(selectStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
 
 	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "x" {
 		t.Fatalf("expected x, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
@@ -6156,6 +6154,7 @@ func TestNewParserOpen(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6200,6 +6199,7 @@ func TestNewParserClose(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6244,6 +6244,7 @@ func TestNewParserDeallocate(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6288,6 +6289,7 @@ func TestNewParserDeallocate2(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6332,6 +6334,7 @@ func TestNewParserFetch(t *testing.T) {
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6382,12 +6385,13 @@ func TestNewParserWhileFetch(t *testing.T) {
 	statement := []byte(`
 	WHILE @@FETCH_STATUS = 0
 	BEGIN
-		UPDATE Products SET UpdatedOn = SYS_DATE WHERE ProductID = @ProductID
-		FETCH NEXT FROM product_cursor INTO @ProductID
+		UPDATE Products SET UpdatedOn = SYS_DATE WHERE ProductID = @ProductID;
+		FETCH NEXT FROM product_cursor INTO @ProductID;
 	END;
 `)
 
 	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
 
 	parser := NewParser(lexer)
 	if parser == nil {
@@ -6405,7 +6409,7 @@ func TestNewParserWhileFetch(t *testing.T) {
 
 	whileStmt, ok := stmt.(*WhileStmt)
 	if !ok {
-		t.Fatalf("expected *FetchStmt, got %T", stmt)
+		t.Fatalf("expected *WhileStmt, got %T", stmt)
 	}
 
 	if err != nil {
@@ -6454,6 +6458,169 @@ func TestNewParserWhileFetch(t *testing.T) {
 
 	if whileStmt.Stmts.Stmts[1].(*FetchStmt).Into[0].Value != "@ProductID" {
 		t.Fatalf("expected @ProductID, got %s", whileStmt.Stmts.Stmts[1].(*FetchStmt).Into[0].Value)
+	}
+
+}
+
+func TestNewParserPrint(t *testing.T) {
+	statement := []byte(`
+	PRINT 'Hello World';
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	printStmt, ok := stmt.(*PrintStmt)
+	if !ok {
+		t.Fatalf("expected *PrintStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(whileStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if printStmt.Expr.(*Literal).Value != "'Hello World'" {
+		t.Fatalf("expected 'Hello World', got %s", printStmt.Expr.(*Literal).Value)
+	}
+
+}
+
+func TestNewParserPrint2(t *testing.T) {
+	statement := []byte(`
+	PRINT @var1;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	printStmt, ok := stmt.(*PrintStmt)
+	if !ok {
+		t.Fatalf("expected *PrintStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(whileStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if printStmt.Expr.(*Identifier).Value != "@var1" {
+		t.Fatalf("expected @var1, got %s", printStmt.Expr.(*Identifier).Value)
+	}
+
+}
+
+func TestNewParserUpdate3(t *testing.T) {
+	statement := []byte(`
+	UPDATE t SET val = val + 1 WHERE id = @id;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	updateStmt, ok := stmt.(*UpdateStmt)
+	if !ok {
+		t.Fatalf("expected *UpdateStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(updateStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if updateStmt.TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", updateStmt.TableName.Value)
+	}
+
+	if updateStmt.SetClause[0].Column.Value != "val" {
+		t.Fatalf("expected val, got %s", updateStmt.SetClause[0].Column.Value)
+	}
+
+	if updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Op != OP_PLUS {
+		t.Fatalf("expected +, got %d", updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Op)
+	}
+
+	if updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Left.(*ColumnSpecification).ColumnName.Value != "val" {
+		t.Fatalf("expected val, got %s", updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Left.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Right.(*Literal).Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", updateStmt.SetClause[0].Value.Value.(*BinaryExpression).Right.(*Literal).Value)
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "id" {
+		t.Fatalf("expected id, got %s", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value != "@id" {
+		t.Fatalf("expected @id, got %s", updateStmt.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value)
 	}
 
 }

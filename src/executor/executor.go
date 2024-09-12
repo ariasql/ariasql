@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"reflect"
@@ -31,25 +32,36 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // Executor is the main executor structure
 type Executor struct {
-	aria             *core.AriaSQL      // AriaSQL instance pointer
-	ch               *core.Channel      // Channel pointer
-	json             bool               // Enable JSON output, default is false, set by client from server usually
-	recover          bool               // Recover flag
-	Transaction      *Transaction       // Transaction statements
-	TransactionBegun bool               // Transaction begun
-	ResultSetBuffer  []byte             // Result set buffer
-	cursors          map[string]*Cursor // Allocated cursors
+	aria             *core.AriaSQL        // AriaSQL instance pointer
+	ch               *core.Channel        // Channel pointer
+	json             bool                 // Enable JSON output, default is false, set by client from server usually
+	recover          bool                 // Recover flag
+	Transaction      *Transaction         // Transaction statements
+	TransactionBegun bool                 // Transaction begun
+	ResultSetBuffer  []byte               // Result set buffer
+	vars             map[string]*Variable // Defined variables
+	cursors          map[string]*Cursor   // Allocated cursors
+	fetchStatus      atomic.Int32         // Fetch status
+}
+
+// Variable struct represents a variable on the executor
+type Variable struct {
+	Value    interface{}
+	DataType string
 }
 
 // Cursor represents a cursor
 type Cursor struct {
-	vars  map[string]interface{}     // Defined cursor variables
-	iters [][]map[string]interface{} // Iterators
+	name      string
+	rows      []map[string]interface{}
+	pos       uint64
+	statement *parser.SelectStmt
 }
 
 // Transaction represents a transaction
@@ -921,6 +933,186 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		return nil
+	case *parser.WhileStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Keep executing until error
+
+		for ex.fetchStatus.Load() == int32(s.FetchStatus.Value.(uint64)) {
+			for _, cursorStmt := range s.Stmts.Stmts {
+				err := ex.Execute(cursorStmt)
+				if err != nil {
+					return err
+				}
+
+			}
+		}
+
+		return nil
+	case *parser.FetchStmt:
+		var err error
+		if ex.cursors == nil {
+			return errors.New("no cursors")
+		}
+
+		if ex.cursors[s.CursorName.Value] == nil {
+			return errors.New("cursor does not exist")
+		}
+
+		cursor := ex.cursors[s.CursorName.Value]
+
+		// Execute the select statement
+		cursor.rows, err = ex.executeSelectStmt(cursor.statement, true)
+		if err != nil {
+			return err
+		}
+
+		if len(cursor.rows) <= 0 {
+			ex.fetchStatus.Swap(-1)
+		} else {
+			ex.fetchStatus.Swap(0)
+
+			for _, row := range cursor.rows {
+				for _, col := range s.Into {
+					if _, ok := ex.vars[col.Value]; !ok {
+						return errors.New("variable not found")
+					}
+
+					switch ex.vars[col.Value].DataType {
+					case "INT", "INTEGER", "SMALLINT":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(int)
+					case "CHAR", "CHARACTER", "TEXT":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(string)
+					case "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL", "DEC":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(float64)
+					case "BOOL", "BOOLEAN":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(bool)
+					case "DATE":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+					case "DATETIME":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+					case "TIME":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+					case "TIMESTAMP":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+					case "BINARY", "BLOB":
+						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].([]byte)
+					default:
+						return errors.New("unsupported data type")
+
+					}
+
+				}
+			}
+
+			cursor.pos = uint64(cursor.pos + 1)
+
+			cursor.statement.TableExpression.LimitClause.Count = &parser.Literal{Value: uint64(1)}
+			cursor.statement.TableExpression.LimitClause.Offset = &parser.Literal{Value: uint64(cursor.pos)}
+		}
+
+		return nil
+
+	case *parser.OpenStmt:
+		if ex.cursors == nil {
+			return errors.New("no cursors")
+		}
+
+		if ex.cursors[s.CursorName.Value] == nil {
+			return errors.New("cursor does not exist")
+		}
+
+		cursor := ex.cursors[s.CursorName.Value]
+
+		if cursor.statement == nil {
+			return errors.New("no statement for cursor")
+		}
+
+		cursor.statement.TableExpression.LimitClause = &parser.LimitClause{}
+
+		// Add limit and offset to the select statement
+		cursor.statement.TableExpression.LimitClause.Count = &parser.Literal{Value: uint64(1)}
+		cursor.statement.TableExpression.LimitClause.Offset = &parser.Literal{Value: uint64(cursor.pos)}
+
+		return nil
+
+	case *parser.PrintStmt:
+		switch s.Expr.(type) {
+		case *parser.Literal:
+			log.Println(s.Expr.(*parser.Literal).Value)
+		case *parser.Identifier:
+			// is variable call
+			if ex.vars == nil {
+				return errors.New("variable not found")
+			}
+
+			if _, ok := ex.vars[s.Expr.(*parser.Identifier).Value]; !ok {
+				return errors.New("variable not found")
+			}
+
+			log.Println(ex.vars[s.Expr.(*parser.Identifier).Value].Value) // will print the value of the variable in log
+
+			return nil
+		default:
+			return errors.New("unsupported print type")
+		}
+	case *parser.DeclareStmt:
+		if ex.cursors == nil {
+			ex.cursors = make(map[string]*Cursor)
+		}
+
+		if s.CursorName != nil {
+
+			if ex.cursors == nil {
+				ex.cursors = make(map[string]*Cursor)
+			}
+
+			if ex.cursors[s.CursorName.Value] != nil {
+				return errors.New("cursor already exists")
+			}
+
+			// Check if the cursor has a limit clause
+			if s.CursorStmt.TableExpression.LimitClause != nil {
+				// Cannot open a cursor with a limit clause
+				return errors.New("cannot open a cursor with a limit clause")
+			}
+
+			ex.cursors[s.CursorName.Value] = &Cursor{
+				name:      s.CursorName.Value,
+				rows:      make([]map[string]interface{}, 0),
+				pos:       0,
+				statement: s.CursorStmt,
+			}
+
+			return nil
+		} else if s.CursorVariableName != nil {
+			// Check data type
+			if s.CursorVariableDataType == nil {
+				return errors.New("no data type for variable")
+			}
+
+			// Check if variable already exists
+			if _, ok := ex.vars[s.CursorVariableName.Value]; ok {
+				return errors.New("variable is already allocated")
+			}
+
+			// Check if datatype is ok
+			if !shared.IsValidDataType(s.CursorVariableDataType.Value) {
+				return errors.New("invalid data type for variable")
+			}
+
+			if ex.vars == nil {
+				ex.vars = make(map[string]*Variable)
+			}
+
+			ex.vars[s.CursorVariableName.Value] = &Variable{DataType: s.CursorVariableDataType.Value, Value: nil}
+
+			return nil
+
+		}
+
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
 
@@ -929,6 +1121,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	return errors.New("unsupported statement")
 }
 
+// executeSelectStmt executes a select statement
 func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
@@ -1145,7 +1338,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 		return nil, nil, err
 	}
 
-	setClause := convertSetClauseToCatalogLike(&stmt.SetClause)
+	setClause := convertSetClauseToCatalogLike(&stmt.SetClause, &rows)
 
 	for i, row := range rows {
 
@@ -1228,10 +1421,22 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 }
 
 // convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
-func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause) []*catalog.SetClause {
+func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause, rows *[]map[string]interface{}) []*catalog.SetClause {
 	var setClauses []*catalog.SetClause
 
 	for _, set := range *setClause {
+		// check if set.Value.Value is *BinaryExpression
+		// if so, evaluate the expression
+
+		if _, ok := set.Value.Value.(*parser.BinaryExpression); ok {
+			var val interface{}
+			err := evaluateBinaryExpression(set.Value.Value.(*parser.BinaryExpression), &val, rows)
+			if err != nil {
+				return nil
+			}
+			set.Value.Value = val
+		}
+
 		setClauses = append(setClauses, &catalog.SetClause{
 			ColumnName: set.Column.Value,
 			Value:      set.Value.Value,
@@ -3942,6 +4147,11 @@ func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *
 		}
 
 		return val
+	case *parser.Variable:
+		// check if variable exists
+		if _, ok := ex.vars[expr.VariableName.Value]; ok {
+			return ex.vars[expr.VariableName.Value].Value
+		}
 	}
 
 	return nil
@@ -4024,6 +4234,16 @@ func evaluateBinaryExpression(expr *parser.BinaryExpression, val *interface{}, r
 
 		left = &parser.Literal{Value: valInner}
 
+	}
+
+	if _, ok := right.(*parser.BinaryExpression); ok {
+		var rVal interface{}
+		err := evaluateBinaryExpression(right.(*parser.BinaryExpression), &rVal, rows)
+		if err != nil {
+			return err
+		}
+
+		right = &parser.Literal{Value: rVal}
 	}
 
 	switch left := left.(type) {

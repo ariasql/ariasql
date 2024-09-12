@@ -22,7 +22,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -47,7 +46,7 @@ var (
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
-		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE",
+		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT",
 	}, shared.DataTypes...)
 )
 
@@ -567,10 +566,47 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseFetchStmt()
 		case "WHILE":
 			return p.parseWhileStmt()
+		case "PRINT":
+			return p.parsePrintStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parsePrintStmt parses a PRINT statement
+func (p *Parser) parsePrintStmt() (Node, error) {
+	p.consume() // Consume PRINT
+
+	// PRINT (literal | @variable)
+	// i.e. PRINT 'Hello, World!'
+	// i.e. PRINT @variable
+
+	// You can print a literal or a @variable
+	if p.peek(0).tokenT == AT_TOK {
+		variableName := ""
+		if p.peek(1).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		variableName = p.peek(0).value.(string) + p.peek(1).value.(string)
+		p.consume()
+		p.consume()
+
+		return &PrintStmt{
+			Expr: &Identifier{Value: variableName},
+		}, nil
+	} else {
+		// check for literal
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		return &PrintStmt{
+			Expr: &Literal{Value: p.peek(0).value},
+		}, nil
+	}
 
 }
 
@@ -653,8 +689,6 @@ func (p *Parser) parseWhileStmt() (Node, error) {
 func (p *Parser) parseCursorStmts() ([]interface{}, error) {
 	stmts := make([]interface{}, 0)
 
-	log.Println("Parsing cursor statements", p.peek(0).value)
-
 	for {
 		if p.peek(0).tokenT == KEYWORD_TOK && p.peek(0).value == "END" {
 			break
@@ -666,6 +700,11 @@ func (p *Parser) parseCursorStmts() ([]interface{}, error) {
 		}
 
 		stmts = append(stmts, stmt)
+
+		if p.peek(0).tokenT == SEMICOLON_TOK {
+			p.consume()
+			continue
+		}
 	}
 
 	return stmts, nil
@@ -1295,15 +1334,22 @@ func (p *Parser) parseUpdateStmt() (Node, error) {
 				literal = &shared.GenUUID{}
 			} else if p.peek(0).value == "SYS_TIMESTAMP" {
 				literal = &shared.SysTimestamp{}
-			} else {
-				return nil, errors.New("expected literal")
-			}
-		} else {
+			} else if p.peek(1).tokenT == PLUS_TOK || p.peek(1).tokenT == MINUS_TOK || p.peek(1).tokenT == ASTERISK_TOK || p.peek(1).tokenT == DIVIDE_TOK {
+				// binary expression
+				binaryExpr, err := p.parseBinaryExpr(0)
+				if err != nil {
+					return nil, err
+				}
 
+				literal = binaryExpr
+
+				p.rewind(1)
+			} else if p.peek(0).tokenT == IDENT_TOK {
+				literal = &Identifier{Value: p.peek(0).value.(string)}
+			}
+		} else if p.peek(0).tokenT == LITERAL_TOK {
 			literal = p.peek(0).value
 		}
-
-		p.consume() // Consume literal
 
 		setClause := &SetClause{
 			Column: &Identifier{Value: columnName},
@@ -1321,8 +1367,6 @@ func (p *Parser) parseUpdateStmt() (Node, error) {
 		}
 
 	}
-
-	p.rewind(1)
 
 	// Parse where
 	if p.peek(0).tokenT == KEYWORD_TOK || p.peek(0).value == "WHERE" {
@@ -1534,8 +1578,6 @@ func (p *Parser) parseInsertStmt() (Node, error) {
 				return nil, errors.New("expected literal or NULL")
 
 			}
-
-			//log.Println("BRO", p.peek(0).value)
 
 			if p.peek(0).value == "NULL" {
 				values = append(values, &Literal{Value: nil})

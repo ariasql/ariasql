@@ -55,6 +55,8 @@ func TestStmt(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -68,6 +70,7 @@ func TestStmt(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -87,6 +90,123 @@ func TestStmt(t *testing.T) {
 	if len(ex.ResultSetBuffer) != 0 {
 		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
 		return
+	}
+}
+
+func TestStmt1(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	SELECT 5+(4*33);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `
++-----+
+| 137 |
++-----+
+| 137 |
++-----+
+`
+
+	if strings.TrimSpace(string(ex.ResultSetBuffer)) != strings.TrimSpace(expect) {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
 	}
 }
 
@@ -110,6 +230,8 @@ func TestStmt2(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 	user := aria.Catalog.GetUser("admin")
@@ -121,6 +243,7 @@ func TestStmt2(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -146,6 +269,7 @@ func TestStmt2(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -189,6 +313,8 @@ func TestStmt3(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -201,6 +327,7 @@ func TestStmt3(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -226,6 +353,7 @@ func TestStmt3(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -252,6 +380,7 @@ func TestStmt3(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -295,6 +424,8 @@ func TestStmt4(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -307,6 +438,7 @@ func TestStmt4(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -332,6 +464,7 @@ func TestStmt4(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -358,6 +491,7 @@ func TestStmt4(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -384,6 +518,7 @@ func TestStmt4(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -410,6 +545,7 @@ func TestStmt4(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -459,6 +595,8 @@ func TestStmt5(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -471,6 +609,7 @@ func TestStmt5(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -496,6 +635,7 @@ func TestStmt5(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -522,6 +662,7 @@ func TestStmt5(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -548,6 +689,7 @@ func TestStmt5(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -574,6 +716,7 @@ func TestStmt5(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -624,6 +767,8 @@ func TestStmt6(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -636,6 +781,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -661,6 +807,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -687,6 +834,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -713,6 +861,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -739,6 +888,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -765,6 +915,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -791,6 +942,7 @@ func TestStmt6(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -841,6 +993,8 @@ func TestStmt7(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -853,6 +1007,7 @@ func TestStmt7(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -878,6 +1033,7 @@ func TestStmt7(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -904,6 +1060,7 @@ func TestStmt7(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 
@@ -932,6 +1089,7 @@ func TestStmt7(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 
@@ -960,6 +1118,7 @@ func TestStmt7(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1008,6 +1167,8 @@ func TestStmt8(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1020,6 +1181,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -1045,6 +1207,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1071,6 +1234,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1097,6 +1261,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1123,6 +1288,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1149,6 +1315,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1175,6 +1342,7 @@ func TestStmt8(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1225,6 +1393,8 @@ func TestStmt9(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1237,6 +1407,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -1262,6 +1433,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1288,6 +1460,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1314,6 +1487,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1340,6 +1514,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1366,6 +1541,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1392,6 +1568,7 @@ func TestStmt9(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1441,6 +1618,8 @@ func TestStmt10(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1453,6 +1632,7 @@ func TestStmt10(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -1478,6 +1658,7 @@ func TestStmt10(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1504,6 +1685,7 @@ func TestStmt10(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1530,6 +1712,7 @@ func TestStmt10(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1556,6 +1739,7 @@ func TestStmt10(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1605,6 +1789,8 @@ func TestStmt11(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1617,6 +1803,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -1642,6 +1829,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1668,6 +1856,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1694,6 +1883,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1720,6 +1910,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1746,6 +1937,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1772,6 +1964,7 @@ func TestStmt11(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1823,6 +2016,8 @@ func TestStmt12(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1835,6 +2030,7 @@ func TestStmt12(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -1860,6 +2056,7 @@ func TestStmt12(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1886,6 +2083,7 @@ func TestStmt12(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1912,6 +2110,7 @@ func TestStmt12(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1938,6 +2137,7 @@ func TestStmt12(t *testing.T) {
 	`)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -1987,6 +2187,8 @@ func TestStmt13(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -1999,6 +2201,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -2024,6 +2227,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2050,6 +2254,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2076,6 +2281,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2102,6 +2308,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2128,6 +2335,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2154,6 +2362,7 @@ func TestStmt13(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2204,6 +2413,8 @@ func TestStmt14(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -2216,6 +2427,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -2241,6 +2453,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2267,6 +2480,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2293,6 +2507,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2319,6 +2534,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2345,6 +2561,7 @@ func TestStmt14(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2371,6 +2588,7 @@ func TestStmt14(t *testing.T) {
 	`)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2420,6 +2638,8 @@ func TestStmt15(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -2432,6 +2652,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -2457,6 +2678,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2483,6 +2705,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2509,6 +2732,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2535,6 +2759,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2561,6 +2786,7 @@ func TestStmt15(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2587,6 +2813,7 @@ func TestStmt15(t *testing.T) {
 	`)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2636,6 +2863,8 @@ func TestStmt16(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -2648,6 +2877,7 @@ func TestStmt16(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -2673,6 +2903,7 @@ func TestStmt16(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2699,6 +2930,7 @@ func TestStmt16(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2725,6 +2957,7 @@ func TestStmt16(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2751,6 +2984,7 @@ func TestStmt16(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2800,6 +3034,8 @@ func TestStmt17(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -2812,6 +3048,7 @@ func TestStmt17(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -2837,6 +3074,7 @@ func TestStmt17(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2863,6 +3101,7 @@ func TestStmt17(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2889,6 +3128,7 @@ func TestStmt17(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2915,6 +3155,7 @@ func TestStmt17(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -2964,6 +3205,8 @@ func TestStmt18(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -2976,6 +3219,7 @@ func TestStmt18(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3001,6 +3245,7 @@ func TestStmt18(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3027,6 +3272,7 @@ func TestStmt18(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3053,6 +3299,7 @@ func TestStmt18(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3079,6 +3326,7 @@ func TestStmt18(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3128,6 +3376,8 @@ func TestStmt19(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -3140,6 +3390,7 @@ func TestStmt19(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3165,6 +3416,7 @@ func TestStmt19(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3191,6 +3443,7 @@ func TestStmt19(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3217,6 +3470,7 @@ func TestStmt19(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3243,6 +3497,7 @@ func TestStmt19(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3292,6 +3547,8 @@ func TestStmt20(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -3304,6 +3561,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3329,6 +3587,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3355,6 +3614,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3381,6 +3641,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3407,6 +3668,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3433,6 +3695,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3459,6 +3722,7 @@ func TestStmt20(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3508,6 +3772,8 @@ func TestStmt21(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -3520,6 +3786,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3545,6 +3812,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3571,6 +3839,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3597,6 +3866,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3623,6 +3893,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3649,6 +3920,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3675,6 +3947,7 @@ func TestStmt21(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3725,6 +3998,8 @@ func TestStmt22(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -3737,6 +4012,7 @@ func TestStmt22(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3762,6 +4038,7 @@ func TestStmt22(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3788,6 +4065,7 @@ func TestStmt22(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3814,6 +4092,7 @@ func TestStmt22(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3840,6 +4119,7 @@ func TestStmt22(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3889,6 +4169,8 @@ func TestStmt23(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -3901,6 +4183,7 @@ func TestStmt23(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -3926,6 +4209,7 @@ func TestStmt23(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3952,6 +4236,7 @@ func TestStmt23(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -3978,6 +4263,7 @@ func TestStmt23(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4004,6 +4290,7 @@ func TestStmt23(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4053,6 +4340,8 @@ func TestStmt24(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -4065,6 +4354,7 @@ func TestStmt24(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -4090,6 +4380,7 @@ func TestStmt24(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4116,6 +4407,7 @@ func TestStmt24(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4142,6 +4434,7 @@ func TestStmt24(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4168,6 +4461,7 @@ func TestStmt24(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4218,6 +4512,8 @@ func TestStmt25(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -4230,6 +4526,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -4255,6 +4552,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4281,6 +4579,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4307,6 +4606,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4333,6 +4633,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4359,6 +4660,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4385,6 +4687,7 @@ func TestStmt25(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4434,6 +4737,8 @@ func TestStmt26(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -4446,6 +4751,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -4471,6 +4777,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4497,6 +4804,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4523,6 +4831,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4549,6 +4858,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4575,6 +4885,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4601,6 +4912,7 @@ func TestStmt26(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4652,6 +4964,8 @@ func TestStmt27(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -4664,6 +4978,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -4689,6 +5004,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4715,6 +5031,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4741,6 +5058,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4767,6 +5085,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4793,6 +5112,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4819,6 +5139,7 @@ func TestStmt27(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4869,6 +5190,8 @@ func TestStmt28(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -4881,6 +5204,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -4906,6 +5230,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4932,6 +5257,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4958,6 +5284,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -4984,6 +5311,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5010,6 +5338,7 @@ func TestStmt28(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5043,6 +5372,7 @@ WHERE EXISTS (
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5092,6 +5422,8 @@ func TestStmt29(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -5104,6 +5436,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -5129,6 +5462,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5155,6 +5489,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5181,6 +5516,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5207,6 +5543,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5233,6 +5570,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5259,6 +5597,7 @@ func TestStmt29(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5309,6 +5648,8 @@ func TestStmt30(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -5321,6 +5662,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -5346,6 +5688,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5372,6 +5715,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5398,6 +5742,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5424,6 +5769,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5450,6 +5796,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5476,6 +5823,7 @@ func TestStmt30(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5525,6 +5873,8 @@ func TestStmt31(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -5537,6 +5887,7 @@ func TestStmt31(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -5562,6 +5913,7 @@ func TestStmt31(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5588,6 +5940,7 @@ func TestStmt31(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5614,6 +5967,7 @@ func TestStmt31(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5640,6 +5994,7 @@ func TestStmt31(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5689,6 +6044,8 @@ func TestStmt32(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -5701,6 +6058,7 @@ func TestStmt32(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -5726,6 +6084,7 @@ func TestStmt32(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5752,6 +6111,7 @@ func TestStmt32(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5778,6 +6138,7 @@ func TestStmt32(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5804,6 +6165,7 @@ func TestStmt32(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5853,6 +6215,8 @@ func TestStmt33(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -5865,6 +6229,7 @@ func TestStmt33(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -5890,6 +6255,7 @@ func TestStmt33(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5916,6 +6282,7 @@ func TestStmt33(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5942,6 +6309,7 @@ func TestStmt33(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -5968,6 +6336,7 @@ func TestStmt33(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6017,6 +6386,8 @@ func TestStmt34(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6029,6 +6400,7 @@ func TestStmt34(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6054,6 +6426,7 @@ func TestStmt34(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6080,6 +6453,7 @@ func TestStmt34(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6106,6 +6480,7 @@ func TestStmt34(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6132,6 +6507,7 @@ func TestStmt34(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6181,6 +6557,8 @@ func TestStmt35(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6193,6 +6571,7 @@ func TestStmt35(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6218,6 +6597,7 @@ func TestStmt35(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6244,6 +6624,7 @@ func TestStmt35(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6270,6 +6651,7 @@ func TestStmt35(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6297,6 +6679,7 @@ func TestStmt35(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6341,6 +6724,8 @@ func TestStmt36(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6353,6 +6738,7 @@ func TestStmt36(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6378,6 +6764,7 @@ func TestStmt36(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6404,6 +6791,7 @@ func TestStmt36(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6430,6 +6818,7 @@ func TestStmt36(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6456,6 +6845,7 @@ func TestStmt36(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6520,6 +6910,8 @@ func TestStmt37(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6532,6 +6924,7 @@ func TestStmt37(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6557,6 +6950,7 @@ func TestStmt37(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6583,6 +6977,7 @@ func TestStmt37(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6609,6 +7004,7 @@ func TestStmt37(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6635,6 +7031,7 @@ func TestStmt37(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6685,6 +7082,8 @@ func TestStmt38(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6697,6 +7096,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6722,6 +7122,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6748,6 +7149,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6774,6 +7176,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6800,6 +7203,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6833,6 +7237,7 @@ func TestStmt38(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6896,6 +7301,8 @@ func TestStmt39(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -6908,6 +7315,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -6933,6 +7341,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6959,6 +7368,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -6985,6 +7395,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7011,6 +7422,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7044,6 +7456,7 @@ func TestStmt39(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7107,6 +7520,8 @@ func TestStmt40(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -7119,6 +7534,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -7144,6 +7560,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7163,6 +7580,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7186,6 +7604,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7209,6 +7628,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7232,6 +7652,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7251,6 +7672,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7270,6 +7692,7 @@ func TestStmt40(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7317,6 +7740,8 @@ func TestStmt41(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -7329,6 +7754,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -7354,6 +7780,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7380,6 +7807,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7406,6 +7834,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7432,6 +7861,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7458,6 +7888,7 @@ func TestStmt41(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7484,6 +7915,7 @@ func TestStmt41(t *testing.T) {
 `) // inner join/implied join
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7534,6 +7966,8 @@ func TestStmt42(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -7546,6 +7980,7 @@ func TestStmt42(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -7571,6 +8006,7 @@ func TestStmt42(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7597,6 +8033,7 @@ func TestStmt42(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7623,6 +8060,7 @@ func TestStmt42(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7649,6 +8087,7 @@ func TestStmt42(t *testing.T) {
 `) // inner join/implied join
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7699,6 +8138,8 @@ func TestStmt43(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -7711,6 +8152,7 @@ func TestStmt43(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -7736,6 +8178,7 @@ func TestStmt43(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7762,6 +8205,7 @@ func TestStmt43(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7781,6 +8225,7 @@ func TestStmt43(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -7807,6 +8252,7 @@ func TestStmt43(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8046,6 +8492,7 @@ func TestExecutor_Recover(t *testing.T) {
 	`)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 
@@ -8062,6 +8509,7 @@ func TestExecutor_Recover(t *testing.T) {
 		`)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 
@@ -8111,6 +8559,8 @@ func TestStmt44(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8123,6 +8573,7 @@ func TestStmt44(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8142,6 +8593,7 @@ func TestStmt44(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8190,6 +8642,8 @@ func TestStmt45(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8202,6 +8656,7 @@ func TestStmt45(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8221,6 +8676,7 @@ func TestStmt45(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8240,6 +8696,7 @@ func TestStmt45(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8259,6 +8716,7 @@ func TestStmt45(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8309,6 +8767,8 @@ func TestStmt46(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8321,6 +8781,7 @@ func TestStmt46(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8340,6 +8801,7 @@ func TestStmt46(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8359,6 +8821,7 @@ func TestStmt46(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8407,6 +8870,8 @@ func TestStmt47(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8419,6 +8884,7 @@ func TestStmt47(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8438,6 +8904,7 @@ func TestStmt47(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8457,6 +8924,7 @@ func TestStmt47(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8476,6 +8944,7 @@ func TestStmt47(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8495,6 +8964,7 @@ func TestStmt47(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8562,6 +9032,8 @@ func TestStmt48(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8574,6 +9046,7 @@ func TestStmt48(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8593,6 +9066,7 @@ func TestStmt48(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8612,6 +9086,7 @@ func TestStmt48(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8631,6 +9106,7 @@ func TestStmt48(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8650,6 +9126,7 @@ func TestStmt48(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8698,6 +9175,8 @@ func TestStmt49(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8710,6 +9189,7 @@ func TestStmt49(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8729,6 +9209,7 @@ func TestStmt49(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8748,6 +9229,7 @@ func TestStmt49(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8767,6 +9249,7 @@ func TestStmt49(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8786,6 +9269,7 @@ func TestStmt49(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8832,6 +9316,8 @@ func TestStmt50(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -8844,6 +9330,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -8869,6 +9356,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8895,6 +9383,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8921,6 +9410,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8947,6 +9437,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8973,6 +9464,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -8999,6 +9491,7 @@ func TestStmt50(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9049,6 +9542,8 @@ func TestStmt51(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9061,6 +9556,7 @@ func TestStmt51(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9086,6 +9582,7 @@ func TestStmt51(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9112,6 +9609,7 @@ func TestStmt51(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9138,6 +9636,7 @@ func TestStmt51(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9164,6 +9663,7 @@ func TestStmt51(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9213,6 +9713,8 @@ func TestStmt52(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9225,6 +9727,7 @@ func TestStmt52(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9250,6 +9753,7 @@ func TestStmt52(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9276,6 +9780,7 @@ func TestStmt52(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9302,6 +9807,7 @@ func TestStmt52(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9328,6 +9834,7 @@ func TestStmt52(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9377,6 +9884,8 @@ func TestStmt53(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9389,6 +9898,7 @@ func TestStmt53(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9414,6 +9924,7 @@ func TestStmt53(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9440,6 +9951,7 @@ func TestStmt53(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9466,6 +9978,7 @@ func TestStmt53(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9492,6 +10005,7 @@ func TestStmt53(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9542,6 +10056,8 @@ func TestStmt54(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9554,6 +10070,7 @@ func TestStmt54(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9579,6 +10096,7 @@ func TestStmt54(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9605,6 +10123,7 @@ func TestStmt54(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9631,6 +10150,7 @@ func TestStmt54(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9657,6 +10177,7 @@ func TestStmt54(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9706,6 +10227,8 @@ func TestStmt55(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9718,6 +10241,7 @@ func TestStmt55(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9743,6 +10267,7 @@ func TestStmt55(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9769,6 +10294,7 @@ func TestStmt55(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9795,6 +10321,7 @@ func TestStmt55(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9821,6 +10348,7 @@ func TestStmt55(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9870,6 +10398,8 @@ func TestStmt56(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -9882,6 +10412,7 @@ func TestStmt56(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -9907,6 +10438,7 @@ func TestStmt56(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9933,6 +10465,7 @@ func TestStmt56(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9959,6 +10492,7 @@ func TestStmt56(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -9985,6 +10519,7 @@ func TestStmt56(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10034,6 +10569,8 @@ func TestStmt57(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10046,6 +10583,7 @@ func TestStmt57(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10071,6 +10609,7 @@ func TestStmt57(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10097,6 +10636,7 @@ func TestStmt57(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10123,6 +10663,7 @@ func TestStmt57(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10149,6 +10690,7 @@ func TestStmt57(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10198,6 +10740,8 @@ func TestStmt58(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10210,6 +10754,7 @@ func TestStmt58(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10235,6 +10780,7 @@ func TestStmt58(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10261,6 +10807,7 @@ func TestStmt58(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10287,6 +10834,7 @@ func TestStmt58(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10313,6 +10861,7 @@ func TestStmt58(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10362,6 +10911,8 @@ func TestStmt59(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10374,6 +10925,7 @@ func TestStmt59(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10399,6 +10951,7 @@ func TestStmt59(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10425,6 +10978,7 @@ func TestStmt59(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10451,6 +11005,7 @@ func TestStmt59(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10477,6 +11032,7 @@ func TestStmt59(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10526,6 +11082,8 @@ func TestStmt60(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10538,6 +11096,7 @@ func TestStmt60(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10563,6 +11122,7 @@ func TestStmt60(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10589,6 +11149,7 @@ func TestStmt60(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10615,6 +11176,7 @@ func TestStmt60(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10641,6 +11203,7 @@ func TestStmt60(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10684,6 +11247,8 @@ func TestStmt61(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10696,6 +11261,7 @@ func TestStmt61(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10721,6 +11287,7 @@ func TestStmt61(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10747,6 +11314,7 @@ func TestStmt61(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10773,6 +11341,7 @@ func TestStmt61(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10799,6 +11368,7 @@ func TestStmt61(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10848,6 +11418,8 @@ func TestStmt62(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -10860,6 +11432,7 @@ func TestStmt62(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -10885,6 +11458,7 @@ func TestStmt62(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10911,6 +11485,7 @@ func TestStmt62(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10937,6 +11512,7 @@ func TestStmt62(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -10963,6 +11539,7 @@ func TestStmt62(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11012,6 +11589,8 @@ func TestStmt63(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11024,6 +11603,7 @@ func TestStmt63(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11049,6 +11629,7 @@ func TestStmt63(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11075,6 +11656,7 @@ func TestStmt63(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11101,6 +11683,7 @@ func TestStmt63(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11127,6 +11710,7 @@ func TestStmt63(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11176,6 +11760,8 @@ func TestStmt64(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11188,6 +11774,7 @@ func TestStmt64(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11213,6 +11800,7 @@ func TestStmt64(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11239,6 +11827,7 @@ func TestStmt64(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11265,6 +11854,7 @@ func TestStmt64(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11291,6 +11881,7 @@ func TestStmt64(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11341,6 +11932,8 @@ func TestStmt65(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11353,6 +11946,7 @@ func TestStmt65(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11378,6 +11972,7 @@ func TestStmt65(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11404,6 +11999,7 @@ func TestStmt65(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11430,6 +12026,7 @@ func TestStmt65(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11456,6 +12053,7 @@ func TestStmt65(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11506,6 +12104,8 @@ func TestStmt66(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11518,6 +12118,7 @@ func TestStmt66(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11543,6 +12144,7 @@ func TestStmt66(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11569,6 +12171,7 @@ func TestStmt66(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11595,6 +12198,7 @@ func TestStmt66(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11621,6 +12225,7 @@ func TestStmt66(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11671,6 +12276,8 @@ func TestStmt67(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11683,6 +12290,7 @@ func TestStmt67(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11708,6 +12316,7 @@ func TestStmt67(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11734,6 +12343,7 @@ func TestStmt67(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11760,6 +12370,7 @@ func TestStmt67(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11786,6 +12397,7 @@ func TestStmt67(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11836,6 +12448,8 @@ func TestStmt68(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -11848,6 +12462,7 @@ func TestStmt68(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -11873,6 +12488,7 @@ func TestStmt68(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11899,6 +12515,7 @@ func TestStmt68(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11925,6 +12542,7 @@ func TestStmt68(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -11951,6 +12569,7 @@ func TestStmt68(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12001,6 +12620,8 @@ func TestStmt69(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12013,6 +12634,7 @@ func TestStmt69(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12038,6 +12660,7 @@ func TestStmt69(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12064,6 +12687,7 @@ func TestStmt69(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12090,6 +12714,7 @@ func TestStmt69(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12116,6 +12741,7 @@ func TestStmt69(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12166,6 +12792,8 @@ func TestStmt70(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12178,6 +12806,7 @@ func TestStmt70(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12203,6 +12832,7 @@ func TestStmt70(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12229,6 +12859,7 @@ func TestStmt70(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12255,6 +12886,7 @@ func TestStmt70(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12281,6 +12913,7 @@ func TestStmt70(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12331,6 +12964,8 @@ func TestStmt71(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12343,6 +12978,7 @@ func TestStmt71(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12368,6 +13004,7 @@ func TestStmt71(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12394,6 +13031,7 @@ func TestStmt71(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12420,6 +13058,7 @@ func TestStmt71(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12446,6 +13085,7 @@ func TestStmt71(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12496,6 +13136,8 @@ func TestStmt72(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12508,6 +13150,7 @@ func TestStmt72(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12533,6 +13176,7 @@ func TestStmt72(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12559,6 +13203,7 @@ func TestStmt72(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12585,6 +13230,7 @@ func TestStmt72(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12616,6 +13262,7 @@ func TestStmt72(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12666,6 +13313,8 @@ func TestStmt73(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12678,6 +13327,7 @@ func TestStmt73(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12703,6 +13353,7 @@ func TestStmt73(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12729,6 +13380,7 @@ func TestStmt73(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12755,6 +13407,7 @@ func TestStmt73(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12786,6 +13439,7 @@ func TestStmt73(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12836,6 +13490,8 @@ func TestStmt74(t *testing.T) {
 		return
 	}
 
+	defer aria.Close()
+
 	aria.Channels = make([]*core.Channel, 0)
 	aria.ChannelsLock = &sync.Mutex{}
 
@@ -12848,6 +13504,7 @@ func TestStmt74(t *testing.T) {
 `)
 
 	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p := parser.NewParser(lexer)
 	ast, err := p.Parse()
@@ -12873,6 +13530,7 @@ func TestStmt74(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12899,6 +13557,7 @@ func TestStmt74(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12925,6 +13584,7 @@ func TestStmt74(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12958,6 +13618,7 @@ func TestStmt74(t *testing.T) {
 `)
 
 	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
 
 	p = parser.NewParser(lexer)
 	ast, err = p.Parse()
@@ -12984,4 +13645,733 @@ func TestStmt74(t *testing.T) {
 		return
 
 	}
+}
+
+func TestStmt75(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE t (id INT PRIMARY KEY SEQUENCE, val INT);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO t (val) VALUES (1), (2), (3), (4), (5);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	DECLARE @id INT; -- Declare a variable for the id
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	PRINT @id; -- Print the value of the id variable
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	// You should see nil printed to the console
+}
+
+func TestStmt76(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE t (id INT PRIMARY KEY SEQUENCE, val INT);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO t (val) VALUES (1), (2), (3), (4), (5);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	DECLARE @id INT; -- Declare a variable for the id
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	DECLARE id_cursor CURSOR FOR SELECT id FROM t;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	OPEN id_cursor;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	FETCH NEXT FROM id_cursor INTO @id;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	PRINT @id; -- Print the value of the id variable
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	// should see 1 printed to the console
+}
+
+func TestStmt77(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE t (id INT PRIMARY KEY SEQUENCE, val INT);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO t (val) VALUES (1), (2), (3), (4), (5);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	DECLARE @id INT; -- Declare a variable for the id
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	DECLARE id_cursor CURSOR FOR SELECT id FROM t;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	OPEN id_cursor;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		FETCH NEXT FROM id_cursor INTO @id;
+		UPDATE t SET val = 11 WHERE id = @id;
+	END;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	//if len(ex.ResultSetBuffer) != 0 {
+	//	t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	//}
+
+	stmt = []byte(`
+	SELECT * FROM t;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := `+----+-----+
+| id | val |
++----+-----+
+|  1 |   2 |
+|  2 |   3 |
+|  3 |   4 |
+|  4 |   5 |
+|  5 |   6 |
++----+-----+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
 }
