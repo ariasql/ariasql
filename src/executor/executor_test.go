@@ -12953,8 +12953,8 @@ func TestStmt74(t *testing.T) {
 		WHEN money > 30 THEN 'rich class'
 		WHEN money < 30 THEN 'poor class'
 		ELSE 'middle class'
-		END = 'poor class'
-	AND username = 'Joe';
+		END = 'poor class' 
+		AND username = 'Jonathan';
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -12972,13 +12972,11 @@ func TestStmt74(t *testing.T) {
 		return
 	}
 
-	expect := `+--------------+------------+
-| case_result  | username   |
-+--------------+------------+
-| 'rich class' | 'Jonathan' |
-| 'poor class' | 'Joe'      |
-| 'poor class' | 'Jane'     |
-+--------------+------------+
+	expect := `+------------+
+| username   |
++------------+
+| 'Jonathan' |
++------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {

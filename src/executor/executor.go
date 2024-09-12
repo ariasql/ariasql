@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"reflect"
@@ -2850,12 +2851,6 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 		case parser.OP_NOT:
 			return !ex.evaluateCondition(condition.Right, rows, tbls, filteredRows)
 		}
-	case *parser.CaseExpr:
-		// check if left is column spec
-		err := ex.evaluateCaseExpr(condition, rows, tbls, filteredRows)
-		if err != nil {
-			return false
-		}
 
 	case *parser.InPredicate:
 		// check if left is column spec
@@ -3129,6 +3124,7 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 		left := ex.evaluateValueExpression(condition.Left, rows)
 		right := ex.evaluateValueExpression(condition.Right, rows)
+		log.Println(left, right)
 
 		// check if right is value expression
 		if _, ok := condition.Right.Value.(*parser.ValueExpression); ok {
@@ -3202,7 +3198,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) < right.(uint64)
 				case string:
-					return left.(uint64) < right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) < right.(string)
+					}
+
+					return false
 				}
 			} else {
 				switch left.(type) {
@@ -3213,7 +3214,13 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) >= right.(uint64)
 				case string:
-					return left.(uint64) >= right.(uint64)
+
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) >= right.(string)
+					}
+
+					return false
 				}
 			}
 		case parser.OP_LTE:
@@ -3226,7 +3233,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) <= right.(uint64)
 				case string:
-					return left.(uint64) <= right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) <= right.(string)
+					}
+
+					return false
 				}
 
 			} else {
@@ -3238,7 +3250,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) > right.(uint64)
 				case string:
-					return left.(uint64) > right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) > right.(string)
+					}
+
+					return false
 				}
 			}
 		case parser.OP_GT:
@@ -3251,7 +3268,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) > right.(uint64)
 				case string:
-					return left.(uint64) > right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) > right.(string)
+					}
+
+					return false
 				}
 			} else {
 				switch left.(type) {
@@ -3262,7 +3284,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) <= right.(uint64)
 				case string:
-					return left.(uint64) <= right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) <= right.(string)
+					}
+
+					return false
 				}
 
 			}
@@ -3276,7 +3303,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) >= right.(uint64)
 				case string:
-					return left.(uint64) >= right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) >= right.(string)
+					}
+
+					return false
 				}
 			} else {
 				switch left.(type) {
@@ -3287,7 +3319,12 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 				case uint64:
 					return left.(uint64) < right.(uint64)
 				case string:
-					return left.(uint64) < right.(uint64)
+					// check if right is string
+					if _, ok := right.(string); ok {
+						return left.(string) < right.(string)
+					}
+
+					return false
 				}
 			}
 		}
@@ -3301,22 +3338,22 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 }
 
 // evaluateCaseExpr evaluates a case expression with a where clause
-func (ex *Executor) evaluateCaseExpr(expr *parser.CaseExpr, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) error {
+func (ex *Executor) evaluateCaseExpr(expr *parser.CaseExpr, rows *[]map[string]interface{}) (string, error) {
 	// If there is no where clause, we return true
 	if expr == nil {
-		return nil
+		return "", nil
 	}
 
 	// If there is a where clause, we evaluate the condition
-	return ex.evaluateCaseCondition(expr, rows, tbls, filteredRows)
+	return ex.evaluateCaseCondition(expr, rows)
 
 }
 
 // EvaluateCaseCondition evaluates a case condition
-func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[string]interface{}, tbls []*catalog.Table, filteredRows *[]map[string]interface{}) error {
+func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[string]interface{}) (string, error) {
 	// If there is no condition, we return true
 	if expr == nil {
-		return nil
+		return "", nil
 	}
 
 	col := "" // column name of where we will be updating
@@ -3338,7 +3375,7 @@ func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[str
 
 	for _, when := range expr.WhenClauses {
 		if when.Condition != nil {
-			if ex.evaluateCondition(when.Condition, rows, tbls, filteredRows) {
+			if ex.evaluateCondition(when.Condition, rows, nil, nil) {
 				for i, row := range *rows {
 					for k, _ := range row {
 						if k == col {
@@ -3351,12 +3388,28 @@ func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[str
 		}
 	}
 
-	return nil
+	return col, nil
 }
 
 // EvaluateValueExpression evaluates a value expression
 func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
 	switch expr := expr.Value.(type) {
+	case *parser.CaseExpr:
+		// check if left is column spec
+		col, err := ex.evaluateCaseExpr(expr, rows)
+		if err != nil {
+			return false
+		}
+
+		for _, row := range *rows {
+			for k, v := range row {
+				if k == col {
+					return v
+				}
+			}
+
+		}
+
 	case *shared.GenUUID:
 		return shared.GenerateUUID()
 	case *shared.SysDate, *shared.SysTimestamp, *shared.SysTime:
