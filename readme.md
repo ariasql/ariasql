@@ -38,7 +38,7 @@ With AriaSQL in the future, you can expect a dependable and straightforward data
 - [ ] Triggers
 - [ ] Stored Procedures
 - [ ] Cursors
-- [x] CASE Statements (Within select list and where clauses)
+- [x] CASE expressions (Within select list and where clauses)
 - [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
