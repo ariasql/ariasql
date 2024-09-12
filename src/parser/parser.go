@@ -22,6 +22,7 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -46,7 +47,7 @@ var (
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
-		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT",
+		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE",
 	}, shared.DataTypes...)
 )
 
@@ -564,10 +565,110 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseDeallocateStmt()
 		case "FETCH":
 			return p.parseFetchStmt()
+		case "WHILE":
+			return p.parseWhileStmt()
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseWhileStmt parses a WHILE statement
+func (p *Parser) parseWhileStmt() (Node, error) {
+	// Look for
+	// WHILE @@FETCH_STATUS = 0
+	// BEGIN
+
+	p.consume() // Consume WHILE
+
+	if p.peek(0).tokenT != AT_TOK {
+		return nil, errors.New("expected @")
+	}
+
+	p.consume() // Consume @
+
+	if p.peek(0).tokenT != AT_TOK {
+		return nil, errors.New("expected @")
+	}
+
+	p.consume() // Consume @
+
+	// Should be FETCH_STATUS
+	if p.peek(0).tokenT != IDENT_TOK || p.peek(0).value != "FETCH_STATUS" {
+		return nil, errors.New("expected FETCH_STATUS")
+
+	}
+
+	p.consume() // Consume FETCH_STATUS
+
+	// Next tok should be =
+	if p.peek(0).tokenT != COMPARISON_TOK || p.peek(0).value != "=" {
+		return nil, errors.New("expected =")
+	}
+
+	p.consume() // Consume =
+
+	// Next tok should be 0
+	if p.peek(0).tokenT != LITERAL_TOK || p.peek(0).value != uint64(0) {
+		return nil, errors.New("expected 0") // While @@FETCH_STATUS = 0 means while there are rows to fetch
+		// There is no benefit in using -1, or -2, or any other number
+	}
+
+	fetchStatus := p.peek(0).value.(uint64)
+
+	p.consume() // Consume 0
+
+	// Next tok should be BEGIN
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "BEGIN" {
+		return nil, errors.New("expected BEGIN")
+	}
+
+	p.consume() // Consume BEGIN
+
+	// Parse statements inside the while loop
+	stmts, err := p.parseCursorStmts()
+	if err != nil {
+		return nil, err
+	}
+
+	// Look for END
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "END" {
+		return nil, errors.New("expected END")
+	}
+
+	p.consume() // Consume END
+
+	return &WhileStmt{
+		FetchStatus: &Literal{Value: fetchStatus},
+		Stmts: &BeginEndBlock{
+			Stmts: stmts,
+		},
+	}, nil
+
+}
+
+// parseCursorStmts parses statements inside a cursor
+func (p *Parser) parseCursorStmts() ([]interface{}, error) {
+	stmts := make([]interface{}, 0)
+
+	log.Println("Parsing cursor statements", p.peek(0).value)
+
+	for {
+		if p.peek(0).tokenT == KEYWORD_TOK && p.peek(0).value == "END" {
+			break
+		}
+
+		stmt, err := p.Parse()
+		if err != nil {
+			return nil, err
+		}
+
+		stmts = append(stmts, stmt)
+	}
+
+	return stmts, nil
 
 }
 
@@ -835,6 +936,7 @@ func (p *Parser) parseAlterUserStmt() (Node, error) {
 	p.consume() // Consume PASSWORD or USERNAME
 
 	if p.peek(0).tokenT != LITERAL_TOK {
+
 		return nil, errors.New("expected literal")
 	}
 
@@ -1182,11 +1284,25 @@ func (p *Parser) parseUpdateStmt() (Node, error) {
 
 		p.consume() // Consume =
 
+		var literal interface{}
+
 		if p.peek(0).tokenT != LITERAL_TOK {
-			return nil, errors.New("expected literal")
+			if p.peek(0).value == "SYS_DATE" {
+				literal = &shared.SysDate{}
+			} else if p.peek(0).value == "SYS_TIME" {
+				literal = &shared.SysTime{}
+			} else if p.peek(0).value == "GENERATE_UUID" {
+				literal = &shared.GenUUID{}
+			} else if p.peek(0).value == "SYS_TIMESTAMP" {
+				literal = &shared.SysTimestamp{}
+			} else {
+				return nil, errors.New("expected literal")
+			}
+		} else {
+
+			literal = p.peek(0).value
 		}
 
-		literal := p.peek(0).value
 		p.consume() // Consume literal
 
 		setClause := &SetClause{
@@ -2997,6 +3113,25 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 		default:
 			return nil, errors.New("expected keyword")
 		}
+
+	case AT_TOK:
+		if p.peek(1).tokenT == IDENT_TOK {
+			p.lexer.tokens[p.pos+1] = Token{
+				tokenT: IDENT_TOK,
+				value:  "@" + p.peek(1).value.(string),
+			}
+		}
+
+		p.consume()
+		variableName := p.peek(0).value.(string)
+		p.consume()
+		return &ValueExpression{
+			Value: &Variable{
+				VariableName: &Identifier{
+					Value: variableName,
+				},
+			},
+		}, nil
 	case IDENT_TOK:
 
 		// Parse column spec

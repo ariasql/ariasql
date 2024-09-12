@@ -547,6 +547,11 @@ type DeclareStmt struct {
 	CursorVariableDataType *Identifier // variable data type
 }
 
+// Variable represents a variable
+type Variable struct {
+	VariableName *Identifier
+}
+
 // OpenStmt opens a cursor
 type OpenStmt struct {
 	CursorName *Identifier
@@ -560,7 +565,8 @@ type FetchStmt struct {
 
 // WhileStmt represents a WHILE loop
 type WhileStmt struct {
-	Condition interface{}
+	Stmts       *BeginEndBlock
+	FetchStatus *Literal
 }
 
 // PrintStmt represents a PRINT statement
@@ -570,7 +576,7 @@ type PrintStmt struct {
 
 // BeginEndBlock represents a BEGIN...END block
 type BeginEndBlock struct {
-	Statements []Statement
+	Stmts []interface{}
 }
 
 // IfStmt represents an IF statement

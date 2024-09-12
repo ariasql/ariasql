@@ -6377,3 +6377,83 @@ func TestNewParserFetch(t *testing.T) {
 	}
 
 }
+
+func TestNewParserWhileFetch(t *testing.T) {
+	statement := []byte(`
+	WHILE @@FETCH_STATUS = 0
+	BEGIN
+		UPDATE Products SET UpdatedOn = SYS_DATE WHERE ProductID = @ProductID
+		FETCH NEXT FROM product_cursor INTO @ProductID
+	END;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	whileStmt, ok := stmt.(*WhileStmt)
+	if !ok {
+		t.Fatalf("expected *FetchStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(whileStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if whileStmt.FetchStatus.Value != uint64(0) {
+		t.Fatalf("expected 0, got %d", whileStmt.FetchStatus.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).TableName.Value != "Products" {
+		t.Fatalf("expected Products, got %s", whileStmt.Stmts.Stmts[0].(*UpdateStmt).TableName.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).SetClause[0].Column.Value != "UpdatedOn" {
+		t.Fatalf("expected UpdatedOn, got %s", whileStmt.Stmts.Stmts[0].(*UpdateStmt).SetClause[0].Column.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).SetClause[0].Value.Value.(*shared.SysDate) == nil {
+		t.Fatalf("expected *SysDate, got %T", whileStmt.Stmts.Stmts[0].(*UpdateStmt).SetClause[0].Value)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "ProductID" {
+		t.Fatalf("expected ProductID, got %s", whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value != "@ProductID" {
+		t.Fatalf("expected @ProductID, got %s", whileStmt.Stmts.Stmts[0].(*UpdateStmt).WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[1].(*FetchStmt).CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", whileStmt.Stmts.Stmts[1].(*FetchStmt).CursorName.Value)
+	}
+
+	if whileStmt.Stmts.Stmts[1].(*FetchStmt).Into[0].Value != "@ProductID" {
+		t.Fatalf("expected @ProductID, got %s", whileStmt.Stmts.Stmts[1].(*FetchStmt).Into[0].Value)
+	}
+
+}
