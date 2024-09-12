@@ -6149,3 +6149,47 @@ func TestNewParserDeclare2(t *testing.T) {
 		t.Fatalf("expected true, got %v", declareStmt.CursorStmt.TableExpression.WhereClause.SearchCondition.(*IsPredicate).Null)
 	}
 }
+
+func TestNewParserOpen(t *testing.T) {
+	statement := []byte(`
+	OPEN product_cursor;
+`)
+
+	lexer := NewLexer(statement)
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	openStmt, ok := stmt.(*OpenStmt)
+	if !ok {
+		t.Fatalf("expected *OpenStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(openStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if openStmt.CursorName.Value != "product_cursor" {
+		t.Fatalf("expected product_cursor, got %s", openStmt.CursorName.Value)
+	}
+
+}

@@ -556,6 +556,8 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseAlterStmt()
 		case "DECLARE":
 			return p.parseDeclareStmt()
+		case "OPEN":
+			return p.parseOpenStmt()
 		}
 	}
 
@@ -563,7 +565,24 @@ func (p *Parser) Parse() (Node, error) {
 
 }
 
-// parseDeclareStmt
+// parseOpenStmt parses an OPEN statement
+func (p *Parser) parseOpenStmt() (Node, error) {
+	p.consume() // Consume OPEN
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	cursorName := p.peek(0).value.(string)
+	p.consume() // Consume cursor name
+
+	return &OpenStmt{
+		CursorName: &Identifier{Value: cursorName},
+	}, nil
+
+}
+
+// parseDeclareStmt parses a DECLARE statement
 func (p *Parser) parseDeclareStmt() (Node, error) {
 	p.consume() // Consume DECLARE
 
