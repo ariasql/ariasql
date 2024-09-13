@@ -31,7 +31,7 @@ AriaSQL is a versatile relational database management system designed and engine
 - [ ] Views
 - [ ] Triggers
 - [ ] Stored Procedures
-- [ ] Cursors
+- [x] Cursors
 - [ ] CTEs (Common Table Expressions)
 - [ ] Window Functions
 - [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
