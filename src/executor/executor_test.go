@@ -14100,6 +14100,8 @@ func TestStmt76(t *testing.T) {
 	// should see 1 printed to the console
 }
 
+// @TODO: Fix this test
+// Incorrect results using cursor
 func TestStmt77(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
