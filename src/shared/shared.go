@@ -27,6 +27,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -409,4 +410,19 @@ func ReverseString(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
+}
+
+// IdenticalMap checks if two maps are identical
+func IdenticalMap(x, y map[string]interface{}) bool {
+	if len(x) != len(y) {
+		return false
+	}
+
+	for k, v := range x {
+		if yv, ok := y[k]; !ok || !reflect.DeepEqual(v, yv) {
+			return false
+		}
+	}
+
+	return true
 }

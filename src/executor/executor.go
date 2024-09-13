@@ -972,7 +972,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		if len(cursor.rows) <= 0 {
 			ex.fetchStatus.Swap(-1)
 		} else {
-			ex.fetchStatus.Swap(0)
 
 			for _, row := range cursor.rows {
 				for _, col := range s.Into {
@@ -983,22 +982,31 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 					switch ex.vars[col.Value].DataType {
 					case "INT", "INTEGER", "SMALLINT":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(int)
+						break
 					case "CHAR", "CHARACTER", "TEXT":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(string)
+						break
 					case "FLOAT", "DOUBLE", "DECIMAL", "NUMERIC", "REAL", "DEC":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(float64)
+						break
 					case "BOOL", "BOOLEAN":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(bool)
+						break
 					case "DATE":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+						break
 					case "DATETIME":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+						break
 					case "TIME":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+						break
 					case "TIMESTAMP":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].(time.Time)
+						break
 					case "BINARY", "BLOB":
 						ex.vars[col.Value].Value = row[strings.TrimPrefix(col.Value, "@")].([]byte)
+						break
 					default:
 						return errors.New("unsupported data type")
 
@@ -1011,6 +1019,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 			cursor.statement.TableExpression.LimitClause.Count = &parser.Literal{Value: uint64(1)}
 			cursor.statement.TableExpression.LimitClause.Offset = &parser.Literal{Value: uint64(cursor.pos)}
+
 		}
 
 		return nil
@@ -1041,7 +1050,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	case *parser.PrintStmt:
 		switch s.Expr.(type) {
 		case *parser.Literal:
-			log.Println(s.Expr.(*parser.Literal).Value)
+			log.Println(s.Expr.(*parser.Literal).Value) // will print the value of the literal in log
 		case *parser.Identifier:
 			// is variable call
 			if ex.vars == nil {
@@ -2803,6 +2812,21 @@ func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Ta
 	return nil
 }
 
+type Row struct {
+	ID  int64
+	Row *map[string]interface{}
+}
+
+func convertRowsToMap(rows []*Row) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	for _, row := range rows {
+		results = append(results, *row.Row)
+	}
+
+	return results
+}
+
 // filter filters rows based on the where clause
 func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, filteredRows *[]map[string]interface{}, rowIds *[]int64) error {
 
@@ -2839,7 +2863,7 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 	invalidIters := 0
 
-	var currentRows []map[string]interface{}
+	var currentRows []*Row
 
 	if len(optimize.Tables) > 0 {
 		for tblName, colsValues := range optimize.Tables {
@@ -2887,11 +2911,6 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 								return err
 							}
 
-							if rowIds != nil {
-
-								*rowIds = append(*rowIds, rRowId)
-							}
-
 							row, err := tbl.GetRow(rRowId)
 							if err != nil {
 								return err
@@ -2903,7 +2922,7 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 								row[fmt.Sprintf("%v.%v", tbl.Name, k)] = vv
 							}
 
-							currentRows = append(currentRows, row)
+							currentRows = append(currentRows, &Row{ID: rRowId, Row: &row})
 
 						}
 					}
@@ -2929,11 +2948,6 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 					continue
 				}
 
-				if rowIds != nil {
-
-					*rowIds = append(*rowIds, iter.Current())
-				}
-
 				// convert row to tablename.columnname
 
 				for k, v := range row {
@@ -2941,16 +2955,18 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 					row[fmt.Sprintf("%v.%v", tbls[i].Name, k)] = v
 				}
 
-				currentRows = append(currentRows, row)
+				currentRows = append(currentRows, &Row{ID: iter.Current(), Row: &row})
 			} else {
 				invalidIters++
 			}
 		}
 
-		if ex.evaluateWhereClause(where, &currentRows, tbls, filteredRows) {
+		currentRowsMap := convertRowsToMap(currentRows)
+
+		if ex.evaluateWhereClause(where, &currentRowsMap, tbls, filteredRows) {
 
 			// add the columns to the new row
-			for i, row := range currentRows {
+			for i, row := range currentRowsMap {
 
 				for k, v := range row {
 					// Check if value is time.Time
@@ -2968,11 +2984,11 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 										if name == strings.Split(k, ".")[1] {
 											switch col.DataType {
 											case "DATE":
-												currentRows[i][k] = v.(time.Time).Format("2006-01-02")
+												currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02")
 											case "TIME":
-												currentRows[i][k] = v.(time.Time).Format("15:04:05")
+												currentRowsMap[i][k] = v.(time.Time).Format("15:04:05")
 											case "TIMESTAMP", "DATETIME":
-												currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+												currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 											}
 										}
 									}
@@ -2987,13 +3003,13 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 								if name == k {
 									switch col.DataType {
 									case "DATE":
-										currentRows[i][k] = v.(time.Time).Format("2006-01-02")
+										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02")
 									case "TIME":
-										currentRows[i][k] = v.(time.Time).Format("15:04:05")
+										currentRowsMap[i][k] = v.(time.Time).Format("15:04:05")
 									case "TIMESTAMP":
-										currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 									case "DATETIME":
-										currentRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 									}
 								}
 							}
@@ -3007,9 +3023,32 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 			// create a new row
 			newRow := map[string]interface{}{}
 
-			// add the columns to the new row
-			for _, row := range currentRows {
-				for k, v := range row {
+			if rowIds != nil {
+				*rowIds = []int64{}
+			}
+
+			for i := range currentRowsMap {
+
+				if rowIds != nil {
+					for j, _ := range currentRows {
+
+						for k, _ := range *currentRows[j].Row {
+							if strings.Contains(k, ".") {
+								// remove tablename
+								newKey := strings.Split(k, ".")[1]
+								(*currentRows[j].Row)[newKey] = (*currentRows[j].Row)[k]
+								delete(*currentRows[j].Row, k)
+							}
+						}
+
+						if shared.IdenticalMap(currentRowsMap[i], *currentRows[j].Row) {
+
+							*rowIds = append(*rowIds, currentRows[j].ID)
+						}
+					}
+				}
+
+				for k, v := range currentRowsMap[i] {
 					newRow[k] = v
 				}
 			}
@@ -3019,10 +3058,11 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				*filteredRows = append(*filteredRows, newRow)
 
 			}
-
 		}
 
-		currentRows = []map[string]interface{}{}
+		//currentRowsMap = []map[string]interface{}{}
+		currentRows = []*Row{}
+
 	}
 
 	return nil

@@ -14317,7 +14317,7 @@ func TestStmt77(t *testing.T) {
 	WHILE @@FETCH_STATUS = 0
 	BEGIN
 		FETCH NEXT FROM id_cursor INTO @id;
-		UPDATE t SET val = 11 WHERE id = @id;
+		UPDATE t SET val = val + 1 WHERE id = @id;
 	END;
 `)
 
@@ -14362,18 +14362,237 @@ func TestStmt77(t *testing.T) {
 	}
 
 	expect := `+----+-----+
-| id | val |
-+----+-----+
-|  1 |   2 |
-|  2 |   3 |
-|  3 |   4 |
-|  4 |   5 |
-|  5 |   6 |
-+----+-----+
+	| id | val |
+	+----+-----+
+	|  1 |   2 |
+	|  2 |   3 |
+	|  3 |   4 |
+	|  4 |   5 |
+	|  5 |   6 |
+	+----+-----+
+	`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
+}
+
+func TestStmt78(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE users (user_id INT, username CHAR(255));
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO users (user_id, username) VALUES (1, 'jdoe'), (2, 'adoe'), (3, 'bdoe'), (4, 'cdoe'), (5, 'ddoe'), (6, 'edoe'), (7, 'fdoe'), (8, 'gdoe'), (9, 'hdoe'), (10, 'idoe'), (11, 'jdoe'), (12, 'kdoe'), (13, 'ldoe'), (14, 'mdoe'), (15, 'ndoe'), (16, 'odo');
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	UPDATE users SET username = 'updated_username' WHERE user_id = 5;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+--------------+
+| RowsAffected |
++--------------+
+| 1            |
++--------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
 		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+	}
+
+	ex.Clear()
+
+	stmt = []byte(`
+	SELECT * FROM users;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect = `+---------+--------------------+
+| user_id | username           |
++---------+--------------------+
+| 1       | 'jdoe'             |
+| 2       | 'adoe'             |
+| 3       | 'bdoe'             |
+| 4       | 'cdoe'             |
+| 5       | 'updated_username' |
+| 6       | 'edoe'             |
+| 7       | 'fdoe'             |
+| 8       | 'gdoe'             |
+| 9       | 'hdoe'             |
+| 10      | 'idoe'             |
+| 11      | 'jdoe'             |
+| 12      | 'kdoe'             |
+| 13      | 'ldoe'             |
+| 14      | 'mdoe'             |
+| 15      | 'ndoe'             |
+| 16      | 'odo'              |
++---------+--------------------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
 	}
 
 }
