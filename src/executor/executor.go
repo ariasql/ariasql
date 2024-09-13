@@ -180,6 +180,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				continue
 			case *parser.UpdateStmt:
+
 				if ex.ch.Database == nil {
 					if j > 0 {
 						// rollback
@@ -964,16 +965,24 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		cursor := ex.cursors[s.CursorName.Value]
 
 		// Execute the select statement
-		cursor.rows, err = ex.executeSelectStmt(cursor.statement, true)
+		r, err := ex.executeSelectStmt(cursor.statement, true)
 		if err != nil {
 			return err
 		}
 
-		if len(cursor.rows) <= 0 {
+		if len(r) <= 0 {
 			ex.fetchStatus.Swap(-1)
+			for _, col := range s.Into {
+				if _, ok := ex.vars[col.Value]; !ok {
+					return errors.New("variable not found")
+				}
+
+				ex.vars[col.Value].Value = nil
+			}
+			return nil
 		} else {
 
-			for _, row := range cursor.rows {
+			for _, row := range r {
 				for _, col := range s.Into {
 					if _, ok := ex.vars[col.Value]; !ok {
 						return errors.New("variable not found")
@@ -1014,6 +1023,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				}
 			}
+
+			// Increment the cursor position
 
 			cursor.pos = uint64(cursor.pos + 1)
 
@@ -1278,12 +1289,9 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 				if end > len(results) {
 					end = len(results) // Adjust end if it exceeds the length of results
 				}
+
 				results = results[offset:end]
 			}
-		}
-
-		if subquery {
-			return results, nil
 		}
 
 		// Check for distinct
@@ -1304,6 +1312,10 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			if !stmt.UnionAll {
 				results = shared.DistinctMap(results, shared.GetColumns(results)...)
 			}
+		}
+
+		if subquery {
+			return results, nil
 		}
 
 	}
@@ -1347,9 +1359,10 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 		return nil, nil, err
 	}
 
-	setClause := convertSetClauseToCatalogLike(&stmt.SetClause, &rows)
+	rows = rows[:len(rowIds)]
 
 	for i, row := range rows {
+		setClause := convertSetClauseToCatalogLike(&stmt.SetClause, &row)
 
 		err = tbles[0].UpdateRow(rowIds[i]-1, row, setClause)
 		if err != nil {
@@ -1430,26 +1443,29 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 }
 
 // convertSetClauseToCatalogLike converts a set clause(s) to a catalog set clause(s)
-func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause, rows *[]map[string]interface{}) []*catalog.SetClause {
+func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause, row *map[string]interface{}) []*catalog.SetClause {
 	var setClauses []*catalog.SetClause
 
 	for _, set := range *setClause {
+		var val interface{}
+
 		// check if set.Value.Value is *BinaryExpression
 		// if so, evaluate the expression
-
 		if _, ok := set.Value.Value.(*parser.BinaryExpression); ok {
-			var val interface{}
-			err := evaluateBinaryExpression(set.Value.Value.(*parser.BinaryExpression), &val, rows)
+			err := evaluateBinaryExpression(set.Value.Value.(*parser.BinaryExpression), &val, &[]map[string]interface{}{*row})
 			if err != nil {
 				return nil
 			}
-			set.Value.Value = val
+
+		} else {
+			val = set.Value.Value
 		}
 
 		setClauses = append(setClauses, &catalog.SetClause{
 			ColumnName: set.Column.Value,
-			Value:      set.Value.Value,
+			Value:      val,
 		})
+
 	}
 
 	return setClauses
@@ -2838,9 +2854,12 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 	optimize := &Optimize{
 		Tables: make(map[string][]map[string]interface{}),
 	}
-	err := ex.opt(where.SearchCondition, optimize, tbls)
-	if err != nil {
-		return err
+
+	if where != nil {
+		err := ex.opt(where.SearchCondition, optimize, tbls)
+		if err != nil {
+			return err
+		}
 	}
 
 	indexedColumns := make(map[string]*catalog.Index)
@@ -2944,11 +2963,16 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 			if iter.Valid() {
 				row, err := iter.Next()
 				if err != nil {
+
 					invalidIters++
 					continue
 				}
 
 				// convert row to tablename.columnname
+
+				if i > len(tbls)-1 {
+					break
+				}
 
 				for k, v := range row {
 					delete(row, k)
@@ -2956,6 +2980,7 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				}
 
 				currentRows = append(currentRows, &Row{ID: iter.Current(), Row: &row})
+
 			} else {
 				invalidIters++
 			}
@@ -3044,8 +3069,11 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 						if shared.IdenticalMap(currentRowsMap[i], *currentRows[j].Row) {
 
 							*rowIds = append(*rowIds, currentRows[j].ID)
+
 						}
+
 					}
+
 				}
 
 				for k, v := range currentRowsMap[i] {
@@ -3058,10 +3086,13 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				*filteredRows = append(*filteredRows, newRow)
 
 			}
-		}
 
-		//currentRowsMap = []map[string]interface{}{}
-		currentRows = []*Row{}
+		}
+		currentRowsMap = []map[string]interface{}{}
+
+		if where != nil {
+			currentRows = []*Row{}
+		}
 
 	}
 
