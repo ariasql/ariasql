@@ -14098,6 +14098,56 @@ func TestStmt76(t *testing.T) {
 	}
 
 	// should see 1 printed to the console
+
+	stmt = []byte(`
+	DEALLOCATE @id;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	DEALLOCATE id_cursor;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
 }
 
 func TestStmt77(t *testing.T) {

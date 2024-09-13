@@ -1132,6 +1132,40 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return nil
 
 		}
+	case *parser.CloseStmt:
+		if ex.cursors == nil {
+			return errors.New("no cursors")
+		}
+
+		if ex.cursors[s.CursorName.Value] == nil {
+			return errors.New("cursor does not exist")
+		}
+
+		delete(ex.cursors, s.CursorName.Value) // delete the cursor
+	case *parser.DeallocateStmt:
+		if ex.cursors == nil {
+			return errors.New("no cursors")
+		}
+
+		if s.CursorName != nil {
+			if ex.cursors[s.CursorName.Value] == nil {
+				return errors.New("cursor does not exist")
+			}
+
+			delete(ex.cursors, s.CursorName.Value) // delete the cursor
+		} else if s.CursorVariableName != nil {
+			if ex.vars == nil {
+				return errors.New("no variables")
+			}
+
+			if _, ok := ex.vars[s.CursorVariableName.Value]; !ok {
+				return errors.New("variable does not exist")
+			}
+
+			delete(ex.vars, s.CursorVariableName.Value) // delete the variable
+		}
+
+		return nil
 
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
@@ -2828,11 +2862,14 @@ func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Ta
 	return nil
 }
 
+// Row represents a row object
+// ID is the page/row id and Row is the actual row
 type Row struct {
 	ID  int64
 	Row *map[string]interface{}
 }
 
+// convertRowsToMap converts a slice of rows to a slice of maps
 func convertRowsToMap(rows []*Row) []map[string]interface{} {
 	var results []map[string]interface{}
 
