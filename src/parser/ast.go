@@ -616,3 +616,54 @@ type DeallocateStmt struct {
 	CursorName         *Identifier
 	CursorVariableName *Identifier
 }
+
+// Window functions
+
+// WindowFunc represents a window function
+type WindowFunc struct {
+	Expr interface{}
+	Spec *WindowSpec
+}
+
+// WindowSpec represents a window specification
+type WindowSpec struct {
+	PartitionBy []*ValueExpression
+	OrderBy     *OrderByClause
+	Frame       *WindowFrame
+}
+
+type WindowFrameType int
+
+const (
+	_ WindowFrameType = iota
+	WINDOW_FRAME_RANGE
+	WINDOW_FRAME_ROWS
+)
+
+// WindowFrame represents a window frame
+type WindowFrame struct {
+	FrameType WindowFrameType
+	Bound     *WindowFrameBound
+}
+
+type WindowFrameBoundType int
+
+const (
+	_ WindowFrameBoundType = iota
+	WINDOW_FRAME_BOUND_UNBOUNDED_PRECEDING
+	WINDOW_FRAME_BOUND_CURRENT_ROW
+	WINDOW_FRAME_BOUND_UNBOUNDED_FOLLOWING
+	WINDOW_FRAME_BOUND_FOLLOWING_CURRENT_ROW
+	WINDOW_FRAME_BOUND_FOLLOWING_UNBOUNDED_PRECEDING
+	WINDOW_FRAME_BOUND_FOLLOWING_N_PRECEDING
+	WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
+	WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
+	WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
+)
+
+// WindowFrameBound represents a window frame bound
+type WindowFrameBound struct {
+	Type WindowFrameBoundType
+	Expr interface{}
+	N    uint64
+}

@@ -48,6 +48,7 @@ var (
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
 		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT",
 		"OVER", "PARTITION", "ROWS", "RANGE", "UNBOUNDED", "PRECEDING", "FOLLOWING", "CURRENT", "ROW",
+		"DENSE_RANK", "NTILE", "LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE", "PERCENT_RANK", "CUME_DIST",
 	}, shared.DataTypes...)
 )
 
@@ -2176,8 +2177,6 @@ func (p *Parser) parseSelectStmt() (Node, error) {
 			return nil, errors.New("expected BY")
 
 		} else {
-			p.consume()
-			p.consume()
 
 			orderByClause, err := p.parseOrderByClause()
 			if err != nil {
@@ -2270,7 +2269,16 @@ func (p *Parser) parseOrderByClause() (*OrderByClause, error) {
 
 // parseOrderByList parses an order by list
 func (p *Parser) parseOrderByList(orderByClause *OrderByClause) error {
-	for p.peek(0).tokenT != EOF_TOK {
+	p.consume() // Consume ORDER
+
+	if p.peek(0).value != "BY" {
+		return errors.New("expected BY")
+	}
+
+	p.consume() // Consume BY
+
+	for p.peek(0).tokenT != EOF_TOK || p.peek(0).value != "ROWS" || p.peek(0).tokenT != RPAREN_TOK {
+
 		// Parse order by expression
 		expr, err := p.parseValueExpression()
 		if err != nil {
@@ -3066,10 +3074,22 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 
 	case KEYWORD_TOK:
 		switch p.peek(0).value {
-		case "COUNT", "MAX", "MIN", "SUM", "AVG":
+		case "COUNT", "MAX", "MIN", "SUM", "AVG",
+			"ROW_NUMBER", "RANK", "DENSE_RANK", "NTILE",
+			"LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE",
+			"PERCENT_RANK", "CUME_DIST", "PERCENTILE_CONT", "PERCENTILE_DISC":
 			expr, err := p.parseBinaryExpr(0)
 			if err != nil {
 				return nil, err
+			}
+
+			if p.peek(0).value == "OVER" {
+
+				// Parse window function
+				expr, err = p.parseWindowFunc(expr)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			var alias *Identifier
@@ -3217,6 +3237,284 @@ func (p *Parser) parseValueExpression() (*ValueExpression, error) {
 
 		return nil, errors.New("expected column spec or aggregate function or subquery")
 	}
+
+}
+
+// parseWindowFunc parses a window function
+func (p *Parser) parseWindowFunc(expr interface{}) (*WindowFunc, error) {
+	windowFunc := &WindowFunc{}
+
+	// Eat OVER
+	p.consume()
+
+	// Eat (
+	p.consume()
+
+	// Parse window spec
+	windowSpec, err := p.parseWindowSpec()
+	if err != nil {
+		return nil, err
+	}
+
+	windowFunc.Expr = expr
+	windowFunc.Spec = windowSpec
+
+	// Eat )
+	p.consume()
+
+	return windowFunc, nil
+
+}
+
+// parseWindowSpec parses a window spec
+func (p *Parser) parseWindowSpec() (*WindowSpec, error) {
+	windowSpec := &WindowSpec{}
+
+	// Parse partition by clause
+	err := p.parsePartitionByClause(windowSpec)
+	if err != nil {
+		return nil, err
+	}
+
+	// if next tok is ) then return
+	if p.peek(0).tokenT == RPAREN_TOK {
+		return windowSpec, nil
+
+	}
+
+	// Parse order by clause
+	orderByClause, err := p.parseOrderByClause()
+	if err != nil {
+		return nil, err
+	}
+
+	windowSpec.OrderBy = orderByClause
+
+	// Parse frame clause
+	err = p.parseFrameClause(windowSpec)
+	if err != nil {
+		return nil, err
+
+	}
+
+	return windowSpec, nil
+
+}
+
+// parseFrameClause parses a frame clause
+func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
+	if p.peek(0).value == "ROWS" {
+
+		// Parse frame bound
+		frameBound, err := p.parseFrameBound()
+		if err != nil {
+			return err
+		}
+
+		windowSpec.Frame = &WindowFrame{
+			FrameType: WINDOW_FRAME_ROWS,
+			Bound:     frameBound,
+		}
+
+		return nil
+	} else if p.peek(0).value == "RANGE" {
+
+		// Parse frame bound
+		frameBound, err := p.parseFrameBound()
+		if err != nil {
+			return err
+		}
+
+		windowSpec.Frame = &WindowFrame{
+			FrameType: WINDOW_FRAME_RANGE,
+			Bound:     frameBound,
+		}
+
+		return nil
+	}
+
+	return nil
+
+}
+
+// parseFrameBound parses a frame bound
+func (p *Parser) parseFrameBound() (*WindowFrameBound, error) {
+	frameBound := &WindowFrameBound{}
+
+	switch p.peek(0).value {
+	case LITERAL_TOK: // PRECEDING, FOLLOWING
+		n := p.peek(0).value.(uint64)
+		p.consume()
+
+		switch p.peek(0).value {
+		case "PRECEDING":
+			// existing code for PRECEDING
+		case "FOLLOWING":
+
+			// Look for AND
+			if p.peek(0).value == "AND" {
+				// After and there can be CURRENT ROW or UNBOUNDED PRECEDING
+				p.consume()
+
+				if p.peek(0).value == "CURRENT" {
+					if p.peek(1).value == "ROW" {
+						p.consume()
+						p.consume()
+						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_CURRENT_ROW
+					}
+				} else if p.peek(0).value == "UNBOUNDED" {
+					if p.peek(1).value == "PRECEDING" {
+						p.consume()
+						p.consume()
+						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_UNBOUNDED_PRECEDING
+					}
+				} else if p.peek(0).tokenT == LITERAL_TOK {
+					n = p.peek(0).value.(uint64)
+					p.consume()
+
+					if p.peek(0).value == "PRECEDING" {
+						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_N_PRECEDING
+						frameBound.N = n
+					} else {
+						return nil, errors.New("expected PRECEDING")
+					}
+
+				} else {
+					return nil, errors.New("expected CURRENT ROW or UNBOUNDED PRECEDING")
+				}
+
+			}
+		default:
+			return nil, errors.New("expected PRECEDING or FOLLOWING")
+		}
+	case "ROWS":
+		p.consume()
+
+		// next tok should be BETWEEN
+		if p.peek(0).value != "BETWEEN" {
+			return nil, errors.New("expected BETWEEN")
+		}
+
+		p.consume()
+
+		// Parse bound type
+		switch p.peek(0).tokenT {
+		case KEYWORD_TOK: // UNBOUNDED, CURRENT
+			if p.peek(0).value == "UNBOUNDED" {
+				if p.peek(1).value == "PRECEDING" {
+					p.consume()
+					p.consume()
+					frameBound.Type = WINDOW_FRAME_BOUND_UNBOUNDED_PRECEDING
+				} else if p.peek(1).value == "FOLLOWING" {
+					p.consume()
+					p.consume()
+					frameBound.Type = WINDOW_FRAME_BOUND_UNBOUNDED_FOLLOWING
+				} else {
+					return nil, errors.New("expected PRECEDING or FOLLOWING")
+				}
+			} else if p.peek(0).value == "CURRENT" {
+				if p.peek(1).value == "ROW" {
+					p.consume()
+					p.consume()
+					frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW
+				} else {
+					return nil, errors.New("expected ROW")
+				}
+			} else {
+				return nil, errors.New("expected UNBOUNDED or CURRENT")
+			}
+
+		case LITERAL_TOK: // PRECEDING, FOLLOWING
+			n := p.peek(0).value.(uint64)
+			p.consume()
+
+			if p.peek(0).value == "PRECEDING" {
+
+				// Look for AND
+				if p.peek(0).value == "AND" {
+					// After and there can be CURRENT ROW or UNBOUNDED FOLLOWING
+					p.consume()
+
+					if p.peek(0).value == "CURRENT" {
+						if p.peek(1).value == "ROW" {
+							p.consume()
+							p.consume()
+							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
+						}
+					} else if p.peek(0).value == "UNBOUNDED" {
+						if p.peek(1).value == "FOLLOWING" {
+							p.consume()
+							p.consume()
+							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
+						}
+					} else if p.peek(0).tokenT == LITERAL_TOK {
+						n = p.peek(0).value.(uint64)
+						p.consume()
+
+						if p.peek(0).value == "FOLLOWING" {
+							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
+							frameBound.N = n
+						} else {
+							return nil, errors.New("expected FOLLOWING")
+						}
+
+					} else {
+						return nil, errors.New("expected CURRENT ROW or UNBOUNDED FOLLOWING")
+					}
+
+				}
+			}
+
+		}
+
+	}
+
+	return frameBound, nil
+
+}
+
+// parsePartitionByClause
+func (p *Parser) parsePartitionByClause(windowSpec *WindowSpec) error {
+	// Eat PARTITION
+	p.consume()
+
+	// Eat BY
+	p.consume()
+
+	// Parse partition by list
+	err := p.parsePartitionByList(windowSpec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+// parsePartitionByList
+func (p *Parser) parsePartitionByList(windowSpec *WindowSpec) error {
+
+	for p.peek(0).value != "ORDER" || p.peek(0).value != "ROWS" || p.peek(0).value != "RANGE" || p.peek(0).value != "GROUPS" || p.peek(0).tokenT != RPAREN_TOK {
+		if p.peek(0).tokenT == COMMA_TOK {
+			p.consume()
+			continue
+		}
+
+		if p.peek(0).value == "ORDER" || p.peek(0).value == "ROWS" || p.peek(0).value == "RANGE" || p.peek(0).value == "GROUPS" || p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		// Parse value expression
+		expr, err := p.parseValueExpression()
+		if err != nil {
+			return err
+		}
+
+		windowSpec.PartitionBy = append(windowSpec.PartitionBy, expr)
+
+	}
+
+	return nil
 
 }
 
