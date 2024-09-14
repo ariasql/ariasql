@@ -3487,8 +3487,24 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 						return errors.New("expected FOLLOWING")
 					}
 
-				} else {
-					return errors.New("expected literal")
+				} else if p.peek(0).value == "CURRENT" {
+					p.consume() // Consume CURRENT
+
+					if p.peek(0).value != "ROW" {
+						return errors.New("expected ROW")
+					}
+
+					p.consume() // Consume ROW
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_ROWS,
+						Boundary: &WindowFrameBoundary{
+							Type:  ROWS_LITERAL_PRECEDING_CURRENT_ROW,
+							Lower: lower.(*Literal),
+						},
+					}
+
+					return nil
 				}
 
 			} else {
