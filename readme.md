@@ -2,13 +2,13 @@
     <h1 align="center"><img width="228" src="artwork/ariasql-logov1.png"></h1>
 </div>
 
-AriaSQL is a versatile relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency.  At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.
+AriaSQL is a relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency.  At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
 
 ## Features
-- [x] SQL1+ handwritten parser, lexer implementation
+- [x] SQL1+ handwritten parser, lexer implementation (AriaSQL follows majority of SQL1 standard with some minor upgrades)
 - [x] BTrees for indexes
 - [x] Optimized execution engine / compiler
 - [x] SQL Server (TCP Server on port `3695`)
@@ -26,16 +26,9 @@ AriaSQL is a versatile relational database management system designed and engine
 - [x] JSON response format (false by default)
 - [x] Foreign keys
 - [x] DML, DQL, DDL, DCL, TCL Support
-
-## Whats coming?
-- [ ] Views
-- [ ] Triggers
 - [ ] Stored Procedures
 - [x] Cursors
-- [ ] CTEs (Common Table Expressions)
-- [ ] Window Functions
 - [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
-- [ ] Cascading options for CREATE TABLE i.e `ON DELETE CASCADE|SET NULL|SET DEFAULT|NO ACTION` `ON UPDATE CASCADE|SET NULL|SET DEFAULT|NO ACTION`
 - [x] CASE expressions (Within select list and where clauses)
 - [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
@@ -43,16 +36,12 @@ AriaSQL is a versatile relational database management system designed and engine
 - [x] CHECK constraint
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
 - [ ] Logging to file (aria.log)
-- [ ] Roles
 - [ ] Alter table (migration)
-
-Above is expected for v1.0.0 release.
-
-### v1.0.0+ - v2.0.0
 - [ ] Replication - Replication to slave nodes, replicates data from master to slave nodes.
 - [ ] Import/ Export (CSV, JSON, XML) - From (asql AriaSQL CLI or AriaSQL Developer)
 - [ ] Encryption (ChaCha20) - After data is compressed it can be encrypted for storage
 - [ ] Compression (ZSTD) - Compresses row data for storage
+
 
 ## Clients/Drivers
 - GO - [github.com/ariasql/ariasql-go](https://github.com/ariasql/ariasql-go) `IN DEVELOPMENT`
