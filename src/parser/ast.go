@@ -421,8 +421,11 @@ type ProcedureStmt struct {
 
 // Parameter represents a parameter in a procedure
 type Parameter struct {
-	Name     *Identifier
-	DataType *Identifier
+	Name      *Identifier
+	DataType  *Identifier
+	Length    *Literal
+	Precision *Literal
+	Scale     *Literal
 }
 
 /*
@@ -615,4 +618,11 @@ type CloseStmt struct {
 type DeallocateStmt struct {
 	CursorName         *Identifier
 	CursorVariableName *Identifier
+}
+
+// CreateProcedureStmt represents a CREATE PROCEDURE statement
+type CreateProcedureStmt struct {
+	Name       *Identifier
+	Parameters []*Parameter
+	Body       *BeginEndBlock
 }

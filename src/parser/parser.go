@@ -1651,11 +1651,15 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 		return p.parseCreateTableStmt()
 	case "USER":
 		return p.parseCreateUserStmt()
+	case "PROCEDURE":
+		return p.parseCreateProcedureStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE or INDEX")
 
 }
+
+
 
 // parseCreateUserStmt
 func (p *Parser) parseCreateUserStmt() (Node, error) {
