@@ -571,11 +571,62 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parsePrintStmt()
 		case "EXEC":
 			return p.parseExecStmt()
+		case "EXPLAIN":
+			return p.parseExplainStmt()
 
 		}
 	}
 
 	return nil, errors.New("expected keyword")
+
+}
+
+// parseExplainStmt parses an EXPLAIN statement
+func (p *Parser) parseExplainStmt() (Node, error) {
+	p.consume() // Consume EXPLAIN
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "SELECT":
+		p.consume() // Consume SELECT
+
+		selectStmt, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		return &Explain{
+			Stmt: selectStmt,
+		}, nil
+
+	case "UPDATE":
+		p.consume() // Consume UPDATE
+
+		updateStmt, err := p.parseUpdateStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		return &Explain{
+			Stmt: updateStmt,
+		}, nil
+	case "DELETE":
+		p.consume() // Consume DELETE
+
+		deleteStmt, err := p.parseDeleteStmt()
+		if err != nil {
+			return nil, err
+		}
+
+		return &Explain{
+			Stmt: deleteStmt,
+		}, nil
+	}
+
+	return nil, errors.New("expected SELECT, DELETE, UPDATE")
 
 }
 
