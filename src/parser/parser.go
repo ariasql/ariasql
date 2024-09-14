@@ -3407,6 +3407,22 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 			p.consume() // Consume AND
 
 			if p.peek(0).value == "UNBOUNDED" {
+				p.consume() // Consume UNBOUNDED
+
+				if p.peek(0).value != "FOLLOWING" {
+					return errors.New("expected FOLLOWING")
+				}
+
+				p.consume() // Consume FOLLOWING
+
+				windowSpec.Frame = &WindowFrame{
+					FrameType: WINDOW_FRAME_ROWS,
+					Boundary: &WindowFrameBoundary{
+						Type: ROWS_CURRENT_ROW_UNBOUNDED_FOLLOWING,
+					},
+				}
+
+				return nil
 
 			} else if p.peek(0).tokenT == LITERAL_TOK {
 				upper, err := p.parseLiteral()
