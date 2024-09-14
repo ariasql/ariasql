@@ -4578,12 +4578,395 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 		switch p.peek(0).value {
 		case "AVG", "COUNT", "MAX", "MIN", "SUM":
 			return p.parseAggregateFunc()
-
+		case "ROW_NUMBER", "RANK", "DENSE_RANK", "NTILE":
+			return p.parseRankingFunc()
+		case "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE", "LEAD", "LAG":
+			return p.parseAnalyticFunc()
+		case "PERCENTILE_CONT", "PERCENTILE_DISC", "CUME_DIST", "PERCENT_RANK":
+			return p.parseDistributionFunc()
 		default:
-			return nil, errors.New("expected aggregate function")
+			return nil, errors.New("expected aggregate function or window function")
 		}
 	default:
 		return nil, errors.New("expected literal or column spec")
+	}
+}
+
+// parseDistributionFunc parses a distribution function
+func (p *Parser) parseDistributionFunc() (interface{}, error) {
+	switch p.peek(0).value {
+	case "PERCENTILE_CONT":
+		percentileContFunc := &PercentileContFunc{}
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		frac, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		percentileContFunc.Expr = frac.(*Literal)
+
+		// look for )
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume()
+
+		return percentileContFunc, nil
+
+	case "PERCENTILE_DISC":
+		percentileDiscFunc := &PercentileDiscFunc{}
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		frac, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		percentileDiscFunc.Expr = frac.(*Literal)
+
+		// look for )
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+
+		}
+
+		p.consume()
+
+		return percentileDiscFunc, nil
+
+	case "CUME_DIST":
+		cumeDistFunc := &CumeDistFunc{}
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+
+		}
+
+		p.consume() // Consume )
+
+		return cumeDistFunc, nil
+
+	case "PERCENT_RANK":
+		percentRankFunc := &PercentRankFunc{}
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+
+		}
+
+		p.consume() // Consume )
+
+		return percentRankFunc, nil
+
+	default:
+		return nil, errors.New("expected distribution function")
+
+	}
+}
+
+// parseAnalyticFunc parses an analytic function
+func (p *Parser) parseAnalyticFunc() (interface{}, error) {
+	switch p.peek(0).value {
+	case "FIRST_VALUE":
+		firstValueFunc := &FirstValueFunc{}
+
+		p.consume() // Consume FIRST_VALUE
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// parse column spec
+		columnSpec, err := p.parseColumnSpecification()
+		if err != nil {
+			return nil, err
+		}
+
+		firstValueFunc.Expr = columnSpec
+
+		// look for )
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return firstValueFunc, nil
+
+	case "LAST_VALUE":
+		lastValueFunc := &LastValueFunc{}
+
+		p.consume() // Consume LAST_VALUE
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// parse column spec
+		columnSpec, err := p.parseColumnSpecification()
+		if err != nil {
+			return nil, err
+		}
+
+		lastValueFunc.Expr = columnSpec
+
+		// look for )
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return lastValueFunc, nil
+
+	case "NTH_VALUE":
+		nthValueFunc := &NthValueFunc{}
+
+		p.consume() // Consume NTH_VALUE
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// parse column spec
+		columnSpec, err := p.parseColumnSpecification()
+		if err != nil {
+			return nil, err
+		}
+
+		// look for ,
+		if p.peek(0).value != "," {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+		// parse literal
+		n, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		nthValueFunc.Expr = columnSpec
+		nthValueFunc.N = n.(*Literal)
+
+		// look for )
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return nthValueFunc, nil
+
+	case "LEAD":
+		leadFunc := &LeadFunc{}
+
+		p.consume() // Consume LEAD
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// parse column spec
+
+		columnSpec, err := p.parseColumnSpecification()
+		if err != nil {
+			return nil, err
+		}
+
+		// look for ,
+
+		if p.peek(0).value != "," {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+		// parse literal
+
+		offset, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		leadFunc.Expr = columnSpec
+		leadFunc.Offset = offset.(*Literal)
+
+		// look for )
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return leadFunc, nil
+
+	case "LAG":
+		lagFunc := &LagFunc{}
+
+		p.consume() // Consume LAG
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		// parse column spec
+
+		columnSpec, err := p.parseColumnSpecification()
+
+		if err != nil {
+			return nil, err
+		}
+
+		// look for ,
+
+		if p.peek(0).value != "," {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+		// parse literal
+
+		offset, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		lagFunc.Expr = columnSpec
+		lagFunc.Offset = offset.(*Literal)
+
+		// look for )
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return lagFunc, nil
+
+	default:
+		return nil, errors.New("expected analytic function")
+
+	}
+}
+
+// parseRankingFunc parses a ranking function
+func (p *Parser) parseRankingFunc() (interface{}, error) {
+	switch p.peek(0).value {
+	case "ROW_NUMBER":
+		p.consume()
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+		return &RowNumberFunc{}, nil
+	case "RANK":
+		p.consume()
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return &RankFunc{}, nil
+	case "DENSE_RANK":
+		p.consume()
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+			return nil, errors.New("expected (")
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return &DenseRankFunc{}, nil
+	case "NTILE":
+		ntileFunc := &NTileFunc{}
+
+		p.consume() // Consume NTILE
+
+		if p.peek(0).tokenT != LPAREN_TOK {
+
+			return nil, errors.New("expected (")
+
+		}
+
+		p.consume() // Consume (
+
+		if p.peek(0).tokenT != LITERAL_TOK {
+			return nil, errors.New("expected literal")
+		}
+
+		// Parse literal
+
+		n, err := p.parseLiteral()
+		if err != nil {
+			return nil, err
+		}
+
+		ntileFunc.N = n.(*Literal)
+
+		if p.peek(0).tokenT != RPAREN_TOK {
+			return nil, errors.New("expected )")
+		}
+
+		p.consume() // Consume )
+
+		return ntileFunc, nil
+
+	default:
+		return nil, errors.New("expected ranking function")
 	}
 }
 

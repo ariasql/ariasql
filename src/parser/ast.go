@@ -701,3 +701,67 @@ type WindowFrameBoundary struct {
 	Lower *Literal
 	Upper *Literal
 }
+
+// Ranking functions
+
+// RowNumberFunc represents a ROW_NUMBER function
+type RowNumberFunc struct{}
+
+// RankFunc represents a RANK function
+type RankFunc struct{}
+
+// DenseRankFunc represents a DENSE_RANK function
+type DenseRankFunc struct{}
+
+// NTileFunc represents a NTILE function
+type NTileFunc struct {
+	N *Literal
+}
+
+// Analytic functions
+
+// LeadFunc represents a LEAD function
+type LeadFunc struct {
+	Expr   interface{} // expression
+	Offset *Literal
+}
+
+// LagFunc represents a LAG function
+type LagFunc struct {
+	Expr   interface{} // expression
+	Offset *Literal
+}
+
+// FirstValueFunc represents a FIRST_VALUE function
+type FirstValueFunc struct {
+	Expr interface{} // expression
+}
+
+// LastValueFunc represents a LAST_VALUE function
+type LastValueFunc struct {
+	Expr interface{} // expression
+}
+
+// NthValueFunc represents a NTH_VALUE function
+type NthValueFunc struct {
+	Expr interface{} // expression
+	N    *Literal
+}
+
+// Distribution functions
+
+// PercentRankFunc represents a PERCENT_RANK function
+type PercentRankFunc struct{}
+
+// CumeDistFunc represents a CUME_DIST function
+type CumeDistFunc struct{}
+
+// PercentileContFunc represents a PERCENTILE_CONT function
+type PercentileContFunc struct {
+	Expr interface{} // expression / fraction
+}
+
+// PercentileDiscFunc represents a PERCENTILE_DISC function
+type PercentileDiscFunc struct {
+	Expr interface{} // expression / fraction
+}
