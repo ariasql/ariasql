@@ -621,53 +621,40 @@ type DeallocateStmt struct {
 
 // WindowFunc represents a window function
 type WindowFunc struct {
-	Expr interface{}
-	Spec *WindowSpec
+	Expr interface{} // represents the expression or function that is applied as a window function (e.g., SUM(salary), ROW_NUMBER(), etc.)
+	Spec *WindowSpec // holds the specification of the window, which includes partitioning, ordering, and framing details
 }
 
 // WindowSpec represents a window specification
 type WindowSpec struct {
-	PartitionBy []*ValueExpression
-	OrderBy     *OrderByClause
-	Frame       *WindowFrame
+	PartitionBy []*ValueExpression // Set of columns to partition the result set by
+	OrderBy     *OrderByClause     // Defines the order of rows within each partition
+	Frame       *WindowFrame       //  Represents the window frame specification
 }
 
 type WindowFrameType int
 
 const (
-	_ WindowFrameType = iota
-	WINDOW_FRAME_RANGE
-	WINDOW_FRAME_ROWS
+	_                  WindowFrameType = iota
+	WINDOW_FRAME_RANGE                 // For range-based frames, which specify a range of values (e.g., date ranges or numeric ranges)
+	WINDOW_FRAME_ROWS                  //  For row-based frames, which specify a range of rows relative to the current row.
 )
 
 // WindowFrame represents a window frame
 type WindowFrame struct {
-	FrameType WindowFrameType
-	Bound     *WindowFrameBound
+	FrameType WindowFrameType      // Indicates whether it's a range or row-based frame
+	Boundary  *WindowFrameBoundary // Represents the boundaries for the frame
 }
 
 type WindowFrameBoundType int
 
 const (
 	_ WindowFrameBoundType = iota
-	WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
-	WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
-	WINDOW_FRAME_BOUND_CURRENT_ROW_FOLLOWING
-	WINDOW_FRAME_BOUND_CURRENT_ROW_N_FOLLOWING
-	WINDOW_FRAME_BOUND_CURRENT_ROW_PRECEDING
-	WINDOW_FRAME_BOUND_CURRENT_ROW_N_PRECEDING
-	WINDOW_FRAME_BOUND_CURRENT_ROW_UNBOUNDED_FOLLOWING
-	WINDOW_FRAME_BOUND_N_PRECEDING
-	WINDOW_FRAME_BOUND_N_FOLLOWING
-	WINDOW_FRAME_BOUND_N_FOLLOWING_CURRENT_ROW
-	WINDOW_FRAME_BOUND_N_FOLLOWING_UNBOUNDED_PRECEDING
-	WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
-	WINDOW_FRAME_BOUND_N_PRECEDING_CURRENT_ROW
-	WINDOW_FRAME_BOUND_N_PRECEDING_UNBOUNDED_FOLLOWING
 )
 
-// WindowFrameBound represents a window frame bound
-type WindowFrameBound struct {
-	Type WindowFrameBoundType
-	N    *Literal
+// WindowFrameBoundary represents a window frame boundary
+type WindowFrameBoundary struct {
+	Type  WindowFrameBoundType
+	Lower *Literal
+	Upper *Literal
 }
