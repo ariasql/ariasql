@@ -3625,6 +3625,64 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 			}
 
 		} else if p.peek(0).value == "CURRENT" {
+			p.consume() // Consume CURRENT
+
+			if p.peek(0).value != "ROW" {
+				return errors.New("expected ROW")
+			}
+
+			p.consume() // Consume ROW
+
+			if p.peek(0).value != "AND" {
+				return errors.New("expected AND")
+			}
+
+			p.consume() // Consume AND
+
+			if p.peek(0).value == "UNBOUNDED" {
+
+				p.consume() // Consume UNBOUNDED
+
+				if p.peek(0).value != "FOLLOWING" {
+					return errors.New("expected FOLLOWING")
+				}
+
+				p.consume() // Consume FOLLOWING
+
+				windowSpec.Frame = &WindowFrame{
+					FrameType: WINDOW_FRAME_RANGE,
+					Boundary: &WindowFrameBoundary{
+						Type: RANGE_CURRENT_ROW_UNBOUNDED_FOLLOWING,
+					},
+				}
+
+				return nil
+
+			} else if p.peek(0).tokenT == LITERAL_TOK {
+				upper, err := p.parseLiteral()
+				if err != nil {
+					return err
+				}
+
+				if p.peek(0).value == "FOLLOWING" {
+					p.consume() // Consume FOLLOWING
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_RANGE,
+						Boundary: &WindowFrameBoundary{
+							Type:  RANGE_CURRENT_ROW_LITERAL_FOLLOWING,
+							Upper: upper.(*Literal),
+						},
+					}
+
+					return nil
+				} else {
+					return errors.New("expected FOLLOWING")
+				}
+
+			} else {
+				return errors.New("expected UNBOUNDED, or LITERAL")
+			}
 
 		} else if p.peek(0).tokenT == LITERAL_TOK {
 
