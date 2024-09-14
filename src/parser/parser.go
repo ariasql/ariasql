@@ -3374,6 +3374,17 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					if p.peek(0).value != "FOLLOWING" {
 						return errors.New("expected FOLLOWING")
 					}
+
+					p.consume() // Consume FOLLOWING
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_ROWS,
+						Boundary: &WindowFrameBoundary{
+							Type: ROWS_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING,
+						},
+					}
+
+					return nil
 				}
 
 			} else {
