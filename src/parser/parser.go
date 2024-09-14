@@ -3385,6 +3385,8 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					}
 
 					return nil
+				} else {
+					return errors.New("expected CURRENT, LITERAL, or UNBOUNDED")
 				}
 
 			} else {
@@ -3446,6 +3448,8 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					return errors.New("expected FOLLOWING")
 				}
 
+			} else {
+				return errors.New("expected LITERAL or UNBOUNDED")
 			}
 
 		} else if p.peek(0).tokenT == LITERAL_TOK {
@@ -3532,6 +3536,102 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 		}
 
 	case "RANGE":
+		// Eat RANGE
+
+		p.consume()
+
+		if p.peek(0).value != "BETWEEN" {
+			return errors.New("expected BETWEEN")
+		}
+
+		p.consume() // Consume BETWEEN
+
+		if p.peek(0).value == "UNBOUNDED" {
+			p.consume()
+
+			if p.peek(0).value == "PRECEDING" {
+				p.consume() // Consume PRECEDING
+
+				if p.peek(0).value == "AND" {
+					p.consume() // Consume AND
+
+					if p.peek(0).value == "CURRENT" {
+						p.consume() // Consume CURRENT
+
+						if p.peek(0).value != "ROW" {
+							return errors.New("expected ROW")
+						}
+
+						p.consume() // Consume ROW
+
+						windowSpec.Frame = &WindowFrame{
+							FrameType: WINDOW_FRAME_RANGE,
+							Boundary: &WindowFrameBoundary{
+								Type: RANGE_UNBOUNDED_PRECEDING_CURRENT_ROW,
+							},
+						}
+
+						return nil
+
+					} else if p.peek(0).tokenT == LITERAL_TOK {
+						upper, err := p.parseLiteral()
+						if err != nil {
+							return err
+						}
+
+						if p.peek(0).value == "FOLLOWING" {
+							p.consume() // Consume FOLLOWING
+
+							windowSpec.Frame = &WindowFrame{
+								FrameType: WINDOW_FRAME_RANGE,
+								Boundary: &WindowFrameBoundary{
+									Type:  RANGE_UNBOUNDED_PRECEDING_LITERAL_FOLLOWING,
+									Upper: upper.(*Literal),
+								},
+							}
+
+							return nil
+						} else {
+							return errors.New("expected FOLLOWING")
+						}
+
+					} else if p.peek(0).value == "UNBOUNDED" {
+						p.consume() // Consume UNBOUNDED
+
+						if p.peek(0).value != "FOLLOWING" {
+							return errors.New("expected FOLLOWING")
+						}
+
+						p.consume() // Consume FOLLOWING
+
+						windowSpec.Frame = &WindowFrame{
+							FrameType: WINDOW_FRAME_RANGE,
+							Boundary: &WindowFrameBoundary{
+								Type: RANGE_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING,
+							},
+						}
+
+						return nil
+
+					} else {
+						return errors.New("expected CURRENT, LITERAL, or UNBOUNDED")
+					}
+				} else {
+					return errors.New("expected AND")
+				}
+
+			} else {
+				return errors.New("expected PRECEDING")
+			}
+
+		} else if p.peek(0).value == "CURRENT" {
+
+		} else if p.peek(0).tokenT == LITERAL_TOK {
+
+		} else {
+			return errors.New("expected UNBOUNDED, CURRENT, or LITERAL")
+		}
+
 	}
 
 	return nil
