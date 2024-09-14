@@ -2277,7 +2277,7 @@ func (p *Parser) parseOrderByList(orderByClause *OrderByClause) error {
 
 	p.consume() // Consume BY
 
-	for p.peek(0).tokenT != EOF_TOK || p.peek(0).value != "ROWS" || p.peek(0).tokenT != RPAREN_TOK {
+	for p.peek(0).tokenT != EOF_TOK || p.peek(0).value != "ROWS" || p.peek(0).value == "RANGE" || p.peek(0).tokenT != RPAREN_TOK {
 
 		// Parse order by expression
 		expr, err := p.parseValueExpression()
@@ -3348,7 +3348,40 @@ func (p *Parser) parseFrameBound() (*WindowFrameBound, error) {
 
 		switch p.peek(0).value {
 		case "PRECEDING":
-			// existing code for PRECEDING
+			// Look for AND
+
+			if p.peek(0).value == "AND" {
+				// After and there can be CURRENT ROW or UNBOUNDED FOLLOWING
+				p.consume()
+
+				if p.peek(0).value == "CURRENT" {
+					if p.peek(1).value == "ROW" {
+						p.consume()
+						p.consume()
+						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
+					}
+				} else if p.peek(0).value == "UNBOUNDED" {
+					if p.peek(1).value == "FOLLOWING" {
+						p.consume()
+						p.consume()
+						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
+					}
+				} else if p.peek(0).tokenT == LITERAL_TOK {
+					n = p.peek(0).value.(uint64)
+					p.consume()
+
+					if p.peek(0).value == "FOLLOWING" {
+						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
+						frameBound.N = n
+					} else {
+						return nil, errors.New("expected FOLLOWING")
+					}
+
+				} else {
+					return nil, errors.New("expected CURRENT ROW or UNBOUNDED FOLLOWING")
+				}
+
+			}
 		case "FOLLOWING":
 
 			// Look for AND
