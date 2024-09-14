@@ -15010,3 +15010,189 @@ func TestStmt80(t *testing.T) {
 	}
 
 }
+
+func TestStmt81(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE sales (
+		id INT PRIMARY KEY SEQUENCE,
+		employee_id INT,
+		sale_amount DECIMAL(10, 2),
+		sale_date DATETIME DEFAULT SYS_DATE
+	);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO sales (employee_id, sale_amount, sale_date) VALUES 
+	(1, 100.00, '2024-09-14 15:32:01'),
+	(2, 200.00, '2024-09-14 15:32:02'),
+	(3, 300.00, '2024-09-14 15:32:03'),
+	(4, 400.00, '2024-09-14 15:32:04'),
+	(5, 500.00, '2024-09-14 15:32:05');
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	// Result set should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	SELECT
+		id,
+		employee_id,
+		sale_amount,
+		sale_date,
+		ROW_NUMBER() OVER (PARTITION BY employee_id ORDER BY sale_date ASC) AS row_num
+	FROM sales;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := `+-------------+----+---------+-------------+---------------------+
+| employee_id | id | row_num | sale_amount | sale_date           |
++-------------+----+---------+-------------+---------------------+
+| 1           | 1  | 1       | 100         | 2024-09-14 15:32:01 |
+| 2           | 2  | 2       | 200         | 2024-09-14 15:32:02 |
+| 3           | 3  | 3       | 300         | 2024-09-14 15:32:03 |
+| 4           | 4  | 4       | 400         | 2024-09-14 15:32:04 |
+| 5           | 5  | 5       | 500         | 2024-09-14 15:32:05 |
++-------------+----+---------+-------------+---------------------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
+}

@@ -778,6 +778,24 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 			// Check date format
 			// Should be in the format YYYY-MM-DD HH:MM:SS
+
+			// convert 2024-09-14 153201 to 2024-09-14 15:32:01
+			row[colName] = strings.TrimSuffix(strings.TrimPrefix(row[colName].(string), "'"), "'")
+
+			original := row[colName].(string)
+
+			// Split the date and time parts
+			datePart := original[:10]
+			timePart := original[11:]
+
+			// Extract hours, minutes, and seconds
+			hours := timePart[:2]
+			minutes := timePart[2:4]
+			seconds := timePart[4:]
+
+			// Format the new datetime string
+			row[colName] = fmt.Sprintf("%s %s:%s:%s", datePart, hours, minutes, seconds)
+
 			if !shared.IsValidDateTimeFormat(row[colName].(string)) {
 				return -1, fmt.Errorf("column %s is not a valid datetime", colName)
 			}
@@ -785,7 +803,7 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 			// convert to time.Time
 			t, err := shared.StringToGOTime(row[colName].(string))
 			if err != nil {
-				return -1, fmt.Errorf("column %s is not a valid date", colName)
+				return -1, fmt.Errorf("column %s is not a valid datetime", colName)
 			}
 
 			row[colName] = t

@@ -66,7 +66,7 @@ const (
 	PRIV_BEGIN
 )
 
-// SysDate
+// SysDate represents system datetime
 type SysDate struct{}
 
 // SysTime

@@ -1283,8 +1283,8 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		} else {
 			// We should evaluate the select list
 			// Based on projection (select list), we can filter the columns
-			var err error
-			results, err = ex.selectListFilter(results, stmt.SelectList)
+
+			err = ex.selectListFilter(&results, stmt.SelectList)
 			if err != nil {
 				return nil, err
 
@@ -1776,14 +1776,14 @@ func getFirstAggFuncFromBinaryExpression(expr *parser.BinaryExpression) *parser.
 }
 
 // selectListFilter filters the results based on the select list
-func (ex *Executor) selectListFilter(results []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
+func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectList *parser.SelectList) error {
 
 	if selectList == nil {
-		return nil, errors.New("no select list")
+		return errors.New("no select list")
 	}
 
 	if len(selectList.Expressions) == 0 {
-		return nil, errors.New("no select list")
+		return errors.New("no select list")
 	}
 
 	var columns []string // The columns to be selected
@@ -1791,6 +1791,62 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 	for i, expr := range selectList.Expressions {
 
 		switch expr := expr.Value.(type) {
+		case *parser.WindowFunc:
+			// evaluate the window function
+
+			// check expression if ROW_NUMBER, RANK, DENSE_RANK, PERCENT_RANK, CUME_DIST, NTILE, LAG, LEAD, FIRST_VALUE, LAST_VALUE, NTH_VALUE
+			switch expr.Expr.(type) {
+			case *parser.RowNumberFunc:
+				// ROW_NUMBER
+				for j, _ := range *results {
+					// Check for alias
+					if selectList.Expressions[i].Alias == nil {
+						(*results)[j]["row_number"] = j + 1
+					} else {
+						(*results)[j][selectList.Expressions[i].Alias.Value] = j + 1
+					}
+				}
+
+			}
+
+			// Check if window spec
+			if expr.Spec != nil {
+				// Check if partition by
+				if expr.Spec.PartitionBy != nil {
+					// Evaluate the partition by
+
+					for j, _ := range *results {
+						// Evaluate the partition by
+
+						for _, col := range expr.Spec.PartitionBy {
+							// Check if column exists
+							if _, ok := (*results)[j][col.Value.(*parser.ColumnSpecification).ColumnName.Value]; ok {
+
+								if selectList.Expressions[i].Alias == nil {
+									(*results)[j][col.Value.(*parser.ColumnSpecification).ColumnName.Value] = (*results)[j][col.Value.(*parser.ColumnSpecification).ColumnName.Value]
+								} else {
+									(*results)[j][selectList.Expressions[i].Alias.Value] = (*results)[j][col.Value.(*parser.ColumnSpecification).ColumnName.Value]
+								}
+							}
+						}
+					}
+
+					if expr.Spec.OrderBy != nil {
+						// Evaluate the order by
+						var err error
+						*results, err = ex.orderBy(*results, expr.Spec.OrderBy)
+						if err != nil {
+							return err
+						}
+					}
+
+					// Evaluate the frame
+					// @todo
+				}
+			}
+
+			return nil
+
 		case *parser.BinaryExpression:
 
 			// Left should be a column
@@ -1799,23 +1855,23 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 			if col != nil {
 
-				for j, row := range results {
+				for j, row := range *results {
 					var val interface{}
 
 					err := evaluateBinaryExpression(expr, &val, &[]map[string]interface{}{row})
 					if err != nil {
-						return nil, err
+						return err
 					}
 
 					if selectList.Expressions[i].Alias == nil {
 
 						// update corresponding column
-						results[j][col.ColumnName.Value] = val
+						(*results)[j][col.ColumnName.Value] = val
 					} else {
 						// update corresponding column
-						results[j][selectList.Expressions[i].Alias.Value] = val
+						(*results)[j][selectList.Expressions[i].Alias.Value] = val
 						// delete the old column
-						delete(results[j], col.ColumnName.Value)
+						delete((*results)[j], col.ColumnName.Value)
 					}
 
 				}
@@ -1830,16 +1886,16 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 				// evaluate the expression
 				var val interface{}
 
-				err := evaluateBinaryExpression(expr, &val, &results)
+				err := evaluateBinaryExpression(expr, &val, results)
 				if err != nil {
-					return nil, err
+					return err
 				}
 
 				if selectList.Expressions[i].Alias == nil {
-					results = []map[string]interface{}{map[string]interface{}{getFirstAggFuncFromBinaryExpression(expr).FuncName: val}}
+					*results = []map[string]interface{}{map[string]interface{}{getFirstAggFuncFromBinaryExpression(expr).FuncName: val}}
 					columns = []string{getFirstAggFuncFromBinaryExpression(expr).FuncName}
 				} else {
-					results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: val}}
+					*results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: val}}
 					columns = []string{selectList.Expressions[i].Alias.Value}
 				}
 
@@ -1847,13 +1903,13 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 		case *parser.Wildcard:
 
-			return results, nil
+			return nil
 		case *parser.ColumnSpecification:
 
 			// Check for alias
 			if selectList.Expressions[i].Alias == nil {
 				if expr.ColumnName.Value == "*" && expr.TableName != nil {
-					for _, row := range results {
+					for _, row := range *results {
 						for k, v := range row {
 							if strings.HasPrefix(k, expr.TableName.Value+".") {
 								row[k] = v
@@ -1867,7 +1923,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 			} else {
 				columns = append(columns, selectList.Expressions[i].Alias.Value)
 				// Replace all instances of the column name with the alias
-				for _, row := range results {
+				for _, row := range *results {
 
 					if _, ok := row[expr.ColumnName.Value]; ok {
 						row[selectList.Expressions[i].Alias.Value] = row[expr.ColumnName.Value]
@@ -1881,30 +1937,30 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 			var err error
 
 			// evaluate the aggregate function
-			err = evaluateAggregate(expr, &results, &columns, selectList.Expressions[i].Alias)
+			err = evaluateAggregate(expr, results, &columns, selectList.Expressions[i].Alias)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		case *parser.CaseExpr:
 			var err error
 
-			err = ex.evaluateSelectCase(expr, &results, &columns, selectList.Expressions[i].Alias)
+			err = ex.evaluateSelectCase(expr, results, &columns, selectList.Expressions[i].Alias)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		case *parser.UpperFunc, *parser.LowerFunc, *parser.LengthFunc, *parser.PositionFunc, *parser.RoundFunc,
 			*parser.TrimFunc, *parser.SubstrFunc, *parser.ConcatFunc, *parser.CastFunc, *shared.GenUUID, *shared.SysDate,
 			*shared.SysTime, *shared.SysTimestamp, *parser.CoalesceFunc, *parser.ReverseFunc:
 			var err error
-			err = evaluateSystemFunc(expr, &results, &columns, selectList.Expressions[i].Alias)
+			err = evaluateSystemFunc(expr, results, &columns, selectList.Expressions[i].Alias)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 	}
 
-	for _, row := range results {
+	for _, row := range *results {
 		for k, _ := range row {
 			if !slices.Contains(columns, k) {
 				delete(row, k)
@@ -1913,7 +1969,7 @@ func (ex *Executor) selectListFilter(results []map[string]interface{}, selectLis
 
 	}
 
-	return results, nil
+	return nil
 
 }
 
@@ -2583,6 +2639,59 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 				}
 
 				filteredRows = append(filteredRows, row)
+			}
+		}
+
+		for i, row := range filteredRows {
+			for k, v := range row {
+				// Check if value is time.Time
+				if _, ok := v.(time.Time); ok {
+					// if so we need to read the schema to get the type
+					if len(tbls) > 1 {
+						// split the key and get the table name
+						tblName := strings.Split(k, ".")[0]
+
+						// get the table
+						for _, tbl := range tbls {
+							if tbl.Name == tblName {
+								// get the column type
+								for name, col := range tbl.TableSchema.ColumnDefinitions {
+									if name == strings.Split(k, ".")[1] {
+										switch col.DataType {
+										case "DATE":
+											filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
+										case "TIME":
+											filteredRows[i][k] = v.(time.Time).Format("15:04:05")
+										case "TIMESTAMP", "DATETIME":
+											filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										}
+									}
+								}
+							}
+						}
+					} else {
+
+						tbl := tbls[0]
+						// get the column type
+						for name, col := range tbl.TableSchema.ColumnDefinitions {
+
+							if name == k {
+								switch col.DataType {
+								case "DATE":
+									filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
+								case "TIME":
+									filteredRows[i][k] = v.(time.Time).Format("15:04:05")
+								case "TIMESTAMP":
+									filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+								case "DATETIME":
+									filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+								}
+							}
+						}
+
+					}
+				}
+
 			}
 		}
 
