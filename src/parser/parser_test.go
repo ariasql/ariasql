@@ -8522,3 +8522,53 @@ func TestNewParserRankFunc3(t *testing.T) {
 	}
 
 }
+
+func TestNewParserRankFunc4(t *testing.T) {
+	statement := []byte(`
+	SELECT NTILE(4);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*NTileFunc) == nil {
+		t.Fatalf("expected NTileFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*NTileFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*NTileFunc).N.Value != uint64(4) {
+		t.Fatalf("expected 4, got %d", selectStmt.SelectList.Expressions[0].Value.(*NTileFunc).N.Value)
+
+	}
+
+}
