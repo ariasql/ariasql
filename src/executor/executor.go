@@ -1841,7 +1841,14 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 					}
 
 					// Evaluate the frame
-					// @todo
+					if expr.Spec.Frame != nil {
+						// Evaluate the frame
+						var err error
+						*results, err = ex.evaluateFrame(expr.Spec.Frame, *results)
+						if err != nil {
+							return err
+						}
+					}
 				}
 			}
 
@@ -1971,6 +1978,71 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 
 	return nil
 
+}
+
+// evaluateFrame evaluates the frame of a window function
+func (ex *Executor) evaluateFrame(frame *parser.WindowFrame, results []map[string]interface{}) ([]map[string]interface{}, error) {
+	switch frame.FrameType {
+	case parser.WINDOW_FRAME_ROWS:
+		switch frame.Boundary.Type {
+		case parser.ROWS_UNBOUNDED_PRECEDING_CURRENT_ROW:
+			// i.e ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+
+			// We need to evaluate the window function
+			for i, _ := range results {
+				for j := 0; j <= i; j++ {
+
+					// Copy the value of the current row to the preceding row
+					for k, v := range results[j] {
+						results[i][k] = v
+					}
+				}
+
+			}
+
+		case parser.ROWS_UNBOUNDED_PRECEDING_LITERAL_FOLLOWING:
+
+		case parser.ROWS_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING:
+
+		case parser.ROWS_CURRENT_ROW_LITERAL_FOLLOWING:
+
+		case parser.ROWS_CURRENT_ROW_UNBOUNDED_FOLLOWING:
+
+		case parser.ROWS_LITERAL_PRECEDING_LITERAL_FOLLOWING:
+
+		case parser.ROWS_LITERAL_PRECEDING_CURRENT_ROW:
+
+		case parser.ROWS_LITERAL_PRECEDING_UNBOUNDED_FOLLOWING:
+
+		default:
+			return nil, errors.New("unsupported frame boundary type")
+
+		}
+
+	case parser.WINDOW_FRAME_RANGE:
+		switch frame.Boundary.Type {
+		case parser.RANGE_UNBOUNDED_PRECEDING_LITERAL_FOLLOWING:
+
+		case parser.RANGE_UNBOUNDED_PRECEDING_CURRENT_ROW:
+
+		case parser.RANGE_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING:
+
+		case parser.RANGE_CURRENT_ROW_UNBOUNDED_FOLLOWING:
+
+		case parser.RANGE_CURRENT_ROW_LITERAL_FOLLOWING:
+
+		case parser.RANGE_LITERAL_PRECEDING_LITERAL_FOLLOWING:
+
+		case parser.RANGE_LITERAL_PRECEDING_CURRENT_ROW:
+
+		case parser.RANGE_LITERAL_PRECEDING_UNBOUNDED_FOLLOWING:
+		default:
+			return nil, errors.New("unsupported frame boundary type")
+		}
+
+	default:
+		return nil, errors.New("unsupported frame type")
+	}
 }
 
 // evaluateSelectCase evaluates a case expression within a select list
