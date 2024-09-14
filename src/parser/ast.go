@@ -724,12 +724,14 @@ type NTileFunc struct {
 type LeadFunc struct {
 	Expr   interface{} // expression
 	Offset *Literal
+	Default *Literal
 }
 
 // LagFunc represents a LAG function
 type LagFunc struct {
 	Expr   interface{} // expression
 	Offset *Literal
+	Default *Literal
 }
 
 // FirstValueFunc represents a FIRST_VALUE function

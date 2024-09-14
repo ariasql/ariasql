@@ -8572,3 +8572,117 @@ func TestNewParserRankFunc4(t *testing.T) {
 	}
 
 }
+
+func TestNewParserAnalyticalFunc(t *testing.T) {
+	statement := []byte(`
+	SELECT LEAD(salary, 1, 0);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LeadFunc) == nil {
+		t.Fatalf("expected LeadFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*LeadFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Expr.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Expr.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Offset.Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Offset.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Default.Value != uint64(0) {
+		t.Fatalf("expected 0, got %d", selectStmt.SelectList.Expressions[0].Value.(*LeadFunc).Default.Value)
+	}
+
+}
+
+func TestNewParserAnalyticalFunc2(t *testing.T) {
+	statement := []byte(`
+	SELECT LAG(salary, 1, 0);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LagFunc) == nil {
+		t.Fatalf("expected LagFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*LagFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Expr.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Expr.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Offset.Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Offset.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Default.Value != uint64(0) {
+		t.Fatalf("expected 0, got %d", selectStmt.SelectList.Expressions[0].Value.(*LagFunc).Default.Value)
+	}
+
+}

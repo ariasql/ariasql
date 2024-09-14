@@ -4797,6 +4797,8 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 			return nil, errors.New("expected (")
 		}
 
+		p.consume() // Consume (
+
 		// parse column spec
 
 		columnSpec, err := p.parseColumnSpecification()
@@ -4817,6 +4819,17 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 		offset, err := p.parseLiteral()
 		if err != nil {
 			return nil, err
+		}
+
+		// check for , if there is one there is a default
+		if p.peek(0).value == "," {
+			p.consume() // Consume ,
+			// parse literal
+			defaultValue, err := p.parseLiteral()
+			if err != nil {
+				return nil, err
+			}
+			leadFunc.Default = defaultValue.(*Literal)
 		}
 
 		leadFunc.Expr = columnSpec
@@ -4841,6 +4854,8 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 			return nil, errors.New("expected (")
 		}
 
+		p.consume() // Consume (
+
 		// parse column spec
 
 		columnSpec, err := p.parseColumnSpecification()
@@ -4862,6 +4877,17 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 		offset, err := p.parseLiteral()
 		if err != nil {
 			return nil, err
+		}
+
+		// check for , if there is one there is a default
+		if p.peek(0).value == "," {
+			p.consume() // Consume ,
+			// parse literal
+			defaultValue, err := p.parseLiteral()
+			if err != nil {
+				return nil, err
+			}
+			lagFunc.Default = defaultValue.(*Literal)
 		}
 
 		lagFunc.Expr = columnSpec
