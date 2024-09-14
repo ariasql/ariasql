@@ -1166,6 +1166,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		return nil
+	case *parser.DropProcedureStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		err := ex.ch.Database.DropProcedure(s.ProcedureName.Value)
+		if err != nil {
+			return err
+		}
+
+		return nil
+
 	case *parser.CreateProcedureStmt:
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
