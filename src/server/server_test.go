@@ -20,15 +20,18 @@ package server
 import (
 	"ariasql/core"
 	"net"
-	"os"
+	"strconv"
 	"testing"
 	"time"
 )
 
 func TestNewTCPServer(t *testing.T) {
-	aria := core.New(&core.Config{
-		DataDir: "./",
+	aria, err := core.New(&core.Config{
+		DataDir: t.TempDir(),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	server, err := NewTCPServer(3695, "0.0.0.0", aria, 1024)
 	if err != nil {
@@ -48,21 +51,34 @@ func TestNewTCPServer(t *testing.T) {
 	}
 }
 
-func TestTCPServer_Start(t *testing.T) {
-	defer os.RemoveAll("databases")
-	defer os.Remove("ariasql.log")
-	defer os.Remove(".ariaconfig")
-	defer os.Remove("ariaserver.yaml")
-	aria := core.New(&core.Config{
-		DataDir: "./",
-	})
+func getFreePort() (int, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port, nil
+}
 
-	err := aria.Catalog.Open()
+func TestTCPServer_Start(t *testing.T) {
+	aria, err := core.New(&core.Config{
+		DataDir: t.TempDir(),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	server, err := NewTCPServer(3695, "0.0.0.0", aria, 1024)
+	err = aria.Catalog.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	freePort, err := getFreePort()
+	if err != nil {
+		t.Fatalf("Failed to get free port: %v", err)
+	}
+
+	server, err := NewTCPServer(freePort, "0.0.0.0", aria, 1024)
 	if err != nil {
 		t.Fatalf("Failed to create new server: %v", err)
 	}
@@ -73,7 +89,7 @@ func TestTCPServer_Start(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	// Try to connect to the server
-	conn, err := net.Dial("tcp", "0.0.0.0:3695")
+	conn, err := net.Dial("tcp", "0.0.0.0:"+strconv.Itoa(freePort))
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}

@@ -18,32 +18,35 @@
 package core
 
 import (
-	"os"
 	"testing"
 )
 
 func TestNew(t *testing.T) {
-	defer os.Remove("wal.dat")
-	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
-		DataDir: "./",
+	tmpDir := t.TempDir()
+
+	aria, err := New(&Config{
+		DataDir: tmpDir,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if aria == nil {
 		t.Fatal("expected non-nil AriaSQL")
 	}
 
-	if aria.Config.DataDir != "./" {
-		t.Fatalf("expected ./, got %s", aria.Config.DataDir)
+	if aria.Config.DataDir != tmpDir {
+		t.Fatalf("expected %s, got %s", tmpDir, aria.Config.DataDir)
 	}
 
 }
 
 func TestAriaSQL_OpenChannel(t *testing.T) {
-	defer os.Remove("wal.dat")
-	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
-		DataDir: "./",
+	aria, err := New(&Config{
+		DataDir: t.TempDir(),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	channel := aria.OpenChannel(nil)
 	if channel == nil {
@@ -64,14 +67,15 @@ func TestAriaSQL_OpenChannel(t *testing.T) {
 }
 
 func TestAriaSQL_RemoveChannel(t *testing.T) {
-	defer os.Remove("wal.dat")
-	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
-		DataDir: "./",
+	aria, err := New(&Config{
+		DataDir: t.TempDir(),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	channel := aria.OpenChannel(nil)
-	err := aria.CloseChannel(channel)
+	err = aria.CloseChannel(channel)
 	if err != nil {
 		t.Fatal(err)
 	}

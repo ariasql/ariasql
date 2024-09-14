@@ -76,14 +76,25 @@ func TestWAL_RecoverASTs(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	values := [][]*parser.Literal{
+		{{Value: 1}, {Value: "frankenstein"}},
+		{{Value: 2}, {Value: "frankenstein"}},
+		{{Value: 3}, {Value: "drako"}},
+	}
+
+	var convertedValues [][]interface{}
+	for _, row := range values {
+		var newRow []interface{}
+		for _, val := range row {
+			newRow = append(newRow, val)
+		}
+		convertedValues = append(convertedValues, newRow)
+	}
+
 	err = wal.Append(wal.Encode(&parser.InsertStmt{
 		TableName:   &parser.Identifier{Value: "users"},
 		ColumnNames: []*parser.Identifier{{Value: "user_id"}, {Value: "users"}},
-		Values: [][]*parser.Literal{
-			{{Value: 1}, {Value: "frankenstein"}},
-			{{Value: 2}, {Value: "frankenstein"}},
-			{{Value: 3}, {Value: "drako"}},
-		}},
+		Values:      convertedValues},
 	))
 	if err != nil {
 		t.Fatal(err)

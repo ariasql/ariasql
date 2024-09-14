@@ -1,0 +1,28 @@
+name: Go test for cli
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'cli/**'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'cli/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'cli/go.mod'
+
+      - name: Run tests
+        run: go test -v ./...
+        working-directory: cli

@@ -25,12 +25,13 @@ import (
 	"ariasql/wal"
 	"flag"
 	"fmt"
-	"github.com/briandowns/spinner"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/briandowns/spinner"
 )
 
 // The main function starts the AriaSQL server
@@ -39,9 +40,15 @@ func main() {
 	var (
 		recov     = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
 		recovFile = flag.String("recover-file", "wal.dat", "Recover AriaSQL instance from WAL file")
+		dataDir   = flag.String("data-dir", "", "Specify the data directory")
 	)
 
 	flag.Parse()
+
+	dataDirectory := *dataDir
+	if dataDirectory == "" {
+		dataDirectory = shared.GetDefaultDataDir()
+	}
 
 	if *recov {
 		fmt.Println("Recovering AriaSQL instance from WAL...")
@@ -56,7 +63,7 @@ func main() {
 
 			// Will look in default data directory for wal.dat unless specified
 			if *recovFile == "" {
-				w, err = wal.OpenWAL(shared.GetDefaultDataDir()+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
+				w, err = wal.OpenWAL(dataDirectory+shared.GetOsPathSeparator()+"wal.dat", os.O_CREATE|os.O_RDWR, 0644)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -94,7 +101,7 @@ func main() {
 		wg.Wait()
 		s.Stop()
 
-		fmt.Sprintf("AriaSQL instance recovered from WAL successfully")
+		fmt.Println("AriaSQL instance recovered from WAL successfully")
 
 		os.Exit(0)
 
@@ -107,7 +114,9 @@ func main() {
 		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 		// Create a new AriaSQL instance
-		aria, err := core.New(nil)
+		aria, err := core.New(&core.Config{
+			DataDir: dataDirectory,
+		})
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
