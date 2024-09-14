@@ -7279,11 +7279,11 @@ func TestNewParserWindow8(t *testing.T) {
 		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType)
 	}
 
-	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type != WINDOW_FRAME_BOUND_CURRENT_ROW_FOLLOWING {
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type != WINDOW_FRAME_BOUND_CURRENT_ROW_N_FOLLOWING {
 		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type)
 	}
 
-	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.N != uint64(5) {
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.N.Value != uint64(5) {
 		t.Fatalf("expected 5, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.N)
 	}
 

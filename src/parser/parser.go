@@ -3383,14 +3383,15 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
 						}
 					} else if p.peek(0).tokenT == LITERAL_TOK {
-						n := p.peek(0).value.(uint64)
-
-						p.consume() // Consume literal
+						n, err := p.parseLiteral()
+						if err != nil {
+							return nil, err
+						}
 
 						if p.peek(0).value == "FOLLOWING" {
 							p.consume() // Consume FOLLOWING
 							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
-							frameBound.N = n
+							frameBound.N = n.(*Literal)
 						} else {
 							return nil, errors.New("expected FOLLOWING")
 						}
@@ -3416,21 +3417,22 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_UNBOUNDED_FOLLOWING
 						}
 					} else if p.peek(0).tokenT == LITERAL_TOK {
-						n := p.peek(0).value.(uint64)
-
-						p.consume() // Consume literal
+						n, err := p.parseLiteral()
+						if err != nil {
+							return nil, err
+						}
 
 						// look for FOLLOWING
 						if p.peek(0).value == "FOLLOWING" {
 							p.consume() // Consume FOLLOWING
 
-							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_FOLLOWING
-							frameBound.N = n
+							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_N_FOLLOWING
+							frameBound.N = n.(*Literal)
 						} else if p.peek(0).value == "PRECEDING" {
 							p.consume() // Consume PRECEDING
 
-							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_PRECEDING
-							frameBound.N = n
+							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_N_PRECEDING
+							frameBound.N = n.(*Literal)
 						} else {
 							return nil, errors.New("expected PRECEDING or FOLLOWING")
 						}
@@ -3439,7 +3441,7 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 				}
 			}
 		} else if p.peek(0).tokenT == LITERAL_TOK {
-			lit, err := p.parseLiteral()
+			n, err := p.parseLiteral()
 			if err != nil {
 				return nil, err
 			}
@@ -3456,34 +3458,34 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 						if p.peek(0).value == "PRECEDING" {
 							p.consume() // Consume PRECEDING
 							frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING_UNBOUNDED_PRECEDING
-							frameBound.N = lit.(uint64)
+							frameBound.N = n.(*Literal)
 						} else {
 							return nil, errors.New("expected PRECEDING")
 						}
 					} else if p.peek(0).value == "FOLLOWING" {
 						p.consume() // Consume FOLLOWING
 						frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING
-						frameBound.N = lit.(uint64)
+						frameBound.N = n.(*Literal)
 					} else if p.peek(0).value == "CURRENT" {
 						p.consume() // Consume CURRENT
 						if p.peek(0).value == "ROW" {
 							p.consume() // Consume ROW
 							frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING_CURRENT_ROW
-							frameBound.N = lit.(uint64)
+							frameBound.N = n.(*Literal)
 						}
 					} else {
 						return nil, errors.New("expected FOLLOWING or CURRENT")
 					}
 				} else {
 					frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING
-					frameBound.N = lit.(uint64)
+					frameBound.N = n.(*Literal)
 				}
 
 			} else if p.peek(0).value == "PRECEDING" {
 				p.consume() // Consume PRECEDING
 
 				frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING
-				frameBound.N = lit.(uint64)
+				frameBound.N = n.(*Literal)
 			} else {
 				return nil, errors.New("expected PRECEDING or FOLLOWING")
 			}
