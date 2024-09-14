@@ -54,6 +54,8 @@ const DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION = ".idx" // Index file extension
 
 const SYS_USERS_EXTENSION = ".usrs" // Users file extension
 
+const SYS_PROC_EXTENSION = ".proc" // Procedure file extension
+
 // DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION Table count file extension
 // The table count file is used to store the number of rows in a table
 // Used for sequence columns (there can only be one sequence column per table)
