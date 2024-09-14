@@ -201,9 +201,9 @@ func (cat *Catalog) Open() error {
 				db.ProceduresFileLock = &sync.Mutex{}
 
 				// Check if {db.name}.DB_PROC_EXTENSION exists
-				if _, err := os.Stat(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION)); err == nil {
+				if _, err := os.Stat(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION)); err == nil {
 					// Open procedure file
-					db.ProceduresFile, err = os.Open(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION))
+					db.ProceduresFile, err = os.Open(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION))
 					if err != nil {
 						return err
 					}
@@ -217,7 +217,7 @@ func (cat *Catalog) Open() error {
 
 				} else {
 					// Create procedure file
-					db.ProceduresFile, err = os.Create(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION))
+					db.ProceduresFile, err = os.Create(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION))
 					if err != nil {
 						return err
 					}
@@ -1261,9 +1261,9 @@ func (ri *Iterator) ValidUpdateIter() bool {
 
 }
 
-// RowCount returns the number of rows in the table
-func (tbl *Table) RowCount() int64 {
-	return tbl.Rows.Count()
+// IOCount returns the amount of IO operations
+func (tbl *Table) IOCount() int64 {
+	return tbl.Rows.Count() // This is not correct amount of rows as each page can be an overflow or deleted, this is just amount trips to disk
 }
 
 // CheckIndexedColumn checks if a column is indexed, if so return index

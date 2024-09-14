@@ -876,7 +876,7 @@ func TestTable_GetRow(t *testing.T) {
 	}
 }
 
-func TestTable_RowCount(t *testing.T) {
+func TestTable_IOCount(t *testing.T) {
 	defer os.RemoveAll("test/")
 
 	c := New("test/")
@@ -935,7 +935,7 @@ func TestTable_RowCount(t *testing.T) {
 	}
 
 	// Check if the row count is 1
-	count := table.RowCount()
+	count := table.IOCount()
 
 	if count != 1 {
 		t.Fatalf("expected 1, got %d", count)

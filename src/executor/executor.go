@@ -100,6 +100,7 @@ type Step struct {
 	Operation EXPLAIN_OP
 	Table     string
 	Column    string
+	IO        int64 // Number of IO operations
 }
 
 // New creates a new Executor
@@ -1262,6 +1263,23 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		return nil
+
+	case *parser.ExplainStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		ex.explaining = true
+
+		err := ex.Execute(s.Stmt)
+		if err != nil {
+			return err
+		}
+
+		ex.explaining = false
+
+		return nil
+
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
 
@@ -1348,6 +1366,10 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		rows, err := ex.search(tbles, stmt.TableExpression.WhereClause, nil, false, nil, nil)
 		if err != nil {
 			return nil, err
+		}
+
+		if ex.explaining {
+			return nil, nil
 		}
 
 		// Pass rows to result set
@@ -1880,6 +1902,11 @@ func getFirstAggFuncFromBinaryExpression(expr *parser.BinaryExpression) *parser.
 
 // selectListFilter filters the results based on the select list
 func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectList *parser.SelectList) error {
+
+	if ex.explaining {
+		return nil
+
+	}
 
 	if selectList == nil {
 		return errors.New("no select list")
@@ -2686,7 +2713,7 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 		// If there is no where clause, we return all rows from whatever tables were passed
 		for _, tbl := range tbls {
 			if ex.explaining {
-				ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbls[0].Name})
+				ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbls[0].Name, Column: "n/a", IO: tbl.IOCount()})
 
 			}
 
@@ -2702,6 +2729,11 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 
 				filteredRows = append(filteredRows, row)
 			}
+		}
+
+		if ex.explaining {
+			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan)))
+			return filteredRows, nil
 		}
 
 		for i, row := range filteredRows {
@@ -3066,7 +3098,7 @@ func convertPlanToRows(plan *Plan) []map[string]interface{} {
 			op = "INDEX SCAN"
 		}
 
-		results = append(results, map[string]interface{}{"operation": op, "table": step.Table, "column": step.Column})
+		results = append(results, map[string]interface{}{"operation": op, "table": step.Table, "column": step.Column, "io": step.IO})
 	}
 
 	return results
