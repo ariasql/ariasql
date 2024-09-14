@@ -3484,8 +3484,33 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 			} else if p.peek(0).value == "PRECEDING" {
 				p.consume() // Consume PRECEDING
 
-				frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING
-				frameBound.N = n.(*Literal)
+				if p.peek(0).value == "AND" {
+					p.consume() // Consume AND
+
+					if p.peek(0).value == "UNBOUNDED" {
+						p.consume() // Consume UNBOUNDED
+						if p.peek(0).value == "FOLLOWING" {
+							p.consume() // Consume FOLLOWING
+							frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING_UNBOUNDED_FOLLOWING
+							frameBound.N = n.(*Literal)
+						} else {
+							return nil, errors.New("expected FOLLOWING")
+						}
+					} else if p.peek(0).value == "CURRENT" {
+						p.consume() // Consume CURRENT
+						if p.peek(0).value == "ROW" {
+							p.consume() // Consume ROW
+							frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING_CURRENT_ROW
+							frameBound.N = n.(*Literal)
+						}
+					} else {
+						return nil, errors.New("expected CURRENT or UNBOUNDED")
+					}
+				} else {
+
+					frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING
+					frameBound.N = n.(*Literal)
+				}
 			} else {
 				return nil, errors.New("expected PRECEDING or FOLLOWING")
 			}
