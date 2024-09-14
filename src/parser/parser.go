@@ -22,7 +22,6 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -3304,7 +3303,6 @@ func (p *Parser) parseWindowSpec() (*WindowSpec, error) {
 
 // parseFrameClause parses a frame clause
 func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
-	log.Println(p.peek(0).value)
 
 	switch p.peek(0).value {
 	case "ROWS":
@@ -3743,6 +3741,23 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					return nil
 
 				} else if p.peek(0).value == "UNBOUNDED" {
+					p.consume() // Consume UNBOUNDED
+
+					if p.peek(0).value != "FOLLOWING" {
+						return errors.New("expected FOLLOWING")
+					}
+
+					p.consume() // Consume FOLLOWING
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_RANGE,
+						Boundary: &WindowFrameBoundary{
+							Type:  RANGE_LITERAL_PRECEDING_UNBOUNDED_FOLLOWING,
+							Lower: lower.(*Literal),
+						},
+					}
+
+					return nil
 
 				} else {
 					return errors.New("expected CURRENT, UNBOUNDED, or LITERAL")
