@@ -8387,3 +8387,138 @@ func TestNewParserWindow20(t *testing.T) {
 	}
 
 }
+
+func TestNewParserRankFunc(t *testing.T) {
+	statement := []byte(`
+	SELECT ROW_NUMBER();
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*RowNumberFunc) == nil {
+		t.Fatalf("expected RowNumberFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*RowNumberFunc))
+	}
+
+}
+
+func TestNewParserRankFunc2(t *testing.T) {
+	statement := []byte(`
+	SELECT RANK();
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*RankFunc) == nil {
+		t.Fatalf("expected RankFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*RankFunc))
+	}
+
+}
+
+func TestNewParserRankFunc3(t *testing.T) {
+	statement := []byte(`
+	SELECT DENSE_RANK();
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*DenseRankFunc) == nil {
+		t.Fatalf("expected DenseRankFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*DenseRankFunc))
+	}
+
+}
