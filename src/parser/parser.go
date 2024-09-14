@@ -3685,6 +3685,55 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 			}
 
 		} else if p.peek(0).tokenT == LITERAL_TOK {
+			lower, err := p.parseLiteral()
+			if err != nil {
+				return err
+			}
+
+			if p.peek(0).value == "PRECEDING" {
+				p.consume() // Consume PRECEDING
+
+				if p.peek(0).value != "AND" {
+					return errors.New("expected AND")
+				}
+
+				p.consume() // Consume AND
+
+				if p.peek(0).tokenT == LITERAL_TOK {
+					upper, err := p.parseLiteral()
+
+					if err != nil {
+						return err
+					}
+
+					if p.peek(0).value == "FOLLOWING" {
+						p.consume() // Consume FOLLOWING
+
+						windowSpec.Frame = &WindowFrame{
+							FrameType: WINDOW_FRAME_RANGE,
+							Boundary: &WindowFrameBoundary{
+								Type:  RANGE_LITERAL_PRECEDING_LITERAL_FOLLOWING,
+								Lower: lower.(*Literal),
+								Upper: upper.(*Literal),
+							},
+						}
+
+						return nil
+					} else {
+						return errors.New("expected FOLLOWING")
+					}
+
+				} else if p.peek(0).value == "CURRENT" {
+
+				} else if p.peek(0).value == "UNBOUNDED" {
+
+				} else {
+					return errors.New("expected CURRENT, UNBOUNDED, or LITERAL")
+				}
+
+			} else {
+				return errors.New("expected PRECEDING")
+			}
 
 		} else {
 			return errors.New("expected UNBOUNDED, CURRENT, or LITERAL")
