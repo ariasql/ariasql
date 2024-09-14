@@ -6847,3 +6847,40 @@ func TestNewParserDropProcedureStmt(t *testing.T) {
 		t.Fatalf("expected procTest, got %s", dropProcTest.ProcedureName.Value)
 	}
 }
+
+func TestNewParserExplainStmt(t *testing.T) {
+	statement := []byte(`
+	EXPLAIN SELECT * FROM t WHERE id = 1;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	explainStmt, ok := stmt.(*ExplainStmt)
+	if !ok {
+		t.Fatalf("expected *ExplainStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if explainStmt.Stmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value != "t" {
+		t.Fatalf("expected t, got %s", explainStmt.Stmt.(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+}

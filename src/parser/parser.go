@@ -47,7 +47,7 @@ var (
 		"PRIMARY", "FOREIGN", "KEY", "REFERENCES", "DATE", "TIME", "TIMESTAMP", "DATETIME", "UUID", "BINARY", "DEFAULT",
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
-		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT",
+		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT", "EXPLAIN",
 	}, shared.DataTypes...)
 )
 
@@ -598,7 +598,7 @@ func (p *Parser) parseExplainStmt() (Node, error) {
 			return nil, err
 		}
 
-		return &Explain{
+		return &ExplainStmt{
 			Stmt: selectStmt,
 		}, nil
 
@@ -610,7 +610,7 @@ func (p *Parser) parseExplainStmt() (Node, error) {
 			return nil, err
 		}
 
-		return &Explain{
+		return &ExplainStmt{
 			Stmt: updateStmt,
 		}, nil
 	case "DELETE":
@@ -621,7 +621,7 @@ func (p *Parser) parseExplainStmt() (Node, error) {
 			return nil, err
 		}
 
-		return &Explain{
+		return &ExplainStmt{
 			Stmt: deleteStmt,
 		}, nil
 	}
