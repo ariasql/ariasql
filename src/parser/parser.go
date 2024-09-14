@@ -3347,7 +3347,7 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					return nil
 
 				} else if p.peek(0).tokenT == LITERAL_TOK {
-					lower, err := p.parseLiteral()
+					upper, err := p.parseLiteral()
 					if err != nil {
 						return err
 					}
@@ -3359,7 +3359,7 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 							FrameType: WINDOW_FRAME_ROWS,
 							Boundary: &WindowFrameBoundary{
 								Type:  ROWS_UNBOUNDED_PRECEDING_LITERAL_FOLLOWING,
-								Lower: lower.(*Literal),
+								Upper: upper.(*Literal),
 							},
 						}
 
@@ -3392,6 +3392,45 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 			}
 
 		} else if p.peek(0).value == "CURRENT" {
+			p.consume() // Consume CURRENT
+
+			if p.peek(0).value != "ROW" {
+				return errors.New("expected ROW")
+			}
+
+			p.consume() // Consume ROW
+
+			if p.peek(0).value != "AND" {
+				return errors.New("expected AND")
+			}
+
+			p.consume() // Consume AND
+
+			if p.peek(0).value == "UNBOUNDED" {
+
+			} else if p.peek(0).tokenT == LITERAL_TOK {
+				upper, err := p.parseLiteral()
+				if err != nil {
+					return err
+				}
+
+				if p.peek(0).value == "FOLLOWING" {
+					p.consume() // Consume FOLLOWING
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_ROWS,
+						Boundary: &WindowFrameBoundary{
+							Type:  ROWS_CURRENT_ROW_LITERAL_FOLLOWING,
+							Upper: upper.(*Literal),
+						},
+					}
+
+					return nil
+				} else {
+					return errors.New("expected FOLLOWING")
+				}
+
+			}
 
 		} else if p.peek(0).tokenT == LITERAL_TOK {
 

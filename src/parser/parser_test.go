@@ -7107,8 +7107,8 @@ func TestNewParserWindow6(t *testing.T) {
 		t.Fatalf("expected ROWS_UNBOUNDED_PRECEDING_LITERAL_FOLLOWING, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Type)
 	}
 
-	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Lower.Value != uint64(1) {
-		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Lower.Value)
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Upper.Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Upper.Value)
 	}
 
 }
@@ -7197,6 +7197,98 @@ func TestNewParserWindow7(t *testing.T) {
 
 	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Type != ROWS_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING {
 		t.Fatalf("expected ROWS_UNBOUNDED_PRECEDING_UNBOUNDED_FOLLOWING, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Type)
+	}
+
+}
+
+func TestNewParserWindow8(t *testing.T) {
+	statement := []byte(`
+	SELECT employee_id, salary,
+		   SUM(salary) OVER (PARTITION BY department ORDER BY salary DESC ROWS BETWEEN CURRENT ROW AND 6 FOLLOWING ) AS running_total
+	FROM employees;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value != "employee_id" {
+		t.Fatalf("expected employee_id, got %s", selectStmt.SelectList.Expressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[1].Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[1].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Expr.(*AggregateFunc).FuncName != "SUM" {
+		t.Fatalf("expected SUM, got %s", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Expr.(*AggregateFunc).FuncName)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Expr.(*AggregateFunc).Args[0].(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Expr.(*AggregateFunc).Args[0].(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.PartitionBy[0].Value.(*ColumnSpecification).ColumnName.Value != "department" {
+		t.Fatalf("expected department, got %s", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.PartitionBy[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Alias.Value != "running_total" {
+		t.Fatalf("expected running_total, got %s", selectStmt.SelectList.Expressions[2].Alias.Value)
+
+	}
+
+	if selectStmt.TableExpression.FromClause.Tables[0].Name.Value != "employees" {
+		t.Fatalf("expected employees, got %s", selectStmt.TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.OrderByExpressions[0].Value.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.OrderByExpressions[0].Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order != DESC {
+		t.Fatalf("expected DESC, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType != WINDOW_FRAME_ROWS {
+		t.Fatalf("expected WINDOW_FRAME_ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Type != ROWS_CURRENT_ROW_LITERAL_FOLLOWING {
+		t.Fatalf("expected ROWS_CURRENT_ROW_LITERAL_FOLLOWING, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Type)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Upper.Value != uint64(6) {
+		t.Fatalf("expected 6, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Boundary.Upper.Value)
 	}
 
 }
