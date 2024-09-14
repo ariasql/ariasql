@@ -622,7 +622,17 @@ type DeallocateStmt struct {
 
 // CreateProcedureStmt represents a CREATE PROCEDURE statement
 type CreateProcedureStmt struct {
-	Name       *Identifier
-	Parameters []*Parameter
-	Body       *BeginEndBlock
+	Procedure *Procedure
+}
+
+// ProcedureCallStmt represents a CALL statement
+type ProcedureCallStmt struct {
+	Name *Identifier
+}
+
+// Procedure represents a procedure
+type Procedure struct {
+	Name       *Identifier    // procedure name
+	Parameters []*Parameter   // procedure parameters
+	Body       *BeginEndBlock // procedure body
 }

@@ -1659,7 +1659,10 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 
 }
 
+// parseCreateProcedureStmt parses a CREATE PROCEDURE statement
+func (p *Parser) parseCreateProcedureStmt() (Node, error) {
 
+}
 
 // parseCreateUserStmt
 func (p *Parser) parseCreateUserStmt() (Node, error) {
