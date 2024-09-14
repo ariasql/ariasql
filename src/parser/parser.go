@@ -3386,6 +3386,97 @@ func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
 				}
 			}
 
+		} else if p.peek(0).value == "CURRENT" {
+			p.consume() // Consume CURRENT
+
+			if p.peek(0).value == "ROW" {
+				p.consume() // Consume ROW
+
+				// Look for AND
+				if p.peek(0).value == "AND" {
+					// After and there can be CURRENT ROW or UNBOUNDED FOLLOWING
+					p.consume() // Consume AND
+
+					if p.peek(0).value == "UNBOUNDED" {
+						p.consume() // Consume UNBOUNDED
+						if p.peek(0).value == "FOLLOWING" {
+							p.consume() // Consume FOLLOWING
+							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_UNBOUNDED_FOLLOWING
+						}
+					} else if p.peek(0).tokenT == LITERAL_TOK {
+						n, err := p.parseLiteral()
+						if err != nil {
+							return nil, err
+						}
+
+						// look for FOLLOWING
+						if p.peek(0).value == "FOLLOWING" {
+							p.consume() // Consume FOLLOWING
+
+							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_FOLLOWING
+							frameBound.N = n.(uint64)
+						} else if p.peek(0).value == "PRECEDING" {
+							p.consume() // Consume PRECEDING
+
+							frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW_PRECEDING
+							frameBound.N = n.(uint64)
+						} else {
+							return nil, errors.New("expected PRECEDING or FOLLOWING")
+						}
+
+					}
+				}
+			}
+		} else if p.peek(0).tokenT == LITERAL_TOK {
+			lit, err := p.parseLiteral()
+			if err != nil {
+				return nil, err
+			}
+
+			// look for FOLLOWING
+			if p.peek(0).value == "FOLLOWING" {
+				p.consume() // Consume FOLLOWING
+
+				if p.peek(0).value == "AND" {
+					p.consume() // Consume AND
+
+					if p.peek(0).value == "UNBOUNDED" {
+						p.consume() // Consume UNBOUNDED
+						if p.peek(0).value == "PRECEDING" {
+							p.consume() // Consume PRECEDING
+							frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING_UNBOUNDED_PRECEDING
+							frameBound.N = lit.(uint64)
+						} else {
+							return nil, errors.New("expected PRECEDING")
+						}
+					} else if p.peek(0).value == "FOLLOWING" {
+						p.consume() // Consume FOLLOWING
+						frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING
+						frameBound.N = lit.(uint64)
+					} else if p.peek(0).value == "CURRENT" {
+						p.consume() // Consume CURRENT
+						if p.peek(0).value == "ROW" {
+							p.consume() // Consume ROW
+							frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING_CURRENT_ROW
+							frameBound.N = lit.(uint64)
+						}
+					} else {
+						return nil, errors.New("expected FOLLOWING or CURRENT")
+					}
+				} else {
+					frameBound.Type = WINDOW_FRAME_BOUND_N_FOLLOWING
+					frameBound.N = lit.(uint64)
+				}
+
+			} else if p.peek(0).value == "PRECEDING" {
+				p.consume() // Consume PRECEDING
+
+				frameBound.Type = WINDOW_FRAME_BOUND_N_PRECEDING
+				frameBound.N = lit.(uint64)
+			} else {
+				return nil, errors.New("expected PRECEDING or FOLLOWING")
+			}
+
 		}
 
 	}
