@@ -664,6 +664,5 @@ const (
 // WindowFrameBound represents a window frame bound
 type WindowFrameBound struct {
 	Type WindowFrameBoundType
-	Expr interface{}
 	N    uint64
 }

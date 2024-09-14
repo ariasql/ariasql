@@ -6933,11 +6933,10 @@ func TestNewParserWindow4(t *testing.T) {
 
 }
 
-
-func TestNewParserWindow3(t *testing.T) {
+func TestNewParserWindow5(t *testing.T) {
 	statement := []byte(`
 	SELECT employee_id, salary,
-		   SUM(salary) OVER (PARTITION BY department ORDER BY salary DESC ) AS running_total
+		   SUM(salary) OVER (PARTITION BY department ORDER BY salary DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW ) AS running_total
 	FROM employees;
 `)
 
@@ -7010,14 +7009,22 @@ func TestNewParserWindow3(t *testing.T) {
 
 	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order != DESC {
 		t.Fatalf("expected DESC, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType != WINDOW_FRAME_ROWS {
+		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type != WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW {
+		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type)
 	}
 
 }
 
-func TestNewParserWindow5(t *testing.T) {
+func TestNewParserWindow6(t *testing.T) {
 	statement := []byte(`
 	SELECT employee_id, salary,
-		   SUM(salary) OVER (PARTITION BY department ORDER BY salary DESC ROWS  ) AS running_total
+		   SUM(salary) OVER (PARTITION BY department ORDER BY salary DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING ) AS running_total
 	FROM employees;
 `)
 
@@ -7090,6 +7097,14 @@ func TestNewParserWindow5(t *testing.T) {
 
 	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order != DESC {
 		t.Fatalf("expected DESC, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.OrderBy.Order)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType != WINDOW_FRAME_ROWS {
+		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.FrameType)
+	}
+
+	if selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type != WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING {
+		t.Fatalf("expected ROWS, got %d", selectStmt.SelectList.Expressions[2].Value.(*WindowFunc).Spec.Frame.Bound.Type)
 	}
 
 }

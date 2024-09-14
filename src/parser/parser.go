@@ -22,6 +22,7 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -3306,7 +3307,7 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 	if p.peek(0).value == "ROWS" {
 
 		// Parse frame bound
-		frameBound, err := p.parseFrameBound()
+		frameBound, err := p.parseRowsFrame()
 		if err != nil {
 			return err
 		}
@@ -3316,11 +3317,13 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 			Bound:     frameBound,
 		}
 
+		log.Println(p.peek(0).value)
+
 		return nil
 	} else if p.peek(0).value == "RANGE" {
 
 		// Parse frame bound
-		frameBound, err := p.parseFrameBound()
+		frameBound, err := p.parseRangeFrame()
 		if err != nil {
 			return err
 		}
@@ -3337,164 +3340,49 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 
 }
 
-// parseFrameBound parses a frame bound
-func (p *Parser) parseFrameBound() (*WindowFrameBound, error) {
+// parseRangeFrame parses a frame bound
+func (p *Parser) parseRangeFrame() (*WindowFrameBound, error) {
 	frameBound := &WindowFrameBound{}
 
+	return frameBound, nil
+}
+
+// parseRowsFrame parses a frame bound
+func (p *Parser) parseRowsFrame() (*WindowFrameBound, error) {
+	frameBound := &WindowFrameBound{}
+
+	p.consume() // Consume ROWS
+
 	switch p.peek(0).value {
-	case LITERAL_TOK: // PRECEDING, FOLLOWING
-		n := p.peek(0).value.(uint64)
-		p.consume()
+	case "BETWEEN":
+		p.consume() // Consume BETWEEN
 
-		switch p.peek(0).value {
-		case "PRECEDING":
-			// Look for AND
+		// Parse start bound
 
-			if p.peek(0).value == "AND" {
-				// After and there can be CURRENT ROW or UNBOUNDED FOLLOWING
-				p.consume()
-
-				if p.peek(0).value == "CURRENT" {
-					if p.peek(1).value == "ROW" {
-						p.consume()
-						p.consume()
-						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
-					}
-				} else if p.peek(0).value == "UNBOUNDED" {
-					if p.peek(1).value == "FOLLOWING" {
-						p.consume()
-						p.consume()
-						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
-					}
-				} else if p.peek(0).tokenT == LITERAL_TOK {
-					n = p.peek(0).value.(uint64)
-					p.consume()
-
-					if p.peek(0).value == "FOLLOWING" {
-						frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
-						frameBound.N = n
-					} else {
-						return nil, errors.New("expected FOLLOWING")
-					}
-
-				} else {
-					return nil, errors.New("expected CURRENT ROW or UNBOUNDED FOLLOWING")
-				}
-
-			}
-		case "FOLLOWING":
-
-			// Look for AND
-			if p.peek(0).value == "AND" {
-				// After and there can be CURRENT ROW or UNBOUNDED PRECEDING
-				p.consume()
-
-				if p.peek(0).value == "CURRENT" {
-					if p.peek(1).value == "ROW" {
-						p.consume()
-						p.consume()
-						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_CURRENT_ROW
-					}
-				} else if p.peek(0).value == "UNBOUNDED" {
-					if p.peek(1).value == "PRECEDING" {
-						p.consume()
-						p.consume()
-						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_UNBOUNDED_PRECEDING
-					}
-				} else if p.peek(0).tokenT == LITERAL_TOK {
-					n = p.peek(0).value.(uint64)
-					p.consume()
-
-					if p.peek(0).value == "PRECEDING" {
-						frameBound.Type = WINDOW_FRAME_BOUND_FOLLOWING_N_PRECEDING
-						frameBound.N = n
-					} else {
-						return nil, errors.New("expected PRECEDING")
-					}
-
-				} else {
-					return nil, errors.New("expected CURRENT ROW or UNBOUNDED PRECEDING")
-				}
-
-			}
-		default:
-			return nil, errors.New("expected PRECEDING or FOLLOWING")
-		}
-	case "ROWS":
-		p.consume()
-
-		// next tok should be BETWEEN
-		if p.peek(0).value != "BETWEEN" {
-			return nil, errors.New("expected BETWEEN")
-		}
-
-		p.consume()
-
-		// Parse bound type
-		switch p.peek(0).tokenT {
-		case KEYWORD_TOK: // UNBOUNDED, CURRENT
-			if p.peek(0).value == "UNBOUNDED" {
-				if p.peek(1).value == "PRECEDING" {
-					p.consume()
-					p.consume()
-					frameBound.Type = WINDOW_FRAME_BOUND_UNBOUNDED_PRECEDING
-				} else if p.peek(1).value == "FOLLOWING" {
-					p.consume()
-					p.consume()
-					frameBound.Type = WINDOW_FRAME_BOUND_UNBOUNDED_FOLLOWING
-				} else {
-					return nil, errors.New("expected PRECEDING or FOLLOWING")
-				}
-			} else if p.peek(0).value == "CURRENT" {
-				if p.peek(1).value == "ROW" {
-					p.consume()
-					p.consume()
-					frameBound.Type = WINDOW_FRAME_BOUND_CURRENT_ROW
-				} else {
-					return nil, errors.New("expected ROW")
-				}
-			} else {
-				return nil, errors.New("expected UNBOUNDED or CURRENT")
-			}
-
-		case LITERAL_TOK: // PRECEDING, FOLLOWING
-			n := p.peek(0).value.(uint64)
-			p.consume()
+		if p.peek(0).value == "UNBOUNDED" {
+			p.consume() // Consume UNBOUNDED
 
 			if p.peek(0).value == "PRECEDING" {
+				p.consume() // Consume PRECEDING
 
 				// Look for AND
 				if p.peek(0).value == "AND" {
 					// After and there can be CURRENT ROW or UNBOUNDED FOLLOWING
-					p.consume()
+					p.consume() // Consume AND
 
 					if p.peek(0).value == "CURRENT" {
 						if p.peek(1).value == "ROW" {
-							p.consume()
-							p.consume()
+							p.consume() // Consume CURRENT
+							p.consume() // Consume ROW
 							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_CURRENT_ROW
 						}
 					} else if p.peek(0).value == "UNBOUNDED" {
-						if p.peek(1).value == "FOLLOWING" {
-							p.consume()
-							p.consume()
+						p.consume() // Consume UNBOUNDED
+						if p.peek(0).value == "FOLLOWING" {
+							p.consume() // Consume FOLLOWING
 							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_UNBOUNDED_FOLLOWING
 						}
-					} else if p.peek(0).tokenT == LITERAL_TOK {
-						n = p.peek(0).value.(uint64)
-						p.consume()
-
-						if p.peek(0).value == "FOLLOWING" {
-							frameBound.Type = WINDOW_FRAME_BOUND_PRECEDING_N_FOLLOWING
-							frameBound.N = n
-						} else {
-							return nil, errors.New("expected FOLLOWING")
-						}
-
-					} else {
-						return nil, errors.New("expected CURRENT ROW or UNBOUNDED FOLLOWING")
 					}
-
 				}
 			}
 
