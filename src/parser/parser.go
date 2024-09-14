@@ -49,7 +49,7 @@ var (
 		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT",
 		"OVER", "PARTITION", "ROWS", "RANGE", "UNBOUNDED", "PRECEDING", "FOLLOWING", "CURRENT", "ROW", "RANK",
 		"DENSE_RANK", "NTILE", "LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE", "PERCENT_RANK", "CUME_DIST",
-		"ROW_NUMBER",
+		"ROW_NUMBER", "PERCENTILE_CONT",
 	}, shared.DataTypes...)
 )
 
@@ -4597,11 +4597,14 @@ func (p *Parser) parseUnaryExpr() (interface{}, error) {
 func (p *Parser) parseDistributionFunc() (interface{}, error) {
 	switch p.peek(0).value {
 	case "PERCENTILE_CONT":
+		p.consume() // Consume PERCENTILE_CONT
 		percentileContFunc := &PercentileContFunc{}
 
 		if p.peek(0).tokenT != LPAREN_TOK {
 			return nil, errors.New("expected (")
 		}
+
+		p.consume() // Consume (
 
 		if p.peek(0).tokenT != LITERAL_TOK {
 			return nil, errors.New("expected literal")
@@ -4612,14 +4615,14 @@ func (p *Parser) parseDistributionFunc() (interface{}, error) {
 			return nil, err
 		}
 
-		percentileContFunc.Expr = frac.(*Literal)
+		percentileContFunc.Expr = frac
 
 		// look for )
 		if p.peek(0).tokenT != RPAREN_TOK {
 			return nil, errors.New("expected )")
 		}
 
-		p.consume()
+		p.consume() // Consume )
 
 		return percentileContFunc, nil
 
