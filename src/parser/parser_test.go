@@ -8686,3 +8686,101 @@ func TestNewParserAnalyticalFunc2(t *testing.T) {
 	}
 
 }
+
+func TestNewParserAnalyticalFunc3(t *testing.T) {
+	statement := []byte(`
+	SELECT FIRST_VALUE(salary);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*FirstValueFunc) == nil {
+		t.Fatalf("expected FirstValueFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*FirstValueFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*FirstValueFunc).Expr.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[0].Value.(*FirstValueFunc).Expr.(*ColumnSpecification).ColumnName.Value)
+	}
+
+}
+
+func TestNewParserAnalyticalFunc4(t *testing.T) {
+	statement := []byte(`
+	SELECT LAST_VALUE(salary);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LastValueFunc) == nil {
+		t.Fatalf("expected LastValueFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*LastValueFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*LastValueFunc).Expr.(*ColumnSpecification).ColumnName.Value != "salary" {
+		t.Fatalf("expected salary, got %s", selectStmt.SelectList.Expressions[0].Value.(*LastValueFunc).Expr.(*ColumnSpecification).ColumnName.Value)
+	}
+
+}

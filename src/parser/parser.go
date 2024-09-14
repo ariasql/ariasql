@@ -4705,6 +4705,8 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 			return nil, errors.New("expected (")
 		}
 
+		p.consume() // Consume (
+
 		// parse column spec
 		columnSpec, err := p.parseColumnSpecification()
 		if err != nil {
@@ -4731,6 +4733,8 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 			return nil, errors.New("expected (")
 		}
 
+		p.consume() // Consume (
+
 		// parse column spec
 		columnSpec, err := p.parseColumnSpecification()
 		if err != nil {
@@ -4756,6 +4760,8 @@ func (p *Parser) parseAnalyticFunc() (interface{}, error) {
 		if p.peek(0).tokenT != LPAREN_TOK {
 			return nil, errors.New("expected (")
 		}
+
+		p.consume() // Consume (
 
 		// parse column spec
 		columnSpec, err := p.parseColumnSpecification()
