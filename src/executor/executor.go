@@ -1193,6 +1193,56 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 
+	case *parser.ExecStmt:
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		proc, err := ex.ch.Database.GetProcedure(s.ProcedureName.Value)
+		if err != nil {
+			return err
+		}
+
+		if proc == nil {
+			return errors.New("procedure does not exist")
+		}
+
+		// Add args to vars
+		for i, arg := range s.Args {
+			if _, ok := ex.vars[proc.Proc.(*parser.Procedure).Parameters[i].Name.Value]; !ok {
+				return errors.New("parameter not found")
+			}
+
+			switch arg := arg.(type) {
+			case *parser.Literal:
+				ex.vars[proc.Proc.(*parser.Procedure).Parameters[i].Name.Value].Value = arg.Value
+			case *parser.Identifier:
+				return errors.New("unsupported argument type")
+			}
+		}
+
+		// validate parameters
+		for _, param := range proc.Proc.(*parser.Procedure).Parameters {
+			if _, ok := ex.vars[param.Name.Value]; !ok {
+				return errors.New("parameter not found")
+			}
+		}
+
+		// Execute the procedure
+		for _, ss := range proc.Proc.(*parser.Procedure).Body.Stmts {
+			err := ex.Execute(ss)
+			if err != nil {
+				return err
+			}
+
+		}
+
+		// Remove the parameters
+		for _, param := range proc.Proc.(*parser.Procedure).Parameters {
+			delete(ex.vars, param.Name.Value)
+		}
+
+		return nil
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())
 

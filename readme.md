@@ -26,7 +26,7 @@ AriaSQL is a relational database management system designed and engineered from 
 - [x] JSON response format (false by default)
 - [x] Foreign keys
 - [x] DML, DQL, DDL, DCL, TCL Support
-- [ ] Stored Procedures
+- [x] Stored Procedures
 - [x] Cursors
 - [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
 - [x] CASE expressions (Within select list and where clauses)
