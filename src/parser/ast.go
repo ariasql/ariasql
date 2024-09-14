@@ -622,3 +622,8 @@ type Procedure struct {
 type DropProcedureStmt struct {
 	ProcedureName *Identifier // procedure name
 }
+
+// Explain represents an EXPLAIN statement
+type Explain struct {
+	Stmt interface{} // Can be SelectStmt, UpdateStmt, DeleteStmt
+}

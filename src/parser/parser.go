@@ -23,7 +23,6 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 )
@@ -1685,7 +1684,6 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 
 // parseExecStmt parses an EXEC statement
 func (p *Parser) parseExecStmt() (Node, error) {
-	log.Println("Parsing EXEC statement")
 	p.consume() // Consume EXEC
 
 	if p.peek(0).tokenT != IDENT_TOK {
