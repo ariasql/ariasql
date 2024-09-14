@@ -3505,13 +3505,29 @@ func (p *Parser) parseFrameClause(windowSpec *WindowSpec) error {
 					}
 
 					return nil
+				} else if p.peek(0).value == "UNBOUNDED" {
+					p.consume() // Consume UNBOUNDED
+
+					if p.peek(0).value != "FOLLOWING" {
+						return errors.New("expected FOLLOWING")
+					}
+
+					p.consume() // Consume FOLLOWING
+
+					windowSpec.Frame = &WindowFrame{
+						FrameType: WINDOW_FRAME_ROWS,
+						Boundary: &WindowFrameBoundary{
+							Type:  ROWS_LITERAL_PRECEDING_UNBOUNDED_FOLLOWING,
+							Lower: lower.(*Literal),
+						},
+					}
+				} else {
+					return errors.New("expected CURRENT, UNBOUNDED, or LITERAL")
 				}
 
 			} else {
 				return errors.New("expected PRECEDING")
 			}
-
-
 
 		}
 
