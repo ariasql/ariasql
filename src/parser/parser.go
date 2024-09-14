@@ -23,6 +23,7 @@ import (
 	"ariasql/shared"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -569,6 +570,9 @@ func (p *Parser) Parse() (Node, error) {
 			return p.parseWhileStmt()
 		case "PRINT":
 			return p.parsePrintStmt()
+		case "EXEC":
+			return p.parseExecStmt()
+
 		}
 	}
 
@@ -1673,8 +1677,6 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 		return p.parseCreateUserStmt()
 	case "PROCEDURE":
 		return p.parseCreateProcedureStmt()
-	case "EXEC":
-		return p.parseExecStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE or INDEX")
@@ -1683,6 +1685,7 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 
 // parseExecStmt parses an EXEC statement
 func (p *Parser) parseExecStmt() (Node, error) {
+	log.Println("Parsing EXEC statement")
 	p.consume() // Consume EXEC
 
 	if p.peek(0).tokenT != IDENT_TOK {

@@ -6758,3 +6758,56 @@ func TestNewParserCreateProcedure(t *testing.T) {
 	}
 
 }
+
+func TestNewParserExecStmt(t *testing.T) {
+	statement := []byte(`
+	EXEC procTest(1, 'test');
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	execStmt, ok := stmt.(*ExecStmt)
+	if !ok {
+		t.Fatalf("expected *ExecStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(execStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if execStmt.ProcedureName.Value != "procTest" {
+		t.Fatalf("expected procTest, got %s", execStmt.ProcedureName.Value)
+	}
+
+	if execStmt.Args[0].(*Literal).Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", execStmt.Args[0].(*Literal).Value)
+	}
+
+	if execStmt.Args[1].(*Literal).Value != "'test'" {
+		t.Fatalf("expected 'test', got %s", execStmt.Args[1].(*Literal).Value)
+	}
+
+}
