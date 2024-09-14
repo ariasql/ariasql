@@ -1171,6 +1171,15 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
+		err := ex.ch.Database.AddProcedure(&catalog.Procedure{
+			Name: s.Procedure.Name.Value,
+			Proc: s.Procedure,
+		})
+		if err != nil {
+			return err
+		}
+
+		return nil
 
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())

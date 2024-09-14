@@ -54,7 +54,7 @@ const DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION = ".idx" // Index file extension
 
 const SYS_USERS_EXTENSION = ".usrs" // Users file extension
 
-const SYS_PROC_EXTENSION = ".proc" // Procedure file extension
+const DB_PROC_EXTENSION = ".proc" // Procedure file extension
 
 // DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION Table count file extension
 // The table count file is used to store the number of rows in a table
@@ -75,11 +75,13 @@ type Catalog struct {
 
 // Database is a database object
 type Database struct {
-	Name       string                // Name is the database name
-	Tables     map[string]*Table     // Tables within database
-	TablesLock *sync.Mutex           // Tables slice mutex
-	Directory  string                // Directory is the directory where database data is stored
-	Procedures map[string]*Procedure // Procedures is a map of procedure names to procedure objects
+	Name               string                // Name is the database name
+	Tables             map[string]*Table     // Tables within database
+	TablesLock         *sync.Mutex           // Tables slice mutex
+	Directory          string                // Directory is the directory where database data is stored
+	Procedures         map[string]*Procedure // Procedures is a map of procedure names to procedure objects
+	ProceduresFile     *os.File              // Procedures file
+	ProceduresFileLock *sync.Mutex           // Procedures lock
 }
 
 // Table is a table object
@@ -97,7 +99,7 @@ type Table struct {
 
 // Procedure is a procedure object
 type Procedure struct {
-	Name string
+	Name string      // Name is the procedure name
 	Proc interface{} // *parser.Procedure
 }
 
@@ -193,6 +195,34 @@ func (cat *Catalog) Open() error {
 				db.TablesLock = &sync.Mutex{}
 				db.Name = databaseDir.Name()
 				cat.Databases[databaseDir.Name()] = db
+
+				// Create procedures map
+				db.Procedures = make(map[string]*Procedure)
+				db.ProceduresFileLock = &sync.Mutex{}
+
+				// Check if {db.name}.DB_PROC_EXTENSION exists
+				if _, err := os.Stat(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION)); err == nil {
+					// Open procedure file
+					db.ProceduresFile, err = os.Open(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION))
+					if err != nil {
+						return err
+					}
+
+					// Decode procedures
+					dec := gob.NewDecoder(db.ProceduresFile)
+					err = dec.Decode(&db.Procedures)
+					if err != nil {
+						return err
+					}
+
+				} else {
+					// Create procedure file
+					db.ProceduresFile, err = os.Create(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION))
+					if err != nil {
+						return err
+					}
+
+				}
 
 				// Within databases directory there are table directories
 				tblDirs, err := os.ReadDir(fmt.Sprintf("%s", db.Directory))
@@ -332,6 +362,8 @@ func (cat *Catalog) Open() error {
 // Close closes the catalog
 func (cat *Catalog) Close() {
 	for _, db := range cat.Databases {
+		db.ProceduresFile.Close()
+
 		for _, tbl := range db.Tables {
 			if tbl.Rows != nil {
 				tbl.Rows.Close()
@@ -1826,6 +1858,94 @@ func (u *User) GetPrivileges() []string {
 	}
 
 	return formattedStr
+}
+
+// AddProcedure adds a procedure to the database
+func (db *Database) AddProcedure(proc *Procedure) error {
+	db.ProceduresFileLock.Lock()
+	defer db.ProceduresFileLock.Unlock()
+
+	if _, ok := db.Procedures[proc.Name]; ok {
+		return fmt.Errorf("procedure %s already exists", proc.Name)
+	}
+
+	db.Procedures[proc.Name] = proc
+
+	// Encode procedures to file
+	err := db.EncodeProceduresToFile()
+	if err != nil {
+		return err
+
+	}
+
+	return nil
+}
+
+// DropProcedure drops a procedure from the database
+func (db *Database) DropProcedure(procName string) error {
+	db.ProceduresFileLock.Lock()
+	defer db.ProceduresFileLock.Unlock()
+
+	if _, ok := db.Procedures[procName]; !ok {
+		return fmt.Errorf("procedure %s does not exist", procName)
+	}
+
+	delete(db.Procedures, procName)
+
+	// Encode procedures to file
+	err := db.EncodeProceduresToFile()
+	if err != nil {
+		return err
+
+	}
+
+	return nil
+}
+
+// GetProcedures gets all procedures in a database
+func (db *Database) GetProcedures() []string {
+	db.ProceduresFileLock.Lock()
+	defer db.ProceduresFileLock.Unlock() // Lock procedures file which also locks procedures map
+
+	var procs []string
+	for k := range db.Procedures {
+		procs = append(procs, k)
+	}
+
+	slices.Sort(procs)
+
+	return procs
+}
+
+// GetProcedure gets a procedure by name
+func (db *Database) GetProcedure(procName string) (*Procedure, error) {
+	db.ProceduresFileLock.Lock()
+	defer db.ProceduresFileLock.Unlock()
+
+	if _, ok := db.Procedures[procName]; !ok {
+		return nil, fmt.Errorf("procedure %s does not exist", procName)
+	}
+
+	return db.Procedures[procName], nil
+}
+
+// EncodeProceduresToFile encodes procedures to file
+func (db *Database) EncodeProceduresToFile() error {
+
+	// seek to beginning of file
+	if _, err := db.ProceduresFile.Seek(0, 0); err != nil {
+		return err
+	}
+
+	// Encode procedures to file
+	enc := gob.NewEncoder(db.ProceduresFile)
+
+	err := enc.Encode(db.Procedures)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // @todo AlterTable
