@@ -1762,9 +1762,14 @@ func (p *Parser) parseCreateProcedureStmt() (Node, error) {
 
 	for {
 		// @var1 INT, @var2 VARCHAR(255)
+		// if == )
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
 
 		// Check for @
 		if p.peek(0).value != "@" {
+
 			return nil, errors.New("expected @")
 		}
 

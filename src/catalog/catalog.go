@@ -385,17 +385,26 @@ func (cat *Catalog) CreateDatabase(name string) error {
 		return fmt.Errorf("database %s already exists", name)
 	}
 
-	// Create database
-	cat.Databases[name] = &Database{
-		Name:      name,
-		Tables:    make(map[string]*Table),
-		Directory: fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name),
-	}
-
 	// Create database directory
 	err := os.Mkdir(fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name), 0755)
 	if err != nil {
 		return err
+	}
+
+	// Create procedures file
+	procFile, err := os.Create(fmt.Sprintf("%s%sdatabases%s%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name, DB_PROC_EXTENSION))
+	if err != nil {
+		return err
+	}
+
+	// Create database
+	cat.Databases[name] = &Database{
+		Name:               name,
+		Tables:             make(map[string]*Table),
+		Procedures:         make(map[string]*Procedure),
+		ProceduresFileLock: &sync.Mutex{},
+		ProceduresFile:     procFile,
+		Directory:          fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name),
 	}
 
 	return nil

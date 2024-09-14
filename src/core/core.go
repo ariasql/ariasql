@@ -19,8 +19,10 @@ package core
 
 import (
 	"ariasql/catalog"
+	"ariasql/parser"
 	"ariasql/shared"
 	"ariasql/wal"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"os"
@@ -69,6 +71,9 @@ func New(config *Config) (*AriaSQL, error) {
 		return nil, err
 
 	}
+	gob.Register(&parser.Procedure{})
+	gob.Register(&parser.Table{})
+	gob.Register(&parser.Wildcard{})
 
 	return &AriaSQL{
 		Config: config,
