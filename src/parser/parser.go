@@ -49,7 +49,7 @@ var (
 		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT",
 		"OVER", "PARTITION", "ROWS", "RANGE", "UNBOUNDED", "PRECEDING", "FOLLOWING", "CURRENT", "ROW", "RANK",
 		"DENSE_RANK", "NTILE", "LEAD", "LAG", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE", "PERCENT_RANK", "CUME_DIST",
-		"ROW_NUMBER", "PERCENTILE_CONT",
+		"ROW_NUMBER", "PERCENTILE_CONT", "PERCENTILE_DISC",
 	}, shared.DataTypes...)
 )
 
@@ -4627,11 +4627,14 @@ func (p *Parser) parseDistributionFunc() (interface{}, error) {
 		return percentileContFunc, nil
 
 	case "PERCENTILE_DISC":
+		p.consume() // Consume PERCENTILE_DISC
 		percentileDiscFunc := &PercentileDiscFunc{}
 
 		if p.peek(0).tokenT != LPAREN_TOK {
 			return nil, errors.New("expected (")
 		}
+
+		p.consume() // Consume (
 
 		if p.peek(0).tokenT != LITERAL_TOK {
 			return nil, errors.New("expected literal")

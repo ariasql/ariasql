@@ -8976,3 +8976,52 @@ func TestNewParserDistFunc3(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDistFunc4(t *testing.T) {
+	statement := []byte(`
+	SELECT PERCENTILE_DISC(0.5);
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PercentileDiscFunc) == nil {
+		t.Fatalf("expected PercentileContFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*PercentileDiscFunc))
+	}
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PercentileDiscFunc).Expr.(*Literal).Value != float64(0.5) {
+		t.Fatalf("expected 0.5, got %f", selectStmt.SelectList.Expressions[0].Value.(*PercentileDiscFunc).Expr.(*Literal).Value)
+	}
+
+}
