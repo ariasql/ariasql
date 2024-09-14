@@ -48,6 +48,8 @@ type Executor struct {
 	vars             map[string]*Variable // Defined variables
 	cursors          map[string]*Cursor   // Allocated cursors
 	fetchStatus      atomic.Int32         // Fetch status
+	plan             *Plan                // Execution plan
+	explaining       bool                 // Explaining flag, populates plan
 }
 
 // Variable struct represents a variable on the executor
@@ -88,6 +90,18 @@ type Before struct {
 	Row   map[string]interface{}
 }
 
+// Plan represents an execution plan
+type Plan struct {
+	Steps []*Step
+}
+
+// Step represents a step in an execution plan
+type Step struct {
+	Operation EXPLAIN_OP
+	Table     string
+	Column    string
+}
+
 // New creates a new Executor
 // Creates a new AriaSQL executor
 // You must pass in a pointer to an AriaSQL instance and a pointer to a Channel instance
@@ -98,6 +112,11 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 
 // Execute executes an abstract syntax tree statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
+
+	if ex.explaining {
+		// Start new plan
+		ex.plan = &Plan{}
+	}
 
 	// We will handle the statement based on the type
 	switch s := stmt.(type) {
@@ -1469,6 +1488,10 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 		return nil, nil, err
 	}
 
+	if ex.explaining {
+		return nil, nil, nil
+	}
+
 	rows = rows[:len(rowIds)]
 
 	for i, row := range rows {
@@ -1522,6 +1545,10 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 	err := ex.filter(stmt.WhereClause, tbles, &rows, &rowIds)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if ex.explaining {
+		return nil, nil, nil
 	}
 
 	for i := range rows {
@@ -2637,6 +2664,14 @@ func evaluateAggregate(expr *parser.AggregateFunc, results *[]map[string]interfa
 	return nil
 }
 
+type EXPLAIN_OP int // When explaining execution we append to explain
+
+const (
+	EXPLAIN_SELECT EXPLAIN_OP = iota
+	FULL_SCAN
+	INDEX_SCAN
+)
+
 // search searches tables based on the where clause
 func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool, rowIds *[]int64, before *[]map[string]interface{}) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{} // The final rows that are filtered based on the where clause
@@ -2646,8 +2681,14 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 	}
 
 	if where == nil {
+		// check if executor is explaining
+
 		// If there is no where clause, we return all rows from whatever tables were passed
 		for _, tbl := range tbls {
+			if ex.explaining {
+				ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbls[0].Name})
+
+			}
 
 			// Setup new row iterator
 			iter := tbl.NewIterator()
@@ -3010,6 +3051,27 @@ func convertRowsToMap(rows []*Row) []map[string]interface{} {
 	return results
 }
 
+// convertPlanToRows converts a plan to rows
+func convertPlanToRows(plan *Plan) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	for _, step := range plan.Steps {
+
+		op := ""
+
+		switch step.Operation {
+		case FULL_SCAN:
+			op = "FULL SCAN"
+		case INDEX_SCAN:
+			op = "INDEX SCAN"
+		}
+
+		results = append(results, map[string]interface{}{"operation": op, "table": step.Table, "column": step.Column})
+	}
+
+	return results
+}
+
 // filter filters rows based on the where clause
 func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, filteredRows *[]map[string]interface{}, rowIds *[]int64) error {
 
@@ -3026,6 +3088,26 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 		err := ex.opt(where.SearchCondition, optimize, tbls)
 		if err != nil {
 			return err
+		}
+
+		if ex.explaining {
+			for tblName, colsValues := range optimize.Tables {
+				for _, colValue := range colsValues {
+					ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: INDEX_SCAN, Table: tblName, Column: colValue["column"].(string)})
+				}
+			}
+
+			// any not optimized tables
+			for _, tbl := range tbls {
+				if _, ok := optimize.Tables[tbl.Name]; !ok {
+					ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbl.Name})
+				}
+			}
+
+			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan)))
+
+			return nil
+
 		}
 	}
 

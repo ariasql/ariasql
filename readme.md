@@ -28,14 +28,14 @@ AriaSQL is a relational database management system designed and engineered from 
 - [x] DML, DQL, DDL, DCL, TCL Support
 - [x] Stored Procedures
 - [x] Cursors
-- [ ] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
+- [x] Execution Plan using EXPLAIN - (Explains course of action for a query, shows order of operations, selected tables, and indexes to use if any or if a full table scan is required)
 - [x] CASE expressions (Within select list and where clauses)
 - [x] Functions (UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM) `functions used with SELECT within a where clause or select list, i.e SELECT * FROM table WHERE UPPER(column) = 'TEST'`
 - [x] DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, BOOL/BOOLEAN, TEXT, BLOB data types
 - [x] DEFAULT constraint
 - [x] CHECK constraint
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
-- [ ] Logging to file (aria.log)
+- [x] Logging to file (aria.log)
 - [ ] Alter table (migration)
 - [ ] Replication - Replication to slave nodes, replicates data from master to slave nodes.
 - [ ] Import/ Export (CSV, JSON, XML) - From (asql AriaSQL CLI or AriaSQL Developer)
