@@ -4652,6 +4652,7 @@ func (p *Parser) parseDistributionFunc() (interface{}, error) {
 		return percentileDiscFunc, nil
 
 	case "CUME_DIST":
+		p.consume() // Consume CUME_DIST
 		cumeDistFunc := &CumeDistFunc{}
 
 		if p.peek(0).tokenT != LPAREN_TOK {
@@ -4671,6 +4672,8 @@ func (p *Parser) parseDistributionFunc() (interface{}, error) {
 
 	case "PERCENT_RANK":
 		percentRankFunc := &PercentRankFunc{}
+
+		p.consume() // Consume PERCENT_RANK
 
 		if p.peek(0).tokenT != LPAREN_TOK {
 			return nil, errors.New("expected (")

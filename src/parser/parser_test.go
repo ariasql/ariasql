@@ -8837,3 +8837,93 @@ func TestNewParserAnalyticalFunc5(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDistFunc(t *testing.T) {
+	statement := []byte(`
+	SELECT PERCENT_RANK();
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*PercentRankFunc) == nil {
+		t.Fatalf("expected PercentRankFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*PercentRankFunc))
+	}
+
+}
+
+func TestNewParserDistFunc2(t *testing.T) {
+	statement := []byte(`
+	SELECT CUME_DIST();
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	selectStmt, ok := stmt.(*SelectStmt)
+	if !ok {
+		t.Fatalf("expected *SelectStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(selectStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if selectStmt.SelectList.Expressions[0].Value.(*CumeDistFunc) == nil {
+		t.Fatalf("expected CumeDistFunc, got %T", selectStmt.SelectList.Expressions[0].Value.(*CumeDistFunc))
+	}
+
+}
