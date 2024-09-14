@@ -6811,3 +6811,39 @@ func TestNewParserExecStmt(t *testing.T) {
 	}
 
 }
+
+func TestNewParserDropProcedureStmt(t *testing.T) {
+	statement := []byte(`
+	DROP PROCEDURE procTest;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	dropProcTest, ok := stmt.(*DropProcedureStmt)
+	if !ok {
+		t.Fatalf("expected *DropProcedureStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if dropProcTest.ProcedureName.Value != "procTest" {
+		t.Fatalf("expected procTest, got %s", dropProcTest.ProcedureName.Value)
+	}
+}
