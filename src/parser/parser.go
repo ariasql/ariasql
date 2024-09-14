@@ -22,6 +22,7 @@ import (
 	"ariasql/catalog"
 	"ariasql/shared"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -1399,9 +1400,28 @@ func (p *Parser) parseDropStmt() (Node, error) {
 		return p.parseDropIndexStmt()
 	case "USER":
 		return p.parseDropUserStmt()
+	case "PROCEDURE":
+		return p.parseDropProcedureStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE")
+
+}
+
+// parseDropProcedureStmt parses a DROP PROCEDURE statement
+func (p *Parser) parseDropProcedureStmt() (Node, error) {
+	p.consume() // Consume PROCEDURE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	procedureName := p.peek(0).value.(string)
+	p.consume() // Consume procedure name
+
+	return &DropProcedureStmt{
+		ProcedureName: &Identifier{Value: procedureName},
+	}, nil
 
 }
 
@@ -1653,14 +1673,239 @@ func (p *Parser) parseCreateStmt() (Node, error) {
 		return p.parseCreateUserStmt()
 	case "PROCEDURE":
 		return p.parseCreateProcedureStmt()
+	case "EXEC":
+		return p.parseExecStmt()
 	}
 
 	return nil, errors.New("expected DATABASE or TABLE or INDEX")
 
 }
 
+// parseExecStmt parses an EXEC statement
+func (p *Parser) parseExecStmt() (Node, error) {
+	p.consume() // Consume EXEC
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	procedureName := p.peek(0).value.(string)
+	p.consume() // Consume procedure name
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	var args []interface{}
+
+	for {
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != LITERAL_TOK && p.peek(0).value != "NULL" {
+			return nil, errors.New("expected literal or NULL")
+		}
+
+		if p.peek(0).value == "NULL" {
+			args = append(args, &Literal{Value: nil})
+		} else {
+			args = append(args, &Literal{Value: p.peek(0).value})
+		}
+
+		p.consume() // Consume literal
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+	}
+
+	p.consume() // Consume )
+
+	return &ExecStmt{
+		ProcedureName: &Identifier{Value: procedureName},
+		Args:          args,
+	}, nil
+
+}
+
 // parseCreateProcedureStmt parses a CREATE PROCEDURE statement
 func (p *Parser) parseCreateProcedureStmt() (Node, error) {
+	p.consume() // Consume PROCEDURE
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	name := p.peek(0).value.(string)
+
+	p.consume() // Consume name
+
+	if p.peek(0).tokenT != LPAREN_TOK {
+		return nil, errors.New("expected (")
+	}
+
+	p.consume() // Consume (
+
+	var params []*Parameter
+
+	for {
+		// @var1 INT, @var2 VARCHAR(255)
+
+		// Check for @
+		if p.peek(0).value != "@" {
+			return nil, errors.New("expected @")
+		}
+
+		p.consume() // Consume @
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		paramName := fmt.Sprintf("@%s", p.peek(0).value.(string))
+
+		p.consume() // Consume name
+
+		if p.peek(0).tokenT != DATATYPE_TOK {
+			return nil, errors.New("expected datatype")
+		}
+
+		dataType := p.peek(0).value.(string)
+
+		p.consume() // Consume data type
+
+		// Check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
+		if p.peek(0).tokenT == LPAREN_TOK {
+			switch dataType {
+			case "CHAR", "CHARACTER", "BINARY":
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				length := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				params = append(params, &Parameter{
+					Name:     &Identifier{Value: paramName},
+					DataType: &Identifier{Value: dataType},
+					Length:   &Literal{Value: length},
+				})
+			case "DEC", "DECIMAL", "NUMERIC", "REAL", "FLOAT", "DOUBLE":
+
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				precision := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != COMMA_TOK {
+					return nil, errors.New("expected ,")
+				}
+
+				p.consume() // Consume ,
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				scale := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				params = append(params, &Parameter{
+					Name:      &Identifier{Value: paramName},
+					DataType:  &Identifier{Value: dataType},
+					Precision: &Literal{Value: precision},
+					Scale:     &Literal{Value: scale},
+				})
+			}
+		} else {
+			params = append(params, &Parameter{
+				Name:     &Identifier{Value: paramName},
+				DataType: &Identifier{Value: dataType},
+			})
+		}
+
+		if p.peek(0).tokenT == RPAREN_TOK {
+			break
+		}
+
+		if p.peek(0).tokenT != COMMA_TOK {
+			return nil, errors.New("expected ,")
+		}
+
+		p.consume() // Consume ,
+
+	}
+
+	if p.peek(0).tokenT != RPAREN_TOK {
+		return nil, errors.New("expected )")
+
+	}
+
+	p.consume() // Consume )
+
+	var block []interface{}
+
+	if p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "BEGIN" {
+		return nil, errors.New("expected BEGIN")
+	}
+
+	p.consume() // Consume BEGIN
+
+	// Parse statements
+	for p.peek(0).tokenT != KEYWORD_TOK || p.peek(0).value != "END" {
+		stmt, err := p.Parse()
+		if err != nil {
+			return nil, err
+		}
+
+		// Add statement to create procedure statement
+
+		block = append(block, stmt)
+
+		p.consume() // Consume ;
+	}
+
+	p.consume() // Consume END
+
+	return &CreateProcedureStmt{
+		Procedure: &Procedure{
+			Name:       &Identifier{Value: name},
+			Parameters: params,
+			Body: &BeginEndBlock{
+				Stmts: block,
+			},
+		},
+	}, nil
 
 }
 

@@ -6624,3 +6624,137 @@ func TestNewParserUpdate3(t *testing.T) {
 	}
 
 }
+
+func TestNewParserCreateProcedure(t *testing.T) {
+	statement := []byte(`
+	CREATE PROCEDURE procTest (@param1 INT, @param2 CHAR(50))
+	BEGIN
+		SELECT * FROM t WHERE id = @param1;
+
+		UPDATE t SET val = val + 1 WHERE id = @param1 AND name = @param2;
+	END;
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement)) // Log the statement being tested
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createProc, ok := stmt.(*CreateProcedureStmt)
+	if !ok {
+		t.Fatalf("expected *CreateProcedureStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	//sel, err := PrintAST(createProc)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if createProc.Procedure.Name.Value != "procTest" {
+		t.Fatalf("expected procTest, got %s", createProc.Procedure.Name.Value)
+	}
+
+	if createProc.Procedure.Parameters[0].Name.Value != "@param1" {
+		t.Fatalf("expected @param1, got %s", createProc.Procedure.Parameters[0].Name.Value)
+	}
+
+	if createProc.Procedure.Parameters[0].DataType.Value != "INT" {
+		t.Fatalf("expected INT, got %s", createProc.Procedure.Parameters[0].DataType.Value)
+	}
+
+	if createProc.Procedure.Parameters[1].Name.Value != "@param2" {
+		t.Fatalf("expected @param2, got %s", createProc.Procedure.Parameters[1].Name.Value)
+	}
+
+	if createProc.Procedure.Parameters[1].DataType.Value != "CHAR" {
+		t.Fatalf("expected CHAR(50), got %s", createProc.Procedure.Parameters[1].DataType.Value)
+	}
+
+	if createProc.Procedure.Parameters[1].Length.Value != uint64(50) {
+		t.Fatalf("expected 50, got %d", createProc.Procedure.Parameters[1].Length.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value != "t" {
+		t.Fatalf("expected t, got %s", createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.FromClause.Tables[0].Name.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Op)
+	}
+
+	if createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "id" {
+		t.Fatalf("expected id, got %s", createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value != "@param1" {
+		t.Fatalf("expected @param1, got %s", createProc.Procedure.Body.Stmts[0].(*SelectStmt).TableExpression.WhereClause.SearchCondition.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).TableName.Value != "t" {
+		t.Fatalf("expected t, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).TableName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Column.Value != "val" {
+		t.Fatalf("expected val, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Column.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Op != OP_PLUS {
+		t.Fatalf("expected +, got %d", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Op)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Left.(*ColumnSpecification).ColumnName.Value != "val" {
+		t.Fatalf("expected val, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Left.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Right.(*Literal).Value != uint64(1) {
+		t.Fatalf("expected 1, got %d", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).SetClause[0].Value.Value.(*BinaryExpression).Right.(*Literal).Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Op != OP_AND {
+		t.Fatalf("expected AND, got %d", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Op)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Op)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "id" {
+		t.Fatalf("expected id, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value != "@param1" {
+		t.Fatalf("expected @param1, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Left.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op != OP_EQ {
+		t.Fatalf("expected =, got %d", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Op)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value != "name" {
+		t.Fatalf("expected name, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Left.Value.(*ColumnSpecification).ColumnName.Value)
+	}
+
+	if createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value != "@param2" {
+		t.Fatalf("expected @param2, got %s", createProc.Procedure.Body.Stmts[1].(*UpdateStmt).WhereClause.SearchCondition.(*LogicalCondition).Right.(*ComparisonPredicate).Right.Value.(*Variable).VariableName.Value)
+	}
+
+}

@@ -416,7 +416,7 @@ type AlterUserStmt struct {
 type ProcedureStmt struct {
 	Name       *Identifier
 	Parameters []*Identifier
-	Body       []Statement
+	Body       []interface{}
 }
 
 // Parameter represents a parameter in a procedure
@@ -427,27 +427,6 @@ type Parameter struct {
 	Precision *Literal
 	Scale     *Literal
 }
-
-/*
-CREATE PROCEDURE test_procedure
-    @param1 INT,
-    @param2 CHAR(20)
-AS
-BEGIN
-    SELECT *
-    FROM test_table
-    WHERE col1 = @param1 AND col2 = @param2;
-END;
-
--- Calling the stored procedure
-EXEC test_procedure @param1 = 1, @param2 = 'test';
-*/
-
-// ExecStmt represents a CALL statement
-type ExecStmt struct {
-	Name *Identifier
-	Args []*Literal
-} // i.e. EXEC test_procedure @param1 = 1, @param2 = 'test';
 
 // PrintAST prints the AST of a parsed SQL statement in JSON format
 func PrintAST(node Node) (string, error) {
@@ -600,34 +579,36 @@ type BreakStmt struct{}
 
 // ReturnStmt represents a RETURN statement like RETURN 1;
 type ReturnStmt struct {
-	Expr interface{}
+	Expr interface{} // Should be literal
 }
 
 // SetStmt represents a SET statement like SET @variable_name = 1;
 type SetStmt struct {
-	Variable *Identifier
-	Value    interface{}
+	Variable *Identifier // variable name
+	Value    interface{} // Should be literal
 }
 
 // CloseStmt represents a CLOSE statement
 type CloseStmt struct {
-	CursorName *Identifier
+	CursorName *Identifier // cursor name
 }
 
 // DeallocateStmt represents a DEALLOCATE statement
 type DeallocateStmt struct {
-	CursorName         *Identifier
-	CursorVariableName *Identifier
+	CursorName         *Identifier // cursor name
+	CursorVariableName *Identifier // cursor variable name
 }
 
 // CreateProcedureStmt represents a CREATE PROCEDURE statement
 type CreateProcedureStmt struct {
-	Procedure *Procedure
+	Procedure *Procedure // procedure definition
 }
 
-// ProcedureCallStmt represents a CALL statement
-type ProcedureCallStmt struct {
-	Name *Identifier
+// ExecStmt represents a EXEC statement
+// i.e EXEC procedure_name;
+type ExecStmt struct {
+	ProcedureName *Identifier // procedure name
+	Args          []interface{}
 }
 
 // Procedure represents a procedure
@@ -635,4 +616,9 @@ type Procedure struct {
 	Name       *Identifier    // procedure name
 	Parameters []*Parameter   // procedure parameters
 	Body       *BeginEndBlock // procedure body
+}
+
+// DropProcedureStmt represents a DROP PROCEDURE statement
+type DropProcedureStmt struct {
+	ProcedureName *Identifier // procedure name
 }
