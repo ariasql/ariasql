@@ -59,6 +59,10 @@
         color: #5d8fab;
         text-decoration: none;
     }
+
+    .container img {
+      max-width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -101,7 +105,7 @@ ALTER USER admin SET USERNAME 'newusername';
   </code>
   </pre>
 
-
+  <h3>Native Driver</h3>
   <p>To connect to your server you can use an AriaSQL client driver.</p>
   <ul>
     <li><a href="github.com/ariasql/ariasql-go">Golang</a></li>
@@ -129,8 +133,25 @@ ALTER USER admin SET USERNAME 'newusername';
   <h3>Netcat</h3>
   <p>You can connect to your server using netcat.</p>
 
+  <p>You must encode your username and password in base64.</p>
+  <pre><code>
+echo -n "admin\0admin" | base64
+  </code></pre>
+
+  <img src="assets/nc.png" />
+
+
+
   <h3>asql</h3>
   <p>You can connect to your server using the AriaSQL CLi program (asql).</p>
+
+  <pre><code>
+./asql -u admin -p admin</code></pre>
+
+  <img src="assets/asql.png" />
+
+  <h3>AriaSQL Developer</h3>
+  <p>Coming soon</p>
 
   <h2 id="database-management">Database Management</h2>
 
