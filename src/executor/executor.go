@@ -351,23 +351,32 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateDatabaseStmt:
-		if !ex.recover { // If not recovering from WAL
+		if !ex.recover { // If not recovering from WAL, check if user has the privilege to create a database
 			if !ex.ch.User.HasPrivilege("*", "*", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to CREATE on system. A user must have CREATE privilege system wide")
 			}
 		}
 
+		// Check if a transaction has begun
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Create the database
 		return ex.aria.Catalog.CreateDatabase(s.Name.Value)
 	case *parser.CreateTableStmt:
+
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
@@ -375,18 +384,16 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
-		if ex.ch.Database == nil {
-			return errors.New("no database selected")
-		}
-
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Create the table
 		err = ex.ch.Database.CreateTable(s.TableName.Value, s.TableSchema)
 		if err != nil {
 			return err
@@ -395,25 +402,28 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.DropTableStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, s.TableName.Value, []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to DROP on system for database " + ex.ch.Database.Name)
 			}
 		}
 
-		if ex.ch.Database == nil {
-			return errors.New("no database selected")
-		}
-
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Drop the table
 		err = ex.ch.Database.DropTable(s.TableName.Value)
 		if err != nil {
 			return err
@@ -421,36 +431,40 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CreateIndexStmt:
-
-		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
-		}
-
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
+
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "*", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to CREATE on system for database " + ex.ch.Database.Name)
 			}
 		}
 
+		// Get the table
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
 		}
 
+		var columns []string // Columns to create index on
+
 		// convert *parser.Identifier to []string
-		var columns []string
 		for _, col := range s.ColumnNames {
 			columns = append(columns, col.Value)
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Create the index
 		err = tbl.CreateIndex(s.IndexName.Value, columns, s.Unique)
 		if err != nil {
 			return err
@@ -458,12 +472,14 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.DropIndexStmt:
-		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
-		}
 
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
+		}
+
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		if !ex.recover { // If not recovering from WAL
@@ -472,16 +488,19 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		// Get the table
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Drop the index
 		err = tbl.DropIndex(s.IndexName.Value)
 		if err != nil {
 			return err
@@ -489,10 +508,13 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.InsertStmt:
+
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
+		// Get table for insertion
 		tbl := ex.ch.Database.GetTable(s.TableName.Value)
 		if tbl == nil {
 			return errors.New("table does not exist")
@@ -504,24 +526,27 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(stmt))
 		if err != nil {
 			return err
 		}
 
+		// Rows to be inserted
 		var rows []map[string]interface{}
 
+		// Populate new row based on the insert statement
 		for _, row := range s.Values {
-			data := map[string]interface{}{}
+			newRow := map[string]interface{}{}
 			for i, col := range s.ColumnNames {
 				switch row[i].(type) {
 				case *parser.Literal:
-					data[col.Value] = row[i].(*parser.Literal).Value
+					newRow[col.Value] = row[i].(*parser.Literal).Value
 				case *shared.GenUUID, *shared.SysDate, *shared.SysTime, *shared.SysTimestamp:
-					data[col.Value] = row[i]
+					newRow[col.Value] = row[i]
 				}
 			}
-			rows = append(rows, data)
+			rows = append(rows, newRow)
 
 		}
 
@@ -539,7 +564,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				}
 			}
 		}
-		if ex.TransactionBegun {
+		if ex.TransactionBegun { // if transaction has begun we append the statement to the transaction
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
 				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
@@ -556,35 +581,45 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.UseStmt:
-		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
-		}
-
+		// Get the database
 		db := ex.aria.Catalog.GetDatabase(s.DatabaseName.Value)
 		if db == nil {
 			return errors.New("database does not exist")
 		}
 
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
-		ex.ch.Database = db
+		ex.ch.Database = db // Set current channel database
+
 		return nil
 	case *parser.DropDatabaseStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
 		if !ex.recover { // If not recovering from WAL
 			if !ex.ch.User.HasPrivilege(stmt.(*parser.DropDatabaseStmt).Name.Value, "*", []shared.PrivilegeAction{shared.PRIV_CREATE}) {
 				return errors.New("user does not have the privilege to INSERT on system for database " + stmt.(*parser.DropDatabaseStmt).Name.Value)
 			}
 		}
 
-		err := ex.aria.Catalog.DropDatabase(s.Name.Value)
+		// Append the statement to the WAL file
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
-		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		// Drop the database
+		err = ex.aria.Catalog.DropDatabase(s.Name.Value)
 		if err != nil {
 			return err
 		}
@@ -597,11 +632,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.SelectStmt:
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
-
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Execute the select statement
 		_, err := ex.executeSelectStmt(s, false)
 		if err != nil {
 			return err
@@ -609,17 +650,20 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.UpdateStmt:
+
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
-		if ex.TransactionBegun {
+		if ex.TransactionBegun { // If transaction has begun we append the statement to the transaction
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
 				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
@@ -638,17 +682,19 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 	case *parser.DeleteStmt:
 
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
-		if ex.TransactionBegun {
+		if ex.TransactionBegun { // If transaction has begun we append the statement to the transaction
 			ex.Transaction.Statements = append(ex.Transaction.Statements, &TransactionStmt{
 				Id:       len(ex.Transaction.Statements),
 				Stmt:     s,
@@ -672,15 +718,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		// Check if a transaction has begun
 		if ex.TransactionBegun {
-			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Append the statement to the WAL file
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
 
+		// Create the user
 		err = ex.aria.Catalog.CreateNewUser(s.Username.Value, s.Password.Value.(string))
 		if err != nil {
 			return err
@@ -695,8 +744,9 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		// Check if a transaction has begun
 		if ex.TransactionBegun {
-			return errors.New("CREATE, ALTER, DROP statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
@@ -719,8 +769,9 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
+		// Check if a transaction has begun
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		var priv *catalog.Privilege
@@ -775,7 +826,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		var priv *catalog.Privilege
@@ -829,7 +880,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		switch s.ShowType {
@@ -960,7 +1011,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		if ex.TransactionBegun {
-			return errors.New("USE, CREATE, ALTER, DROP, GRANT, REVOKE, SHOW statements not allowed in a transaction")
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		if s.SetType == parser.ALTER_USER_SET_PASSWORD {
@@ -1008,6 +1059,18 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.FetchStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Check if cursors exist
+
 		var err error
 		if ex.cursors == nil {
 			return errors.New("no cursors")
@@ -1080,7 +1143,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			// Increment the cursor position
-
 			cursor.pos = uint64(cursor.pos + 1)
 
 			cursor.statement.TableExpression.LimitClause.Count = &parser.Literal{Value: uint64(1)}
@@ -1091,6 +1153,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.OpenStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Check if cursors exist
 		if ex.cursors == nil {
 			return errors.New("no cursors")
 		}
@@ -1114,6 +1187,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.PrintStmt:
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
 		switch s.Expr.(type) {
 		case *parser.Literal:
 			log.Println(s.Expr.(*parser.Literal).Value) // will print the value of the literal in log
@@ -1134,10 +1212,22 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("unsupported print type")
 		}
 	case *parser.DeclareStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if cursors exist
 		if ex.cursors == nil {
 			ex.cursors = make(map[string]*Cursor)
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Check if cursor name is not nil
 		if s.CursorName != nil {
 
 			if ex.cursors == nil {
@@ -1154,6 +1244,13 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				return errors.New("cannot open a cursor with a limit clause")
 			}
 
+			// Check if the cursor has an order by clause
+			if s.CursorStmt.TableExpression.OrderByClause != nil {
+				// Cannot open a cursor with an order by clause
+				return errors.New("cannot open a cursor with an order by clause")
+			}
+
+			// Add the cursor to the map
 			ex.cursors[s.CursorName.Value] = &Cursor{
 				name:      s.CursorName.Value,
 				pos:       0,
@@ -1187,18 +1284,42 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		}
 	case *parser.CloseStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if cursors exist
 		if ex.cursors == nil {
 			return errors.New("no cursors")
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Check if cursor exists
 		if ex.cursors[s.CursorName.Value] == nil {
 			return errors.New("cursor does not exist")
 		}
 
 		delete(ex.cursors, s.CursorName.Value) // delete the cursor
 	case *parser.DeallocateStmt:
+
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if cursors exist
 		if ex.cursors == nil {
 			return errors.New("no cursors")
+		}
+
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
 		}
 
 		if s.CursorName != nil {
@@ -1225,6 +1346,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Drop the procedure
 		err := ex.ch.Database.DropProcedure(s.ProcedureName.Value)
 		if err != nil {
 			return err
@@ -1233,10 +1360,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.CreateProcedureStmt:
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Add the procedure to the database
 		err := ex.ch.Database.AddProcedure(&catalog.Procedure{
 			Name: s.Procedure.Name.Value,
 			Proc: s.Procedure,
@@ -1248,15 +1382,23 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.ExecStmt:
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
+
+		// Get the procedure
 		proc, err := ex.ch.Database.GetProcedure(s.ProcedureName.Value)
 		if err != nil {
 			return err
 		}
 
+		// Check if the procedure is nil
 		if proc == nil {
 			return errors.New("procedure does not exist")
 		}
@@ -1299,18 +1441,25 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		return nil
 
 	case *parser.ExplainStmt:
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
-		ex.explaining = true
+		// Check if transaction has begun
+		if ex.TransactionBegun {
+			return errors.New("statement not allowed in a transaction")
+		}
 
+		ex.explaining = true // Set explaining flag to true
+
+		// Execute the statement
 		err := ex.Execute(s.Stmt)
 		if err != nil {
 			return err
 		}
 
-		ex.explaining = false
+		ex.explaining = false // Set explaining flag to false
 
 		return nil
 
