@@ -182,6 +182,7 @@ func (ariasql *AriaSQL) GetChannel(channelID uint64) *Channel {
 
 // Close closes the AriaSQL instance
 func (ariasql *AriaSQL) Close() error {
+	ariasql.saveConfig() // save configuration
 	ariasql.Catalog.Close()
 
 	if ariasql.Config.Logging {
@@ -191,4 +192,27 @@ func (ariasql *AriaSQL) Close() error {
 	}
 
 	return ariasql.WAL.Close()
+}
+
+// saveConfig saves the configuration to a file
+func (ariasql *AriaSQL) saveConfig() error {
+	confFile, err := os.OpenFile(fmt.Sprintf("%s%sariaconf.yaml", ariasql.Config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+
+	defer confFile.Close()
+
+	// encode default configuration to yaml
+	yamlConf, err := yaml.Marshal(ariasql.Config)
+	if err != nil {
+		return err
+	}
+
+	_, err = confFile.Write(yamlConf)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
