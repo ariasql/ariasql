@@ -1355,8 +1355,14 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		// Drop the procedure
-		err := ex.ch.Database.DropProcedure(s.ProcedureName.Value)
+		err = ex.ch.Database.DropProcedure(s.ProcedureName.Value)
 		if err != nil {
 			return err
 		}
