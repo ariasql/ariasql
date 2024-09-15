@@ -449,6 +449,12 @@ COMMIT;</code></pre>
   <h3>ALTER USER Statement</h3>
   <pre><code>ALTER USER username [SET option = value];</code></pre>
 
+  <h3>Example</h3>
+    <pre><code>CREATE USER alice WITH PASSWORD 'password';</code></pre>
+    <pre><code>ALTER USER alice SET USERNAME 'newusername';
+ALTER USER newusername SET PASSWORD 'newpassword';
+</code></pre>
+
   <h2 id="privileges-and-grants">Privileges and Grants</h2>
 
   <h3>GRANT Statement</h3>
