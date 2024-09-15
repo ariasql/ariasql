@@ -264,6 +264,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				continue
 			case *parser.InsertStmt:
+
+				// Check if database is nil, cannot be nil
 				if ex.ch.Database == nil {
 					if j > 0 {
 						// rollback
@@ -276,6 +278,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 					return errors.New("no database selected")
 				}
 
+				// Get table for insert
 				tbl := ex.ch.Database.GetTable(ss.TableName.Value)
 				if tbl == nil {
 					if j > 0 {
@@ -288,6 +291,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 					return errors.New("table does not exist")
 				}
 
+				// Check if user has the privilege to insert into the table
 				if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, tbl.Name, []shared.PrivilegeAction{shared.PRIV_INSERT}) {
 					if j > 0 {
 						// rollback
@@ -299,23 +303,26 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 					return errors.New("user does not have the privilege to INSERT on system for database " + ex.ch.Database.Name + " and table " + ss.TableName.Value)
 				}
 
+				// Rows to be inserted
 				var rows []map[string]interface{}
 
+				// Populate new row based on the insert statement
 				for _, row := range ss.Values {
-					data := map[string]interface{}{}
+					newRow := map[string]interface{}{}
 					for i, col := range ss.ColumnNames {
 						switch row[i].(type) {
 						case *parser.Literal:
-							data[col.Value] = row[i].(*parser.Literal).Value
-						case *shared.GenUUID, *shared.SysDate, *shared.SysTime, *shared.SysTimestamp:
-							data[col.Value] = row[i]
+							newRow[col.Value] = row[i].(*parser.Literal).Value
+						case *shared.GenUUID, *shared.SysDate, *shared.SysTime, *shared.SysTimestamp: // If system function
+							newRow[col.Value] = row[i]
 						}
 
 					}
-					rows = append(rows, data)
+					rows = append(rows, newRow)
 
 				}
 
+				// We get inserted rowIds and inserted rows in case of rollback
 				rowIds, insertedRows, err := tbl.Insert(rows)
 				if err != nil {
 					if j > 0 {
@@ -339,7 +346,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 		}
 
-		ex.TransactionBegun = false
+		// Transaction has been commited
+		ex.TransactionBegun = false // Reset transaction begun flag
 
 		return nil
 	case *parser.CreateDatabaseStmt:
