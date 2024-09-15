@@ -1269,6 +1269,21 @@ func (tbl *Table) GetRow(rowId int64) (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	// check for encryption
+	if tbl.Encrypt {
+		row, err = decrypt(tbl.HashedKey, tbl.Nonce, row)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if tbl.Compress {
+		row, err = decompress(row)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// decode row
 	decoded, err := decodeRow(row)
 	if err != nil {
