@@ -900,12 +900,12 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 			// Check date format
 			// Should be in the format YYYY-MM-DD
-			if !shared.IsValidDateFormat(row[colName].(string)) {
+			if !shared.IsValidDateFormat(strings.TrimSuffix(strings.TrimPrefix(row[colName].(string), "'"), "'")) {
 				return -1, fmt.Errorf("column %s is not a valid date", colName)
 			}
 
 			// convert to time.Time
-			t, err := shared.StringToGOTime(row[colName].(string))
+			t, err := shared.StringToGOTime(strings.TrimSuffix(strings.TrimPrefix(row[colName].(string), "'"), "'"))
 			if err != nil {
 				return -1, fmt.Errorf("column %s is not a valid date", colName)
 			}

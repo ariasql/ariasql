@@ -180,7 +180,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		err := ex.rollback() // Rollback the transaction
+		err = ex.rollback() // Rollback the transaction
 		if err != nil {
 			return err
 
@@ -411,9 +411,14 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
-		encKey := s.EncryptKey.Value.(string) // if any
+		var encKey string
 
-		encKey = strings.TrimSuffix(strings.TrimPrefix(encKey, "'"), "'")
+		if s.EncryptKey != nil {
+
+			encKey := s.EncryptKey.Value.(string) // if any
+
+			encKey = strings.TrimSuffix(strings.TrimPrefix(encKey, "'"), "'")
+		}
 
 		// Create the table
 		err = ex.ch.Database.CreateTable(s.TableName.Value, s.TableSchema, s.Encrypt, s.Compress, []byte(encKey))
@@ -1110,7 +1115,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		cursor := ex.cursors[s.CursorName.Value]
 
 		// Append to wal
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
@@ -1514,7 +1519,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		// Append to wal
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		err = ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
 		if err != nil {
 			return err
 		}
