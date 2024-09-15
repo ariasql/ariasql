@@ -40,8 +40,9 @@
     }
 
     pre {
-      background: #eee;
+      background: #d3d3d3;
       padding: 10px;
+
       overflow-x: auto;
       border-radius: 4px;
     }
@@ -62,6 +63,16 @@
 
     .container img {
       max-width: 100%;
+      border-radius: 4px;
+    }
+
+    footer {
+      padding-top: 20px;
+      padding-bottom: 20px;
+      width: 100%;
+      color: rgba(255,255,255,0.8);
+      font-size: 12px;
+      text-align: center;
     }
   </style>
 </head>
@@ -94,6 +105,19 @@
 
   <h2 id="config-gen-files">Configuration and Generated files-directories</h2>
   <p>On start up of AriaSQL for the first time a few different files a generated.</p>
+
+  <h4>Default data directories</h4>
+
+  <p><strong>Windows</strong></p>
+<pre><code>os.Getenv("ProgramData") + GetOsPathSeparator() + "AriaSQL"
+i.e C:\ProgramData\AriaSQL
+</code></pre>
+
+  <p><strong>MacOS</strong></p>
+  <pre><code>/Library/Application Support/AriaSQL</code></pre>
+
+  <p><strong>Linux</strong></p>
+  <pre><code>/var/lib/ariasql</code></pre>
 
   <h4>ariaconfig.yaml</h4>
   <pre><code>
@@ -139,12 +163,8 @@ json: false # enable json output
 
   <p>To update the password for the admin user, run the following SQL command:</p>
 
-  <pre><code>
-ALTER USER admin SET PASSWORD 'newpassword';
-
-ALTER USER admin SET USERNAME 'newusername';
-  </code>
-  </pre>
+  <pre><code>ALTER USER admin SET PASSWORD 'newpassword';
+ALTER USER admin SET USERNAME 'newusername';</code></pre>
 
   <h3>Native Driver</h3>
   <p>To connect to your server you can use an AriaSQL client driver.</p>
@@ -186,8 +206,7 @@ echo -n "admin\0admin" | base64
   <h3>asql</h3>
   <p>You can connect to your server using the AriaSQL CLi program (asql).</p>
 
-  <pre><code>
-./asql -u admin -p admin</code></pre>
+  <pre><code>./asql -u admin -p admin</code></pre>
 
   <img src="assets/asql.png" />
 
@@ -539,5 +558,9 @@ FROM managers;</code></pre>
   <p>This query retrieves a list of all names from both the <code>employees</code> and <code>managers</code> tables, including duplicates.</p>
 
 </div>
+
+<footer>
+  &copy; 2024 AriaSQL, all rights reserved.
+</footer>
 </body>
 </html>
