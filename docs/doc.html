@@ -385,23 +385,40 @@ ON [identifier] ([column specification][, ...]);</code></pre>
 
 
   <h3>DROP TABLE Statement</h3>
-  <pre><code>DROP TABLE table_name;</code></pre>
-  <p><strong>table_name:</strong> The name of the table to be dropped.</p>
+  <pre><code>DROP TABLE [identifier];</code></pre>
+  <p><strong>identifier:</strong> The name of the table to be dropped.</p>
 
   <h2 id="database-context">Database Context</h2>
 
   <h3>USE Statement</h3>
-  <pre><code>USE database_name;</code></pre>
-  <p><strong>database_name:</strong> The name of the database to switch to.</p>
+  <pre><code>USE [identifier];</code></pre>
+  <p><strong>identifier:</strong> The name of the database to switch to.</p>
 
   <h2 id="data-manipulation">Data Manipulation</h2>
 
   <h3>INSERT Statement</h3>
-  <pre><code>INSERT INTO table_name (column1, column2, ...)
-VALUES (value1, value2, ...);</code></pre>
-  <p><strong>table_name:</strong> The name of the table.</p>
-  <p><strong>column1, column2, ...:</strong> List of columns.</p>
-  <p><strong>value1, value2, ...:</strong> Corresponding values to insert.</p>
+  <pre><code>INSERT INTO [identifier ([column specification], [column specification], ...)
+VALUES ([literal [binary expression]], [literal [binary expression]], ...);</code></pre>
+  <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
+  <p><strong>binary expression:</strong> An expression that evaluates to a value.</p>
+  <p><strong>identifier:</strong> The name of the table to insert into.</p>
+  <p><strong>column specification:</strong> The column to insert into.</p>
+
+  <h4>Example</h4>
+    <pre><code>INSERT INTO employees (name, department_id, salary, hire_date)
+VALUES ('Alice', 1, 500, '2024-01-01');</code></pre>
+
+  <p>When inserting data you can use system functions:</p>
+  <ul>
+    <li>GENERATE_UUID</li>
+    <li>SYS_DATE - DATETIME, DATE</li>
+    <li>SYS_TIME - TIME</li>
+    <li>SYS_TIMESTAMP - TIMESTAMP</li>
+  </ul>
+
+  <h4>Example</h4>
+    <pre><code>INSERT INTO employees (employee_id, name, department_id, salary, hire_date)
+VALUES (GENERATE_UUID, 'Alice', 1, 500, SYS_DATE);</code></pre>
 
   <h3>SELECT Statement</h3>
   <pre><code>SELECT [DISTINCT] [value expression AS [alias] ], ...
