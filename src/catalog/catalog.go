@@ -1219,6 +1219,7 @@ func (tbl *Table) NewIterator() *Iterator {
 	}
 }
 
+// Current returns the current row id
 func (ri *Iterator) Current() int64 {
 	return ri.row
 }
@@ -1258,11 +1259,6 @@ func (ri *Iterator) Next() (map[string]interface{}, error) {
 // Valid returns true if the iterator is valid
 func (ri *Iterator) Valid() bool {
 	return ri.row < ri.table.Rows.Count()
-
-}
-
-func (ri *Iterator) ValidUpdateIter() bool {
-	return ri.row+1 < ri.table.Rows.Count()
 
 }
 
