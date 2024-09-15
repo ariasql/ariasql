@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AriaSQL Docs</title>
+  <title>AriaSQL Documentation</title>
+  <meta name="keywords" content="ariasql, rdbms, sql database, open source, documentation, relational database, sql database">
+  <meta name="description" content="AriaSQL is a relational database management system designed and engineered from the ground up from scratch to address a variety of data management needs with ease and efficiency. At its core, AriaSQL is a database server that supports a range of SQL functionalities with a focus on delivering predictability, efficient query execution and data integrity.">
   <style>
     @font-face {
       font-family: WorkSans;
@@ -66,6 +68,7 @@
   <div class="toc">
     <h4>Table of contents</h4>
     <ul>
+      <li><a href="#the-server">The Server</a></li>
       <li><a href="#database-management">Database Management</a></li>
       <li><a href="#index-management">Index Management</a></li>
       <li><a href="#table-management">Table Management</a></li>
@@ -84,6 +87,50 @@
     </ul>
   </div>
 
+  <h2 id="the-server">The Server</h2>
+  <p>After downloading or building the AriaSQL binaries you'll find an ariasql executable.</p>
+
+  <p>The executable starts up your AriaSQL server. By default user credentials are username <strong>admin</strong> and password <strong>admin</strong>.</p>
+
+  <p>To update the password for the admin user, run the following SQL command:</p>
+
+  <pre><code>
+ALTER USER admin SET PASSWORD 'newpassword';
+
+ALTER USER admin SET USERNAME 'newusername';
+  </code>
+  </pre>
+
+
+  <p>To connect to your server you can use an AriaSQL client driver.</p>
+  <ul>
+    <li><a href="github.com/ariasql/ariasql-go">Golang</a></li>
+    <li><a href="github.com/ariasql/ariasql-py">Python</a></li>
+    <li><a href="github.com/ariasql/ariasql-node">NodeJS</a></li>
+    <li><a href="github.com/ariasql/ariasql-java">Java</a></li>
+    <li><a href="github.com/ariasql/ariasql-ruby">Ruby</a></li>
+    <li><a href="github.com/ariasql/ariasql-php">PHP</a></li>
+    <li><a href="github.com/ariasql/ariasql-rust">Rust</a></li>
+    <li><a href="github.com/ariasql/ariasql-c">C</a></li>
+    <li><a href="github.com/ariasql/ariasql-csharp">C#</a></li>
+    <li> <a href="github.com/ariasql/ariasql-objc">Objective-C</a></li>
+    <li><a href="github.com/ariasql/ariasql-cpp">C++</a></li>
+    <li><a href="github.com/ariasql/ariasql-swift">Swift</a></li>
+    <li><a href="github.com/ariasql/ariasql-kotlin">Kotlin</a></li>
+    <li><a href="github.com/ariasql/ariasql-scala">Scala</a></li>
+    <li><a href="github.com/ariasql/ariasql-perl">Perl</a></li>
+    <li><a href="github.com/ariasql/ariasql-lua">Lua</a></li>
+    <li> <a href="github.com/ariasql/ariasql-r">R</a></li>
+    <li> <a href="github.com/ariasql/ariasql-julia">Julia</a></li>
+    <li> <a href="github.com/ariasql/ariasql-dart">Dart</a></li>
+  </ul>
+
+
+  <h3>Netcat</h3>
+  <p>You can connect to your server using netcat.</p>
+
+  <h3>asql</h3>
+  <p>You can connect to your server using the AriaSQL CLi program (asql).</p>
 
   <h2 id="database-management">Database Management</h2>
 
