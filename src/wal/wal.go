@@ -49,7 +49,6 @@ func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 	gob.Register(&parser.CreateTableStmt{})
 	gob.Register(&catalog.TableSchema{})
 	gob.Register(&parser.DropTableStmt{})
-	gob.Register(&parser.SelectStmt{})
 	gob.Register(&parser.UpdateStmt{})
 	gob.Register(&parser.DeleteStmt{})
 	gob.Register(&parser.CreateIndexStmt{})
@@ -160,13 +159,6 @@ func (w *WAL) Encode(stmt interface{}) []byte {
 			return nil
 		}
 
-	case *parser.SelectStmt:
-		enc := gob.NewEncoder(buff)
-		err := enc.Encode(stmt)
-		if err != nil {
-			return nil
-		}
-
 	case *parser.UpdateStmt:
 		enc := gob.NewEncoder(buff)
 		err := enc.Encode(stmt)
@@ -202,6 +194,307 @@ func (w *WAL) Encode(stmt interface{}) []byte {
 			return nil
 		}
 
+	case *parser.AlterUserStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CreateUserStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.DropUserStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.GrantStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.RevokeStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ExecStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.DeallocateStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.WhileStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.IfStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.BeginEndBlock:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ElseIfStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.OpenStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.FetchStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.PrintStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CloseStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ExitStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.BreakStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ReturnStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.Procedure:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.Variable:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.DeclareStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ConcatFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.SetStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ElseClause:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CaseExpr:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.SubstrFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.TrimFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.LengthFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.PositionFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.RoundFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ReverseFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CoalesceFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CastFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.LowerFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.UpperFunc:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.ProcedureStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.Parameter:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.PrivilegeDefinition:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.BeginStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CommitStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.RollbackStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.CreateProcedureStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
+	case *parser.DropProcedureStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
+
 	default:
 		return nil
 	}
@@ -217,12 +510,54 @@ func (w *WAL) Decode(data []byte) interface{} {
 		&parser.CreateDatabaseStmt{},
 		&parser.CreateTableStmt{},
 		&parser.DropTableStmt{},
-		&parser.SelectStmt{},
 		&parser.UpdateStmt{},
 		&parser.DeleteStmt{},
 		&parser.CreateIndexStmt{},
 		&parser.DropIndexStmt{},
 		&parser.UseStmt{},
+		&parser.AlterUserStmt{},
+		&parser.CreateUserStmt{},
+		&parser.DropUserStmt{},
+		&parser.GrantStmt{},
+		&parser.RevokeStmt{},
+		&parser.ExecStmt{},
+		&parser.DeallocateStmt{},
+		&parser.WhileStmt{},
+		&parser.IfStmt{},
+		&parser.BeginEndBlock{},
+		&parser.ElseIfStmt{},
+		&parser.OpenStmt{},
+		&parser.FetchStmt{},
+		&parser.PrintStmt{},
+		&parser.CloseStmt{},
+		&parser.ExitStmt{},
+		&parser.BreakStmt{},
+		&parser.ReturnStmt{},
+		&parser.Procedure{},
+		&parser.Variable{},
+		&parser.DeclareStmt{},
+		&parser.ConcatFunc{},
+		&parser.SetStmt{},
+		&parser.ElseClause{},
+		&parser.CaseExpr{},
+		&parser.SubstrFunc{},
+		&parser.TrimFunc{},
+		&parser.LengthFunc{},
+		&parser.PositionFunc{},
+		&parser.RoundFunc{},
+		&parser.ReverseFunc{},
+		&parser.CoalesceFunc{},
+		&parser.CastFunc{},
+		&parser.LowerFunc{},
+		&parser.UpperFunc{},
+		&parser.ProcedureStmt{},
+		&parser.Parameter{},
+		&parser.PrivilegeDefinition{},
+		&parser.BeginStmt{},
+		&parser.CommitStmt{},
+		&parser.RollbackStmt{},
+		&parser.CreateProcedureStmt{},
+		&parser.DropProcedureStmt{},
 	}
 
 	for _, stmtType := range stmtTypes {
@@ -406,8 +741,6 @@ func (w *WAL) RecoverASTs() ([]interface{}, error) {
 				stmts = append(stmts, stmt)
 			case *parser.InsertStmt:
 				stmts = append(stmts, stmt)
-			case *parser.SelectStmt:
-				stmts = append(stmts, stmt)
 			case *parser.UpdateStmt:
 				stmts = append(stmts, stmt)
 			case *parser.DeleteStmt:
@@ -427,6 +760,82 @@ func (w *WAL) RecoverASTs() ([]interface{}, error) {
 			case *parser.GrantStmt:
 				stmts = append(stmts, stmt)
 			case *parser.RevokeStmt:
+				stmts = append(stmts, stmt)
+			case *parser.ExecStmt:
+				stmts = append(stmts, stmt)
+			case *parser.DeallocateStmt:
+				stmts = append(stmts, stmt)
+			case *parser.WhileStmt:
+				stmts = append(stmts, stmt)
+			case *parser.IfStmt:
+				stmts = append(stmts, stmt)
+			case *parser.BeginEndBlock:
+				stmts = append(stmts, stmt)
+			case *parser.ElseIfStmt:
+				stmts = append(stmts, stmt)
+			case *parser.OpenStmt:
+				stmts = append(stmts, stmt)
+			case *parser.FetchStmt:
+				stmts = append(stmts, stmt)
+			case *parser.PrintStmt:
+				stmts = append(stmts, stmt)
+			case *parser.CloseStmt:
+				stmts = append(stmts, stmt)
+			case *parser.ExitStmt:
+				stmts = append(stmts, stmt)
+			case *parser.BreakStmt:
+				stmts = append(stmts, stmt)
+			case *parser.ReturnStmt:
+				stmts = append(stmts, stmt)
+			case *parser.Procedure:
+				stmts = append(stmts, stmt)
+			case *parser.Variable:
+				stmts = append(stmts, stmt)
+			case *parser.DeclareStmt:
+				stmts = append(stmts, stmt)
+			case *parser.ConcatFunc:
+				stmts = append(stmts, stmt)
+			case *parser.SetStmt:
+				stmts = append(stmts, stmt)
+			case *parser.ElseClause:
+				stmts = append(stmts, stmt)
+			case *parser.CaseExpr:
+				stmts = append(stmts, stmt)
+			case *parser.SubstrFunc:
+				stmts = append(stmts, stmt)
+			case *parser.TrimFunc:
+				stmts = append(stmts, stmt)
+			case *parser.LengthFunc:
+				stmts = append(stmts, stmt)
+			case *parser.PositionFunc:
+				stmts = append(stmts, stmt)
+			case *parser.RoundFunc:
+				stmts = append(stmts, stmt)
+			case *parser.ReverseFunc:
+				stmts = append(stmts, stmt)
+			case *parser.CoalesceFunc:
+				stmts = append(stmts, stmt)
+			case *parser.CastFunc:
+				stmts = append(stmts, stmt)
+			case *parser.LowerFunc:
+				stmts = append(stmts, stmt)
+			case *parser.UpperFunc:
+				stmts = append(stmts, stmt)
+			case *parser.ProcedureStmt:
+				stmts = append(stmts, stmt)
+			case *parser.Parameter:
+				stmts = append(stmts, stmt)
+			case *parser.PrivilegeDefinition:
+				stmts = append(stmts, stmt)
+			case *parser.BeginStmt:
+				stmts = append(stmts, stmt)
+			case *parser.CommitStmt:
+				stmts = append(stmts, stmt)
+			case *parser.RollbackStmt:
+				stmts = append(stmts, stmt)
+			case *parser.CreateProcedureStmt:
+				stmts = append(stmts, stmt)
+			case *parser.DropProcedureStmt:
 				stmts = append(stmts, stmt)
 
 			default:
