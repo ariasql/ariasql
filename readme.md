@@ -123,48 +123,6 @@ i.e C:\ProgramData\AriaSQL
 /var/lib/ariasql
 ```
 
-
-### Communicating with server
-AriaSQL server uses a basic auth like mechanism to authenticate users.
-The server listens on port `3695` for incoming connections.
-
-You can configure your server settings in the `ariaserver.yaml` file.
-<div>
-    <h1 align="center"><img width="760" src="artwork/asql3.png"></h1>
-</div>
-
-
-
-You must encode the username and password in base64 similar to SMTP.
-
-```
-echo -n "admin\0admin" | base64
-
-Above for example would be your base64 encoded auth string.
-
-If you're using netcat simply pass the base64 encoded string as the first line.
-```
-
-#### Using asql - AriaSQL CLI
-```
-./asql -u admin -p admin -host localhost -port 3695 -tls false
-```
-All but username and password are optional.
-
-
-<div>
-    <h1 align="center"><img width="760" src="artwork/asql_rec2.gif"></h1>
-</div>
-
-### Setting server for JSON responses
-
-You can execute `json on` or `json off` from client programs.
-
-
-<div>
-    <h1 align="center"><img width="460" src="artwork/jsonsql.png"></h1>
-</div>
-
 ## Issues & Requests
 
 Please report any issues or feature requests as an issue on this repository.
