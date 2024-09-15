@@ -427,10 +427,12 @@ FROM [from clause]
 [GROUP BY [column specification]]
 [HAVING condition]
 [ORDER BY [column specification] [ASC|DESC]]
-[LIMIT number [OFFSET number]];</code></pre>
+[LIMIT [literal] [OFFSET [literal]];</code></pre>
 
-  <p><strong>from clause</strong> [identifier], .. You can specify  aliases as so <br/><code>tblname t1</code> OR <code>tblename AS t1</code></p>
+  <p><strong>from clause</strong> [identifier], .. You can specify  aliases as so <br/><code>tblname t1</code> OR <code>tblename AS t1</code><br/><code>tbl1 a, tbl2 b, tbl2 c</code><br/><code>tbl1 AS a, tbl2 AS b, tbl2 AS c</code></p>
   <p><strong>identifier:</strong> i.e tbl_name</p>
+  <p><strong>alias:</strong> i.e t1</p>
+  <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
   <p><strong>value expression:</strong> [column specification] [aggregate function] [binary expression] . Can have an associated alias.</p>
   <p><strong>column specification:</strong> tblname.colname OR colname</p>
   <p><strong>aggregate function</strong> COUNT, SUM, MIN, MAX, AVG<br/>
@@ -447,7 +449,11 @@ FROM [from clause]
     </code>
 
   </p>
-  <p><strong>ORDER BY:</strong> Sort order.</p>
+  <p><strong>ORDER BY:</strong> Sort order.<br/> In AriaSQL you sort by 1 column.<br/>
+  <code>
+    ORDER BY [column specification] ASC
+  </code>
+  </p>
   <p><strong>LIMIT number:</strong> Limits the number of rows returned.</p>
   <p><strong>OFFSET number:</strong> Skips the first number of rows.</p>
 
