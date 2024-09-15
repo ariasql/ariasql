@@ -1309,6 +1309,14 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		delete(ex.cursors, s.CursorName.Value) // delete the cursor
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
+		return nil
 	case *parser.DeallocateStmt:
 
 		// Check if a database is selected
@@ -1342,6 +1350,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			delete(ex.vars, s.CursorVariableName.Value) // delete the variable
+		}
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
 		}
 
 		return nil
