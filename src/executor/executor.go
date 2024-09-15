@@ -1396,6 +1396,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Write to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		// Get the procedure
 		proc, err := ex.ch.Database.GetProcedure(s.ProcedureName.Value)
 		if err != nil {
