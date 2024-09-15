@@ -207,7 +207,11 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				// Gather deleted rowIds and deleted rows in case of rollback
 				rowIds, deletedRows, err := ex.executeDeleteStmt(ss)
 				if err != nil {
-					return err
+					// If an error occurs, rollback the transaction
+					err = ex.rollback()
+					if err != nil {
+						return err
+					}
 				}
 
 				if ex.TransactionBegun { // If transaction has begun
@@ -224,6 +228,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				continue
 			case *parser.UpdateStmt:
 
+				// Check if a database is selected
 				if ex.ch.Database == nil {
 					if j > 0 {
 						// rollback
@@ -236,20 +241,19 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				}
 
+				// We get updated rowIds and previous row data in case of rollback
 				rowIds, updatedRows, err := ex.executeUpdateStmt(ss)
 				if err != nil {
-					if j > 0 {
-						// rollback
-						err = ex.rollback()
-						if err != nil {
-							return err
-						}
+					// If an error occurs, rollback the transaction
+					err = ex.rollback()
+					if err != nil {
+						return err
 					}
 					return err
 				}
 
 				if ex.TransactionBegun {
-
+					// Append the updated rows to the rollback data
 					for i, _ := range updatedRows {
 						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
 							RowId: rowIds[i],
