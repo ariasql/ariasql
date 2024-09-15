@@ -54,21 +54,20 @@ type Executor struct {
 
 // Variable struct represents a variable on the executor
 type Variable struct {
-	Value    interface{}
-	DataType string
+	Value    interface{} // The value of the variable
+	DataType string      // The data type of the variable
 }
 
 // Cursor represents a cursor
 type Cursor struct {
-	name      string
-	rows      []map[string]interface{}
-	pos       uint64
-	statement *parser.SelectStmt
+	name      string             // the name of the cursor
+	pos       uint64             // position of the cursor
+	statement *parser.SelectStmt // the select statement
 }
 
 // Transaction represents a transaction
 type Transaction struct {
-	Statements []*TransactionStmt
+	Statements []*TransactionStmt // Transaction statements
 }
 
 // TransactionStmt represents a transaction statement
@@ -81,26 +80,26 @@ type TransactionStmt struct {
 
 // Rollback represents a transaction rollback
 type Rollback struct {
-	Rows []*Before
+	Rows []*Before // Rows to rollback to (if applicable)
 }
 
 // Before represents the state of a row before a transaction
 type Before struct {
-	RowId int64
-	Row   map[string]interface{}
+	RowId int64                  // The actual row id within the table
+	Row   map[string]interface{} // The row data
 }
 
 // Plan represents an execution plan
 type Plan struct {
-	Steps []*Step
+	Steps []*Step // Steps in the plan
 }
 
 // Step represents a step in an execution plan
 type Step struct {
-	Operation EXPLAIN_OP
-	Table     string
-	Column    string
-	IO        int64 // Number of IO operations
+	Operation EXPLAIN_OP // The operation, whether it be full table scan or index scan
+	Table     string     // The table name
+	Column    string     // The column name
+	IO        int64      // Number of IO operations
 }
 
 type EXPLAIN_OP int // When explaining execution we append to explain
@@ -1129,7 +1128,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 			ex.cursors[s.CursorName.Value] = &Cursor{
 				name:      s.CursorName.Value,
-				rows:      make([]map[string]interface{}, 0),
 				pos:       0,
 				statement: s.CursorStmt,
 			}
