@@ -460,7 +460,7 @@ FROM [from clause]
   <h3>UPDATE Statement</h3>
   <pre><code>UPDATE [identifier]
 SET [column specification] = [literal [binary expression]], [column specification] = [literal [binary expression]], ...
-[WHERE condition];</code></pre>
+WHERE [condition];</code></pre>
     <p><strong>identifier:</strong> The name of the table to update.</p>
     <p><strong>column specification:</strong> The column to update.</p>
     <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
@@ -470,7 +470,7 @@ SET [column specification] = [literal [binary expression]], [column specificatio
 
   <h3>DELETE Statement</h3>
   <pre><code>DELETE FROM [identifier]
-[WHERE condition];</code></pre>
+WHERE [condition];</code></pre>
   <p><strong>identifier:</strong> The name of the table to delete from.</p>
   <p><strong>condition:</strong> Conditions to specify which rows to delete.</p>
 
@@ -645,6 +645,7 @@ END;</code></pre>
   <pre><code>EXIT;</code></pre>
 
   <h3>BREAK Statement</h3>
+  BREAK is used to
   <pre><code>BREAK;</code></pre>
 
   <h3>SET Statement</h3>
@@ -656,7 +657,7 @@ END;</code></pre>
   <h2 id="explain-statement">EXPLAIN Statement</h2>
 
   <h3>EXPLAIN Statement</h3>
-  <pre><code>EXPLAIN statement;</code></pre>
+  <pre><code>EXPLAIN [statement];</code></pre>
   <p><strong>statement:</strong> The SQL statement to analyze, which can be a SELECT, UPDATE, or DELETE statement.</p>
 
 
