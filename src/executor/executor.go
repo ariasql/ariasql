@@ -150,6 +150,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		ex.Transaction = &Transaction{Statements: []*TransactionStmt{}} // Initialize the transaction
 
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		return nil
 	case *parser.RollbackStmt: // Rollback statement
 
@@ -168,6 +174,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no transaction begun")
 		}
 
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		err := ex.rollback() // Rollback the transaction
 		if err != nil {
 			return err
@@ -184,6 +196,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		// Check user has the privilege to commit
 		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "*", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
 			return errors.New("user does not have the privilege to COMMIT transactions on system. A user must have COMMIT privilege for specific database")
+		}
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
 		}
 
 		// Transactions are made up of INSERT, UPDATE, DELETE statements
@@ -1049,8 +1067,13 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no database selected")
 		}
 
-		// Keep executing until error
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
 
+		// Keep executing until error
 		for ex.fetchStatus.Load() == int32(s.FetchStatus.Value.(uint64)) {
 			for _, cursorStmt := range s.Stmts.Stmts {
 				err := ex.Execute(cursorStmt)
@@ -1085,6 +1108,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		}
 
 		cursor := ex.cursors[s.CursorName.Value]
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
 
 		// Execute the select statement
 		r, err := ex.executeSelectStmt(cursor.statement, true)
@@ -1182,6 +1211,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("no statement for cursor")
 		}
 
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		cursor.statement.TableExpression.LimitClause = &parser.LimitClause{}
 
 		// Add limit and offset to the select statement
@@ -1198,6 +1233,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		switch s.Expr.(type) {
 		case *parser.Literal:
+			// Append to wal
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+			if err != nil {
+				return err
+			}
+
 			log.Println(s.Expr.(*parser.Literal).Value) // will print the value of the literal in log
 		case *parser.Identifier:
 			// is variable call
@@ -1207,6 +1248,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 			if _, ok := ex.vars[s.Expr.(*parser.Identifier).Value]; !ok {
 				return errors.New("variable not found")
+			}
+
+			// Append to wal
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+			if err != nil {
+				return err
 			}
 
 			log.Println(ex.vars[s.Expr.(*parser.Identifier).Value].Value) // will print the value of the variable in log
@@ -1261,6 +1308,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				statement: s.CursorStmt,
 			}
 
+			// Append to wal
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+			if err != nil {
+				return err
+			}
+
 			return nil
 		} else if s.CursorVariableName != nil {
 			// Check data type
@@ -1283,6 +1336,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			ex.vars[s.CursorVariableName.Value] = &Variable{DataType: s.CursorVariableDataType.Value, Value: nil}
+
+			// Append to wal
+			err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+			if err != nil {
+				return err
+			}
 
 			return nil
 
