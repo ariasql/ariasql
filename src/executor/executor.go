@@ -1374,8 +1374,14 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return errors.New("statement not allowed in a transaction")
 		}
 
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
 		// Add the procedure to the database
-		err := ex.ch.Database.AddProcedure(&catalog.Procedure{
+		err = ex.ch.Database.AddProcedure(&catalog.Procedure{
 			Name: s.Procedure.Name.Value,
 			Proc: s.Procedure,
 		})
@@ -1394,12 +1400,6 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		// Check if transaction has begun
 		if ex.TransactionBegun {
 			return errors.New("statement not allowed in a transaction")
-		}
-
-		// Write to wal
-		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
-		if err != nil {
-			return err
 		}
 
 		// Get the procedure
@@ -1432,6 +1432,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			if _, ok := ex.vars[param.Name.Value]; !ok {
 				return errors.New("parameter not found")
 			}
+		}
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
 		}
 
 		// Execute the procedure
