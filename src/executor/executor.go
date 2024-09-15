@@ -2649,7 +2649,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][k] = dateVal
+									(*results)[i][k] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "DATETIME", "TIMESTAMP":
@@ -2661,7 +2661,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][k] = dateVal
+									(*results)[i][k] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "TIME":
@@ -2673,7 +2673,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][k] = dateVal
+									(*results)[i][k] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "BOOL", "BOOLEAN":
@@ -2736,7 +2736,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][alias.Value] = dateVal
+									(*results)[i][alias.Value] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "DATETIME", "TIMESTAMP":
@@ -2748,7 +2748,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][alias.Value] = dateVal
+									(*results)[i][alias.Value] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "TIME":
@@ -2760,7 +2760,7 @@ func evaluateSystemFunc(expr interface{}, results *[]map[string]interface{}, col
 										return nil
 									}
 
-									(*results)[i][alias.Value] = dateVal
+									(*results)[i][alias.Value] = fmt.Sprintf("'%s'", dateVal)
 
 								}
 							case "BOOL", "BOOLEAN":
@@ -3034,13 +3034,13 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 						if name == k {
 							switch col.DataType {
 							case "DATE":
-								filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
+								filteredRows[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
 							case "TIME":
-								filteredRows[i][k] = v.(time.Time).Format("15:04:05")
+								filteredRows[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
 							case "TIMESTAMP":
-								filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+								filteredRows[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 							case "DATETIME":
-								filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+								filteredRows[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 							}
 						}
 					}
@@ -3582,11 +3582,11 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 										if name == strings.Split(k, ".")[1] {
 											switch col.DataType {
 											case "DATE":
-												currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02")
+												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
 											case "TIME":
-												currentRowsMap[i][k] = v.(time.Time).Format("15:04:05")
+												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
 											case "TIMESTAMP", "DATETIME":
-												currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 											}
 										}
 									}
@@ -3601,13 +3601,13 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 								if name == k {
 									switch col.DataType {
 									case "DATE":
-										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02")
+										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
 									case "TIME":
-										currentRowsMap[i][k] = v.(time.Time).Format("15:04:05")
+										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
 									case "TIMESTAMP":
-										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 									case "DATETIME":
-										currentRowsMap[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 									}
 								}
 							}

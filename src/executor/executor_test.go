@@ -21,6 +21,7 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/wal"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -15867,5 +15868,194 @@ func TestStmt85(t *testing.T) {
 	if !strings.Contains(string(ex.ResultSetBuffer), expect) {
 		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
 	}
+
+}
+
+func TestStmt86(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE Sales (
+		SaleID INT PRIMARY KEY,
+		Product CHAR(50),
+		Amount DECIMAL(10, 2),
+		SaleDate DATE
+	);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO Sales (SaleID, Product, Amount, SaleDate) VALUES
+	(1, 'Widget', 25.00, '2024-09-01'),
+	(2, 'Gadget', 15.50, '2024-09-01'),
+	(3, 'Widget', 25.00, '2024-09-02'),
+	(4, 'Widget', 30.00, '2024-09-02'),
+	(5, 'Gadget', 15.50, '2024-09-03'),
+	(6, 'Widget', 20.00, '2024-09-03'),
+	(7, 'Gadget', 20.00, '2024-09-04');
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	SELECT * FROM Sales;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+--------+----------+--------------+--------+
+| Amount | Product  | SaleDate     | SaleID |
++--------+----------+--------------+--------+
+| 25     | 'Widget' | '2024-09-01' | 1      |
+| 15.5   | 'Gadget' | '2024-09-01' | 2      |
+| 25     | 'Widget' | '2024-09-02' | 3      |
+| 30     | 'Widget' | '2024-09-02' | 4      |
+| 15.5   | 'Gadget' | '2024-09-03' | 5      |
+| 20     | 'Widget' | '2024-09-03' | 6      |
+| 20     | 'Gadget' | '2024-09-04' | 7      |
++--------+----------+--------------+--------+
+`
+
+	if !strings.Contains(string(ex.ResultSetBuffer), expect) {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
+	log.Println(string(ex.ResultSetBuffer))
 
 }
