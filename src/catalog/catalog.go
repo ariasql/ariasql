@@ -1127,7 +1127,22 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 	for col, val := range row {
 		for _, idx := range tbl.Indexes {
 			if slices.Contains(idx.Columns, col) {
-				// Insert into index
+
+				// Check for compression
+				if tbl.Compress {
+					val, err = compress([]byte(fmt.Sprintf("%v", val)))
+					if err != nil {
+						return -1, err
+					}
+				}
+
+				if tbl.Encrypt {
+					val, err = encrypt(tbl.HashedKey, tbl.Nonce, val.([]byte))
+					if err != nil {
+						return -1, err
+					}
+				}
+
 				err := idx.btree.Put([]byte(fmt.Sprintf("%v", val)), []byte(fmt.Sprintf("%d", rowId)))
 				if err != nil {
 					return -1, err
@@ -2049,5 +2064,3 @@ func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
 	c.XORKeyStream(plaintext, cipherRow)
 	return plaintext, nil
 }
-
-// @todo AlterTable
