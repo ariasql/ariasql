@@ -1,5 +1,5 @@
-// Package parser ast
-// AriaSQL parser ast package
+// Package parser ast (abstract syntax trees)
+// AriaSQL parser ast package is a collection of types that represent the abstract syntax tree of a parsed SQL statement.
 // Copyright (C) Alex Gaetano Padula
 //
 // This program is free software: you can redistribute it and/or modify
