@@ -2844,6 +2844,13 @@ func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Ta
 				}
 
 				optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.ComparisonPredicate).Right.Value})
+			} else {
+				if _, ok := optimize.Tables[tbls[0].Name]; !ok {
+					optimize.Tables[tbls[0].Name] = []map[string]interface{}{}
+				}
+
+				optimize.Tables[tbls[0].Name] = append(optimize.Tables[tbls[0].Name], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.ComparisonPredicate).Right.Value})
+
 			}
 		}
 
@@ -3124,15 +3131,48 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 		if ex.explaining {
 			for tblName, colsValues := range optimize.Tables {
-				for _, colValue := range colsValues {
-					ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: INDEX_SCAN, Table: tblName, Column: colValue["column"].(string)})
-				}
-			}
 
-			// any not optimized tables
-			for _, tbl := range tbls {
-				if _, ok := optimize.Tables[tbl.Name]; !ok {
-					ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbl.Name})
+				for _, colValue := range colsValues {
+					// Get index
+					tbl := ex.ch.Database.GetTable(tblName)
+					if tbl == nil {
+						return errors.New("table does not exist")
+					}
+
+					idx := tbl.CheckIndexedColumn(colValue["column"].(string), true)
+					if idx == nil {
+						// check if non unique index
+						idx = tbl.CheckIndexedColumn(colValue["column"].(string), false)
+						if idx == nil {
+							idx = nil
+						}
+					}
+
+					io := 0
+
+					if idx != nil {
+						// check if value is literal
+						if _, ok := colValue["value"].(*parser.Literal); !ok {
+							return errors.New("value is not literal")
+						}
+
+						key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", colValue["value"].(*parser.Literal).Value)))
+						if err != nil {
+							return err
+						}
+
+						if key != nil {
+							for range key.V {
+								io++
+							}
+						}
+
+						ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: INDEX_SCAN, Table: tblName, Column: colValue["column"].(string), IO: int64(io)})
+					} else {
+						// remove from optimize
+						delete(optimize.Tables, tblName)
+					}
+
 				}
 			}
 
