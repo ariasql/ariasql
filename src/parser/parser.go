@@ -1203,9 +1203,60 @@ func (p *Parser) parsePrivilegeStmt(revoke bool) (Node, error) {
 			if !all {
 				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SHOW)
 			}
-
+		case "EXEC":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_EXEC)
+			}
+		case "EXPLAIN":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_EXPLAIN)
+			}
+		case "PRINT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_PRINT)
+			}
+		case "DECLARE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DECLARE)
+			}
+		case "OPEN":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_OPEN)
+			}
+		case "CLOSE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_CLOSE)
+			}
+		case "DEALLOCATE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_DEALLOCATE)
+			}
+		case "FETCH":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_FETCH)
+			}
+		case "WHILE":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_WHILE)
+			}
+		case "RETURN":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_RETURN)
+			}
+		case "BREAK":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_BREAK)
+			}
+		case "SET":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_SET)
+			}
+		case "EXIT":
+			if !all {
+				privilegeDefinition.Actions = append(privilegeDefinition.Actions, shared.PRIV_EXIT)
+			}
 		default:
-			return nil, errors.New("expected SELECT, INSERT, UPDATE, DELETE, ALL, DROP, CREATE, CONNECT, ALTER")
+			return nil, errors.New("expected privilege")
 		}
 
 		p.consume()

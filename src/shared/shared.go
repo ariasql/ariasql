@@ -64,6 +64,19 @@ const (
 	PRIV_COMMIT
 	PRIV_ROLLBACK
 	PRIV_BEGIN
+	PRIV_EXPLAIN
+	PRIV_EXEC
+	PRIV_DEALLOCATE
+	PRIV_CLOSE
+	PRIV_DECLARE
+	PRIV_PRINT
+	PRIV_FETCH
+	PRIV_OPEN
+	PRIV_WHILE
+	PRIV_RETURN
+	PRIV_BREAK
+	PRIV_SET
+	PRIV_EXIT
 )
 
 // SysDate represents system datetime/date function
@@ -83,7 +96,8 @@ type GenUUID struct{} // Generate a UUID
 
 // PrivilegeActionToString converts a privilege action to a string
 func (pa PrivilegeAction) String() string {
-	return [...]string{"", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP", "CREATE", "GRANT", "REVOKE", "SHOW", "CONNECT", "ALL", "COMMIT", "ROLLBACK", "BEGIN"}[pa]
+	return [...]string{"", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP", "CREATE", "GRANT", "REVOKE", "SHOW", "CONNECT", "ALL", "COMMIT", "ROLLBACK", "BEGIN",
+		"EXPLAIN", "EXEC", "DEALLOCATE", "CLOSE", "DECLARE", "PRINT", "FETCH", "OPEN", "WHILE", "RETURN", "BREAK", "SET", "EXIT"}[pa]
 
 }
 
