@@ -66,16 +66,16 @@ const (
 	PRIV_BEGIN
 )
 
-// SysDate represents system datetime
+// SysDate represents system datetime/date function
 type SysDate struct{} // Current DATE or DATETIME
 
-// SysTime
+// SysTime represents system time function
 type SysTime struct{} // Current TIME
 
-// SysTimestamp
+// SysTimestamp represents system timestamp function
 type SysTimestamp struct{} // Current TIMESTAMP alias for DATETIME
 
-// GenUUID
+// GenUUID represents generate UUID function
 type GenUUID struct{} // Generate a UUID
 
 // You grant privileges to a user on a database or table
