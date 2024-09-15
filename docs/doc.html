@@ -300,6 +300,84 @@ ON table_name (column_name[, ...]);</code></pre>
   <p><strong>storage_options:</strong> COMPRESS and or ENCRYPT([encrypt_key])</p>
   <p><strong>encrypt_key:</strong> The key to encrypt the data.</p>
 
+  <p>When using COMPRESS AriaSQL will compress your row data and indexed values using <strong>ZSTD</strong>.</p>
+
+  <p>When using ENCRYPT AriaSQL will encrypt your row data and indexed values with <strong>ChaCha20</strong>.</p>
+
+  <h3>Constraints</h3>
+    <p>Constraints are rules that define the data allowed in a table. They can be specified when creating a table or altering an existing table.</p>
+
+  <h4>PRIMARY KEY</h4>
+  <p>PRIMARY KEY set's a column to be NOT NULL and UNIQUE. It is used to uniquely identify each record in a table.</p>
+
+  <h4>SEQUENCE</h4>
+    <p>SEQUENCE is used to generate unique values for a column. It is often used with the PRIMARY KEY constraint to create an auto-incrementing column.</p>
+
+  <h4>CHECK</h4>
+    <p>CHECK is used to specify a condition that must be met for a row to be inserted or updated.</p>
+    <pre><code>CHECK [condition]</code></pre>
+    <pre><code>CHECK (salary > 0)</code></pre>
+
+  <h4>FOREIGN KEY</h4>
+    <p>FOREIGN KEY is used to create a link between two tables. It enforces referential integrity, ensuring that a value in one table's column matches a value in another table's column.</p>
+    <pre><code>FOREIGN KEY (column_name) REFERENCES table_name(column_name)</code></pre>
+    <pre><code>FOREIGN KEY (department_id) REFERENCES departments(department_id)</code></pre>
+
+
+  <h4>NOT NULL</h4>
+    <p>NOT NULL specifies that a column cannot contain NULL values.</p>
+
+  <h4>UNIQUE</h4>
+    <p>UNIQUE ensures that all values in a column are different also creates a unique index.</p>
+
+  <h4>DEFAULT</h4>
+  <p>DEFAULT sets a default value for a column when no value is specified.</p>
+
+  <p>You can use below system functions to generate default values:</p>
+  <ul>
+    <li>GENERATE_UUID</li>
+    <li>SYS_DATE - DATETIME, DATE</li>
+    <li>SYS_TIME - TIME</li>
+    <li>SYS_TIMESTAMP - TIMESTAMP</li>
+  </ul>
+
+  <pre><code>DEFAULT [literal|system function]</code></pre>
+
+  <h3>Data Types</h3>
+  <p>AriaSQL supports the following data types:</p>
+
+  <ul>
+    <li>INT | INTEGER</li>
+    <li>DEC | DECIMAL(precision, scale)</li>
+    <li>FLOAT(precision)</li>
+    <li>DOUBLE</li>
+    <li>REAL</li>
+    <li>NUMERIC(precision, scale)</li>
+    <li>CHAR(length)</li>
+    <li>TEXT</li>
+    <li>DATE</li>
+    <li>TIME</li>
+    <li>TIMESTAMP</li>
+    <li>BOOLEAN</li>
+    <li>BLOB</li>
+    <li>BINARY(length)</li>
+  </ul>
+
+  <p><strong>NOTE</strong> when inserting with BLOB or BINARY types you must use a hexadecimal string.</p>
+  <pre><code>-- Hexadecimal string
+... VALUES ('0x0102030405060708090A0B0C0D0E0F10');</code></pre>
+
+  <h4>Example</h4>
+    <pre><code>CREATE TABLE employees (
+    employee_id INT PRIMARY KEY SEQUENCE,
+    name CHAR(50),
+    department_id INT,
+    salary DECIMAL(10, 2),
+    hire_date DATE,
+    COMPRESS ENCRYPT('mykey')
+    );</code></pre>
+
+
   <h3>DROP TABLE Statement</h3>
   <pre><code>DROP TABLE table_name;</code></pre>
   <p><strong>table_name:</strong> The name of the table to be dropped.</p>
@@ -320,20 +398,33 @@ VALUES (value1, value2, ...);</code></pre>
   <p><strong>value1, value2, ...:</strong> Corresponding values to insert.</p>
 
   <h3>SELECT Statement</h3>
-  <pre><code>SELECT [DISTINCT] column1, column2, ...
-FROM table_name
+  <pre><code>SELECT [DISTINCT] [value expression AS [alias] ], ...
+FROM [from clause]
 [WHERE condition]
-[GROUP BY column]
+[GROUP BY [column specification]]
 [HAVING condition]
-[ORDER BY column [ASC|DESC]]
+[ORDER BY [column specification] [ASC|DESC]]
 [LIMIT number [OFFSET number]];</code></pre>
+
+  <p><strong>from clause</strong> [identifier], .. You can specify  aliases as so <br/><code>tblname t1</code> OR <code>tblename AS t1</code></p>
+  <p><strong>identifier:</strong> i.e tbl_name</p>
+  <p><strong>value expression:</strong> [column specification] [aggregate function] [binary expression] . Can have an associated alias.</p>
+  <p><strong>column specification:</strong> tblname.colname OR colname</p>
+  <p><strong>aggregate function</strong> COUNT, SUM, MIN, MAX, AVG<br/>
+  Aggregates can be used with binary expressions and column specifications.</br>
+    i.e
+    <code>agg_func(column_name)+1*(22+1) </code>
+  </p>
   <p><strong>DISTINCT:</strong> Optionally removes duplicate rows.</p>
-  <p><strong>column1, column2, ...:</strong> List of columns to select.</p>
-  <p><strong>table_name:</strong> The name of the table.</p>
   <p><strong>condition:</strong> Conditions to filter rows.</p>
   <p><strong>GROUP BY column:</strong> Columns to group by.</p>
-  <p><strong>HAVING condition:</strong> Filter groups based on conditions.</p>
-  <p><strong>ORDER BY column:</strong> Sort order.</p>
+  <p><strong>HAVING condition:</strong> Filter groups based on conditions.<br/>
+    <code>
+    .. HAVING COUNT(column_name) > 1 AND SUM(column_name) > 1000
+    </code>
+
+  </p>
+  <p><strong>ORDER BY:</strong> Sort order.</p>
   <p><strong>LIMIT number:</strong> Limits the number of rows returned.</p>
   <p><strong>OFFSET number:</strong> Skips the first number of rows.</p>
 
