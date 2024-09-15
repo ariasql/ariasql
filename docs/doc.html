@@ -17,16 +17,14 @@
       line-height: 1.6;
       margin: 0;
       padding: 0;
-      background-color: #1b2a33;
       color: #10191e;
     }
 
     .container {
       max-width: 760px;
-      margin: 0 auto;
+      margin-left: 220px;
       padding: 20px;
       background: #fff;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
 
     .container h1 {
@@ -54,6 +52,7 @@
     .toc {
       border: 1px solid lightgray;
       padding: 20px;
+      border-radius: 4px;
     }
 
     a, a:visited {
@@ -74,9 +73,55 @@
       font-size: 12px;
       text-align: center;
     }
+
+    aside {
+      position: sticky;
+      left: 0;
+      top: 0;
+      float: left;
+      width: 200px;
+      background: white;
+      overflow-y: scroll;
+      height: 100vh;
+    }
+
+    aside ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    aside ul li {
+        padding: 10px;
+        border-bottom: 1px solid #eaeaea;
+    }
   </style>
 </head>
 <body>
+
+<aside>
+  <ul>
+    <li><a href="#config-gen-files">Configuration and Generated files-directories</a></li>
+    <li><a href="#the-server">The Server</a></li>
+    <li><a href="#database-management">Database Management</a></li>
+    <li><a href="#index-management">Index Management</a></li>
+    <li><a href="#table-management">Table Management</a></li>
+    <li><a href="#database-context">Database Context</a></li>
+    <li><a href="#data-manipulation">Data Manipulation</a></li>
+    <li><a href="#expressions-and-functions">Expressions and Functions</a></li>
+    <li><a href="#transaction-control">Transaction Control</a></li>
+    <li><a href="#user-management">User Management</a></li>
+    <li><a href="#privileges-and-grants">Privileges and Grants</a></li>
+    <li><a href="#procedures-and-cursors">Procedures and Cursors</a></li>
+    <li><a href="#flow-control">Flow Control</a></li>
+    <li><a href="#explain-statement">EXPLAIN Statement</a></li>
+    <li><a href="#joins">Joins</a></li>
+    <li><a href="#set-operations">Set Operations</a></li>
+    <li><a href="#wal-recovery">WAL Recovery</a></li>
+    <li><a href="#replication">Replication</a></li>
+
+  </ul>
+</aside>
+
 <div class="container">
   <h1><img src="assets/ariasql-svg2.svg" width="224" alt="AriaSQL" /></h1>
 
