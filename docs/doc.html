@@ -99,6 +99,7 @@
       <li><a href="#explain-statement">EXPLAIN Statement</a></li>
       <li><a href="#joins">Joins</a></li>
       <li><a href="#set-operations">Set Operations</a></li>
+      <li><a href="#wal-recovery">WAL Recovery</a></li>
 
     </ul>
   </div>
@@ -557,6 +558,15 @@ SELECT manager_name
 FROM managers;</code></pre>
   <p>This query retrieves a list of all names from both the <code>employees</code> and <code>managers</code> tables, including duplicates.</p>
 
+  <h2 id="wal-recovery">WAL Recovery</h2>
+  <p>When launching your ariasql binary use -recover flag set to true.</p>
+  <pre><code>./ariasql -recover true</code></pre>
+
+  <p>You can specify a specific WAL to recover from.</p>
+  <pre><code>./ariasql -recover true -wal /path/to/wal.dat</code></pre>
+
+  <h3>NOTE</h3>
+  <p>Will remove current data and recreate based on what's been appended to WAL.</p>
 </div>
 
 <footer>

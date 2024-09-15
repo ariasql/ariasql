@@ -39,7 +39,7 @@ func main() {
 
 	var (
 		recov     = flag.Bool("recover", false, "Recover AriaSQL instance from WAL")
-		recovFile = flag.String("recover-file", "wal.dat", "Recover AriaSQL instance from WAL file")
+		recovFile = flag.String("wal", "wal.dat", "Recover AriaSQL instance from WAL file")
 	)
 
 	flag.Parse()
