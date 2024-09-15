@@ -3536,8 +3536,6 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				}
 			}
 
-			log.Println(currentRowsMap)
-
 			for i := range currentRowsMap {
 
 				if rowIds != nil {
