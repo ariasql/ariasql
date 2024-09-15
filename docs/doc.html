@@ -140,6 +140,22 @@
       </code>
 
       <br/>
+
+      <h3>Default functions</h3><br/>
+      <li>SYS_DATE - Generates DATETIME or DATE</li>
+        <li>SYS_TIME - Generates TIME</li>
+        <li>SYS_TIMESTAMP - Generates TIMESTAMP</li>
+      <li>GENERATE_UUID</li>
+      <br/>
+
+      <code>
+        DEFAULT SYS_DATE | SYS_TIME | SYS_TIMESTAMP | GENERATE_UUID
+      </code>
+
+      <code>
+        DEFAULT SYS_DATE() | SYS_TIME() | SYS_TIMESTAMP() | GENERATE_UUID()
+      </code><br/>
+
       <h3>Data types</h3>
       <br/>
       <ul>
@@ -317,8 +333,37 @@
 
       <code>
         SELECT &#x3c;column spec&#x3e;|&#x3c;aggregate function&#x3e;|&#x3c;binary expression&#x3e; AS &#x3c;identifier&#x3e; FROM &#x3c;identifier&#x3e;;
+      </code><br/>
+
+
+      <h3>From Clause</h3>
+      <p>In the from clause, you can use the following syntax to join tables or not.</p>
+        <br/>
+      <code>
+        FROM &#x3c;identifier&#x3e; | &#x3c;identifier&#x3e; AS &#x3c;identifier&#x3e; | &#x3c;identifier&#x3e; &#x3c;identifier&#x3e;;
       </code>
+
+      <code>
+        FROM tbl1 | tbl1 AS a | tbl1 a;
+      </code>
+
+      <code>
+        FROM &#x3c;tables&#x3e;
+      </code>
+
+
+      <code>
+        FROM t1 a, t2 b;
+      </code><br/>
+
+
+        <h3>Where Clause</h3>
+        <p>The where clause is used to filter rows that match a condition.</p>
+        <br/>
+
     </section>
+
+
   </article>
   </body>
 </html>
