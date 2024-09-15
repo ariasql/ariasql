@@ -103,6 +103,14 @@ type Step struct {
 	IO        int64 // Number of IO operations
 }
 
+type EXPLAIN_OP int // When explaining execution we append to explain
+
+const (
+	EXPLAIN_SELECT EXPLAIN_OP = iota
+	FULL_SCAN
+	INDEX_SCAN
+)
+
 // New creates a new Executor
 // Creates a new AriaSQL executor
 // You must pass in a pointer to an AriaSQL instance and a pointer to a Channel instance
@@ -1514,17 +1522,24 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 		return nil, nil, nil
 	}
 
-	rows = rows[:len(rowIds)]
-
 	for i, row := range rows {
 		setClause := convertSetClauseToCatalogLike(&stmt.SetClause, &row)
 
-		err = tbles[0].UpdateRow(rowIds[i]-1, row, setClause)
-		if err != nil {
-			return nil, nil, err
+		if i < len(rowIds) {
+			if rowIds[i] == 0 {
+				err = tbles[0].UpdateRow(rowIds[i], row, setClause)
+				if err != nil {
+					return nil, nil, err
+				}
+				updatedRows++
+			} else {
+				err = tbles[0].UpdateRow(rowIds[i]-1, row, setClause)
+				if err != nil {
+					return nil, nil, err
+				}
+				updatedRows++
+			}
 		}
-		updatedRows++
-
 	}
 
 	rowsAffected := map[string]interface{}{"RowsAffected": updatedRows}
@@ -2691,30 +2706,25 @@ func evaluateAggregate(expr *parser.AggregateFunc, results *[]map[string]interfa
 	return nil
 }
 
-type EXPLAIN_OP int // When explaining execution we append to explain
-
-const (
-	EXPLAIN_SELECT EXPLAIN_OP = iota
-	FULL_SCAN
-	INDEX_SCAN
-)
-
 // search searches tables based on the where clause
 func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, update *[]*parser.SetClause, del bool, rowIds *[]int64, before *[]map[string]interface{}) ([]map[string]interface{}, error) {
 	var filteredRows []map[string]interface{} // The final rows that are filtered based on the where clause
 
+	// Check if there are no tables
 	if len(tbls) == 0 {
 		return nil, errors.New("no tables")
 	}
 
+	// Check if there is no where clause
 	if where == nil {
-		// check if executor is explaining
 
 		// If there is no where clause, we return all rows from whatever tables were passed
 		for _, tbl := range tbls {
-			if ex.explaining {
-				ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbls[0].Name, Column: "n/a", IO: tbl.IOCount()})
 
+			// If we are explaining, we add a full scan step to the plan
+			if ex.explaining {
+				ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: FULL_SCAN, Table: tbl.Name, Column: "n/a", IO: tbl.IOCount()})
+				continue
 			}
 
 			// Setup new row iterator
@@ -2740,50 +2750,26 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 			for k, v := range row {
 				// Check if value is time.Time
 				if _, ok := v.(time.Time); ok {
-					// if so we need to read the schema to get the type
-					if len(tbls) > 1 {
-						// split the key and get the table name
-						tblName := strings.Split(k, ".")[0]
 
-						// get the table
-						for _, tbl := range tbls {
-							if tbl.Name == tblName {
-								// get the column type
-								for name, col := range tbl.TableSchema.ColumnDefinitions {
-									if name == strings.Split(k, ".")[1] {
-										switch col.DataType {
-										case "DATE":
-											filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
-										case "TIME":
-											filteredRows[i][k] = v.(time.Time).Format("15:04:05")
-										case "TIMESTAMP", "DATETIME":
-											filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
-										}
-									}
-								}
+					tbl := tbls[0]
+
+					// get the column type and format if need be
+					for name, col := range tbl.TableSchema.ColumnDefinitions {
+
+						if name == k {
+							switch col.DataType {
+							case "DATE":
+								filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
+							case "TIME":
+								filteredRows[i][k] = v.(time.Time).Format("15:04:05")
+							case "TIMESTAMP":
+								filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
+							case "DATETIME":
+								filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
 							}
 						}
-					} else {
-
-						tbl := tbls[0]
-						// get the column type
-						for name, col := range tbl.TableSchema.ColumnDefinitions {
-
-							if name == k {
-								switch col.DataType {
-								case "DATE":
-									filteredRows[i][k] = v.(time.Time).Format("2006-01-02")
-								case "TIME":
-									filteredRows[i][k] = v.(time.Time).Format("15:04:05")
-								case "TIMESTAMP":
-									filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
-								case "DATETIME":
-									filteredRows[i][k] = v.(time.Time).Format("2006-01-02 15:04:05")
-								}
-							}
-						}
-
 					}
+
 				}
 
 			}
@@ -2838,83 +2824,71 @@ func (ex *Executor) opt(cond interface{}, optimize *Optimize, tbls []*catalog.Ta
 		if _, ok := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification); ok {
 			col := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification)
 
+			var tbl *catalog.Table
+
+			// In case of aliases
 			if col.TableName != nil {
-				if _, ok := optimize.Tables[col.TableName.Value]; !ok {
-					optimize.Tables[col.TableName.Value] = []map[string]interface{}{}
+				for _, t := range tbls {
+					if t.Name == col.TableName.Value {
+						tbl = t
+						break
+					}
 				}
-
-				optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.ComparisonPredicate).Right.Value})
-			} else {
-				if _, ok := optimize.Tables[tbls[0].Name]; !ok {
-					optimize.Tables[tbls[0].Name] = []map[string]interface{}{}
-				}
-
-				optimize.Tables[tbls[0].Name] = append(optimize.Tables[tbls[0].Name], map[string]interface{}{"column": col.ColumnName.Value, "value": cond.(*parser.ComparisonPredicate).Right.Value})
-
 			}
-		}
 
-		// check if right is column spec
-		if _, ok := cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification); ok {
-			col := cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification)
-			if _, ok := optimize.Tables[col.TableName.Value]; !ok {
-				// Check if right value is a column spec
-				// if so we need to get the first value from left
+			if tbl == nil {
+				// Get first table in tables list
+				tbl = ex.ch.Database.GetTable(tbls[0].Name)
+				if tbl == nil {
+					return errors.New("table does not exist")
+				}
 
-				if _, ok := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification); ok {
-					col := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.ColumnSpecification)
+				col.TableName = &parser.Identifier{Value: tbl.Name}
+			}
 
-					var tbl *catalog.Table
+			iter := tbl.NewIterator()
+			if iter.Valid() {
+				row, err := iter.Next()
+				if err != nil {
+					return err
+				}
 
-					// In case of aliases
-					for _, t := range tbls {
-						if t.Name == col.TableName.Value {
-							tbl = t
-							break
-						}
-					}
+				for k, _ := range row {
+					if k == col.ColumnName.Value {
 
-					iter := tbl.NewIterator()
-					if iter.Valid() {
-						row, err := iter.Next()
-						if err != nil {
-							return err
-						}
+						optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
 
-						for k, _ := range row {
-							if k == col.ColumnName.Value {
-								optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
-								break // break out of loop
+						// check if right is column spec
+						if _, ok := cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification); ok {
+
+							col = cond.(*parser.ComparisonPredicate).Right.Value.(*parser.ColumnSpecification)
+
+							iter := tbl.NewIterator()
+							if iter.Valid() {
+								row, err := iter.Next()
+								if err != nil {
+									return err
+								}
+
+								for k, _ := range row {
+									if k == col.ColumnName.Value {
+										optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
+
+										break // break out of loop
+									}
+								}
 							}
+
+							break // break out of loop
 						}
 
-					}
-				} else {
-					// Get first table in tables list
-					tbl := ex.ch.Database.GetTable(tbls[0].Name)
-					if tbl == nil {
-						return errors.New("table does not exist")
-					}
-
-					iter := tbl.NewIterator()
-					if iter.Valid() {
-						row, err := iter.Next()
-						if err != nil {
-							return err
-						}
-
-						for k, _ := range row {
-							if k == col.ColumnName.Value {
-								optimize.Tables[col.TableName.Value] = append(optimize.Tables[col.TableName.Value], map[string]interface{}{"column": col.ColumnName.Value, "value": row[k]})
-								break // break out of loop
-							}
-						}
-
+						break // break out of loop
 					}
 				}
 			}
 
 		}
+
 	case *parser.InPredicate:
 		// check if left is column spec
 		if _, ok := cond.(*parser.InPredicate).Left.Value.(*parser.ColumnSpecification); ok {
@@ -3124,6 +3098,8 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 	}
 
 	if where != nil {
+
+		// Check for optimizations, such as indexes
 		err := ex.opt(where.SearchCondition, optimize, tbls)
 		if err != nil {
 			return err
@@ -3134,9 +3110,13 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 				for _, colValue := range colsValues {
 					// Get index
-					tbl := ex.ch.Database.GetTable(tblName)
-					if tbl == nil {
-						return errors.New("table does not exist")
+					var tbl *catalog.Table
+
+					for _, t := range tbls {
+						if t.Name == tblName {
+							tbl = t
+							break
+						}
 					}
 
 					idx := tbl.CheckIndexedColumn(colValue["column"].(string), true)
@@ -3152,11 +3132,7 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 					if idx != nil {
 						// check if value is literal
-						if _, ok := colValue["value"].(*parser.Literal); !ok {
-							return errors.New("value is not literal")
-						}
-
-						key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", colValue["value"].(*parser.Literal).Value)))
+						key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", colValue["value"])))
 						if err != nil {
 							return err
 						}
@@ -3167,7 +3143,8 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 							}
 						}
 
-						ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: INDEX_SCAN, Table: tblName, Column: colValue["column"].(string), IO: int64(io)})
+						ex.plan.Steps = append(ex.plan.Steps, &Step{Operation: INDEX_SCAN, Table: tblName, Column: colValue["column"].(string), IO: int64(io) + idx.GetBtree().Pager.Count()})
+
 					} else {
 						// remove from optimize
 						delete(optimize.Tables, tblName)
@@ -3363,6 +3340,15 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 						}
 					}
 
+					if len(tbls) == 1 {
+						if strings.Contains(k, ".") {
+							// remove tablename
+							newKey := strings.Split(k, ".")[1]
+							currentRowsMap[i][newKey] = currentRowsMap[i][k]
+							delete(currentRowsMap[i], k)
+						}
+					}
+
 				}
 			}
 
@@ -3370,8 +3356,12 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 			newRow := map[string]interface{}{}
 
 			if rowIds != nil {
-				*rowIds = []int64{}
+				if *rowIds == nil {
+					*rowIds = []int64{}
+				}
 			}
+
+			log.Println(currentRowsMap)
 
 			for i := range currentRowsMap {
 
@@ -3387,10 +3377,12 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 							}
 						}
 
-						if shared.IdenticalMap(currentRowsMap[i], *currentRows[j].Row) {
+						if where != nil {
 
-							*rowIds = append(*rowIds, currentRows[j].ID)
+							if shared.IdenticalMap(*currentRows[j].Row, currentRowsMap[i]) {
+								*rowIds = append(*rowIds, currentRows[j].ID)
 
+							}
 						}
 
 					}
@@ -3413,6 +3405,14 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 		if where != nil {
 			currentRows = []*Row{}
+		}
+
+	}
+
+	// if there was no where clause append all row ids
+	if where == nil {
+		for _, row := range currentRows {
+			*rowIds = append(*rowIds, row.ID)
 		}
 
 	}

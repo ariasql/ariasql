@@ -25,7 +25,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -1754,11 +1753,11 @@ func TestStmt10(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+------------+
-| test.id | test.name  |
-+---------+------------+
-| 1       | 'John Doe' |
-+---------+------------+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -2152,12 +2151,12 @@ func TestStmt12(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+------------+
-| test.id | test.name  |
-+---------+------------+
-| 1       | 'John Doe' |
-| 2       | 'Jane Doe' |
-+---------+------------+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
+| 2  | 'Jane Doe' |
++----+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -2603,11 +2602,11 @@ func TestStmt14(t *testing.T) {
 		return
 	}
 
-	expect := `+---------------+----------------+
-| users.user_id | users.username |
-+---------------+----------------+
-| 2             | <nil>          |
-+---------------+----------------+
+	expect := `+---------+----------+
+| user_id | username |
++---------+----------+
+| 2       | <nil>    |
++---------+----------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -2828,11 +2827,11 @@ func TestStmt15(t *testing.T) {
 		return
 	}
 
-	expect := `+---------------+----------------+
-| users.user_id | users.username |
-+---------------+----------------+
-| 1             | 'jdoe'         |
-+---------------+----------------+
+	expect := `+---------+----------+
+| user_id | username |
++---------+----------+
+| 1       | 'jdoe'   |
++---------+----------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -2999,11 +2998,11 @@ func TestStmt16(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-+---------+---------------+
+	expect := `+----+---------------+
+| id | name          |
++----+---------------+
+| 2  | 'Alex Padula' |
++----+---------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -3170,11 +3169,11 @@ func TestStmt17(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-+---------+---------------+
+	expect := `+----+---------------+
+| id | name          |
++----+---------------+
+| 2  | 'Alex Padula' |
++----+---------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -3341,11 +3340,11 @@ func TestStmt18(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-+---------+---------------+
+	expect := `+----+---------------+
+| id | name          |
++----+---------------+
+| 2  | 'Alex Padula' |
++----+---------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -3512,11 +3511,11 @@ func TestStmt19(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-+---------+---------------+
+	expect := `+----+---------------+
+| id | name          |
++----+---------------+
+| 2  | 'Alex Padula' |
++----+---------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -4134,11 +4133,11 @@ func TestStmt22(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+------------+
-| test.id | test.name  |
-+---------+------------+
-| 1       | 'John Doe' |
-+---------+------------+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -4305,11 +4304,11 @@ func TestStmt23(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+------------+
-| test.id | test.name  |
-+---------+------------+
-| 1       | 'John Doe' |
-+---------+------------+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -4476,12 +4475,12 @@ func TestStmt24(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+--------------+
-| test.id | test.name    |
-+---------+--------------+
-| 1       | 'John Doe'   |
-| 4       | 'Alex Smith' |
-+---------+--------------+
+	expect := `+----+--------------+
+| id | name         |
++----+--------------+
+| 1  | 'John Doe'   |
+| 4  | 'Alex Smith' |
++----+--------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -4702,11 +4701,11 @@ func TestStmt25(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+------------+
-| test.id | test.name  |
-+---------+------------+
-| 1       | 'John Doe' |
-+---------+------------+
+	expect := `+----+------------+
+| id | name       |
++----+------------+
+| 1  | 'John Doe' |
++----+------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -4927,13 +4926,13 @@ func TestStmt26(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+---------------+
-| test.id | test.name     |
-+---------+---------------+
-| 2       | 'Alex Padula' |
-| 3       | 'John Smith'  |
-| 4       | 'Alex Smith'  |
-+---------+---------------+
+	expect := `+----+---------------+
+| id | name          |
++----+---------------+
+| 2  | 'Alex Padula' |
+| 3  | 'John Smith'  |
+| 4  | 'Alex Smith'  |
++----+---------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -7199,7 +7198,7 @@ func TestStmt38(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	UPDATE users SET username = 'updated_username' WHERE user_id = 1;
+	UPDATE users SET username = 'updated_username' WHERE user_id = 6 OR user_id = 4;
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -7221,7 +7220,7 @@ func TestStmt38(t *testing.T) {
 	expect := `+--------------+
 | RowsAffected |
 +--------------+
-| 1            |
+| 2            |
 +--------------+
 `
 
@@ -7255,12 +7254,12 @@ func TestStmt38(t *testing.T) {
 	expect = `+---------+--------------------+
 | user_id | username           |
 +---------+--------------------+
-| 1       | 'updated_username' |
+| 1       | 'jdoe'             |
 | 2       | 'adoe'             |
 | 3       | 'bdoe'             |
-| 4       | 'cdoe'             |
+| 4       | 'updated_username' |
 | 5       | 'ddoe'             |
-| 6       | 'edoe'             |
+| 6       | 'updated_username' |
 | 7       | 'fdoe'             |
 | 8       | 'gdoe'             |
 | 9       | 'hdoe'             |
@@ -11062,171 +11061,6 @@ func TestStmt59(t *testing.T) {
 
 }
 
-func TestStmt60(t *testing.T) {
-	defer os.RemoveAll("./test/")
-
-	// Create a new AriaSQL instance
-	aria, err := core.New(&core.Config{
-		DataDir: "./test",
-	})
-	if err != nil {
-		t.Fatal(err)
-		return
-
-	}
-
-	aria.Catalog = catalog.New(aria.Config.DataDir)
-
-	if err := aria.Catalog.Open(); err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	defer aria.Close()
-
-	aria.Channels = make([]*core.Channel, 0)
-	aria.ChannelsLock = &sync.Mutex{}
-
-	user := aria.Catalog.GetUser("admin")
-	ch := aria.OpenChannel(user)
-	ex := New(aria, ch)
-
-	stmt := []byte(`
-	CREATE DATABASE test;
-`)
-
-	lexer := parser.NewLexer(stmt)
-	t.Log(string(stmt))
-
-	p := parser.NewParser(lexer)
-	ast, err := p.Parse()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
-	}
-
-	stmt = []byte(`
-	USE test;
-`)
-
-	lexer = parser.NewLexer(stmt)
-	t.Log(string(stmt))
-
-	p = parser.NewParser(lexer)
-	ast, err = p.Parse()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
-		return
-	}
-
-	stmt = []byte(`
-	CREATE TABLE users (user_id INT, username CHAR(255), created_on DATETIME DEFAULT SYS_DATE);
-`)
-
-	lexer = parser.NewLexer(stmt)
-	t.Log(string(stmt))
-
-	p = parser.NewParser(lexer)
-	ast, err = p.Parse()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
-		return
-	}
-
-	stmt = []byte(`
-	INSERT INTO users (user_id, username, money) VALUES (1, 'alex', 2.77), (2, 'joe', 33.44);
-`)
-
-	lexer = parser.NewLexer(stmt)
-	t.Log(string(stmt))
-
-	p = parser.NewParser(lexer)
-	ast, err = p.Parse()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	//log.Println(string(ex.resultSetBuffer))
-	// result should be empty
-	if len(ex.ResultSetBuffer) != 0 {
-		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
-		return
-	}
-
-	stmt = []byte(`
-	SELECT * FROM users where user_id = 1;
-`)
-
-	lexer = parser.NewLexer(stmt)
-	t.Log(string(stmt))
-
-	p = parser.NewParser(lexer)
-	ast, err = p.Parse()
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	err = ex.Execute(ast)
-	if err != nil {
-		t.Fatal(err)
-		return
-	}
-
-	// Check date format
-	date := string(ex.ResultSetBuffer[160:180])
-
-	_, err = time.Parse("2006-01-02 15:04:05", strings.TrimSpace(date))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestStmt61(t *testing.T) {
 	defer os.RemoveAll("./test/")
 
@@ -14728,7 +14562,7 @@ func TestStmt79(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	CREATE TABLE t (id INT PRIMARY KEY SEQUENCE, val INT);
+	CREATE TABLE t (id INT PRIMARY KEY SEQUENCE, val INT UNIQUE);
 `)
 
 	lexer = parser.NewLexer(stmt)
@@ -15478,12 +15312,238 @@ func TestStmt83(t *testing.T) {
 	expect := `+--------+----+------------+-------+
 | column | io | operation  | table |
 +--------+----+------------+-------+
-| id     | 1  | INDEX SCAN | t     |
+| id     | 2  | INDEX SCAN | t     |
 +--------+----+------------+-------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
 		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+	}
+
+}
+
+func TestStmt84(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE users (user_id INT PRIMARY KEY SEQUENCE, username CHAR(255));
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE posts (post_id INT PRIMARY KEY SEQUENCE, title CHAR(255), user_id INT NOT NULL UNIQUE);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO users (user_id, username) VALUES (1, 'jdoe'), (2, 'adoe');
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO posts (post_id, title, user_id) VALUES (1, 'Hello World', 1), (2, 'Hello World 2', 2);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	EXPLAIN SELECT * FROM users u, posts p WHERE u.user_id = p.user_id;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	expect := `+---------+----+------------+-------+
+| column  | io | operation  | table |
++---------+----+------------+-------+
+| user_id | 2  | INDEX SCAN | u     |
+| user_id | 2  | INDEX SCAN | p     |
++---------+----+------------+-------+
+`
+
+	if string(ex.ResultSetBuffer) != expect {
+		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
+		return
+
 	}
 
 }

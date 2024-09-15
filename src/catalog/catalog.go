@@ -1189,6 +1189,11 @@ type Iterator struct {
 	row   int64
 }
 
+// GetTable gets the table for the iterator
+func (ri *Iterator) GetTable() *Table {
+	return ri.table
+}
+
 // GetRow gets a row by id
 func (tbl *Table) GetRow(rowId int64) (map[string]interface{}, error) {
 	// Read row from table
