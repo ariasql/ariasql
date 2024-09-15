@@ -1,369 +1,434 @@
-<!doctype html>
-<html>
-  <head>
-    <title>AriaSQL Documentation</title>
-    <style>
-      @font-face {
-        font-family: WorkSans;
-        src: url(assets/WorkSans-VariableFont_wght.ttf);
-      }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AriaSQL Docs</title>
+  <style>
+    @font-face {
+      font-family: WorkSans;
+      src: url(assets/WorkSans-VariableFont_wght.ttf);
+    }
 
-      * {
-        margin: 0;
-        padding: 0;
-      }
+    body {
+      font-family: WorkSans, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+      background-color: #1b2a33;
+      color: #10191e;
+    }
 
-      body {
-        font-family: Arial, sans-serif;
-        margin: 2em;
-        background: lightgray;
-      }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #fff;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
 
-      header h1 {
-        font-weight: lighter;
-        padding-bottom: 1em;
-        border-bottom: 1px solid black;
-      }
+    .container h1 {
+        font-size: 2.5em;
+        text-align: center;
+        margin-bottom: 20px;
+    }
 
-      section {
-        padding: 1em;
-        margin: 1em 0;
+    h1, h2, h3 {
+      color: #5d8fab;
+    }
 
-      }
+    pre {
+      background: #eee;
+      padding: 10px;
+      overflow-x: auto;
+      border-radius: 4px;
+    }
 
-      code {
-        background: black;
-        color: lime;
-        padding: 10px;
-        margin-top: 5px;
-        margin-bottom: 5px;
-        display: block;
-      }
-    </style>
-  </head>
-  <body>
-   <header>
-     <h1>AriaSQL <strong>Docs</strong></h1>
-   </header>
-  <article>
-    <br/>
-    <p><strong>Table of contents</strong></p>
+    code {
+      font-family: monospace;
+    }
+
+    .toc {
+      border: 1px solid lightgray;
+      padding: 20px;
+    }
+
+    a, a:visited {
+        color: #5d8fab;
+        text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1><img src="assets/ariasql-svg2.svg" width="224" alt="AriaSQL" /></h1>
+
+  <div class="toc">
+    <h4>Table of contents</h4>
     <ul>
-        <li><a href="#literals-identifiers-variables">Literals, identifiers, variables</a></li>
-        <li><a href="#keywords">Keywords</a></li>
-        <li><a href="#creating-databases">Creating Databases</a></li>
-        <li><a href="#using-databases">Using Databases</a></li>
-        <li><a href="#creating-tables">Creating Tables</a></li>
+      <li><a href="#database-management">Database Management</a></li>
+      <li><a href="#index-management">Index Management</a></li>
+      <li><a href="#table-management">Table Management</a></li>
+      <li><a href="#database-context">Database Context</a></li>
+      <li><a href="#data-manipulation">Data Manipulation</a></li>
+      <li><a href="#expressions-and-functions">Expressions and Functions</a></li>
+      <li><a href="#transaction-control">Transaction Control</a></li>
+      <li><a href="#user-management">User Management</a></li>
+      <li><a href="#privileges-and-grants">Privileges and Grants</a></li>
+      <li><a href="#procedures-and-cursors">Procedures and Cursors</a></li>
+      <li><a href="#flow-control">Flow Control</a></li>
+      <li><a href="#explain-statement">EXPLAIN Statement</a></li>
+      <li><a href="#joins">Joins</a></li>
+      <li><a href="#set-operations">Set Operations</a></li>
+
     </ul>
+  </div>
+
+
+  <h2 id="database-management">Database Management</h2>
+
+  <h3>CREATE DATABASE Statement</h3>
+  <pre><code>CREATE DATABASE database_name;</code></pre>
+  <p><strong>database_name:</strong> The name of the database to be created.</p>
+
+  <h3>DROP DATABASE Statement</h3>
+  <pre><code>DROP DATABASE database_name;</code></pre>
+  <p><strong>database_name:</strong> The name of the database to be dropped.</p>
+
+  <h2 id="index-management">Index Management</h2>
+
+  <h3>CREATE INDEX Statement</h3>
+  <pre><code>CREATE [UNIQUE] INDEX index_name
+ON table_name (column_name[, ...]);</code></pre>
+  <p><strong>index_name:</strong> The name of the index.</p>
+  <p><strong>table_name:</strong> The name of the table on which the index is created.</p>
+  <p><strong>column_name:</strong> List of column names to be indexed.</p>
+  <p><strong>UNIQUE:</strong> Specifies that the index should enforce uniqueness.</p>
+
+  <h3>DROP INDEX Statement</h3>
+  <pre><code>DROP INDEX index_name ON table_name;</code></pre>
+  <p><strong>index_name:</strong> The name of the index.</p>
+  <p><strong>table_name:</strong> The name of the table from which the index is dropped.</p>
+
+  <h2 id="table-management">Table Management</h2>
+
+  <h3>CREATE TABLE Statement</h3>
+  <pre><code>CREATE TABLE table_name (
+    column_name data_type [constraints],
+    ...
+  [storage_options]
+    );</code></pre>
+  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>column_name:</strong> Name of the column.</p>
+  <p><strong>data_type:</strong> Data type of the column.</p>
+  <p><strong>constraints:</strong> Any constraints like PRIMARY KEY, FOREIGN KEY, etc.</p>
+  <p><strong>storage_options:</strong> COMPRESS and or ENCRYPT([encrypt_key])</p>
+  <p><strong>encrypt_key:</strong> The key to encrypt the data.</p>
+
+  <h3>DROP TABLE Statement</h3>
+  <pre><code>DROP TABLE table_name;</code></pre>
+  <p><strong>table_name:</strong> The name of the table to be dropped.</p>
+
+  <h2 id="database-context">Database Context</h2>
+
+  <h3>USE Statement</h3>
+  <pre><code>USE database_name;</code></pre>
+  <p><strong>database_name:</strong> The name of the database to switch to.</p>
+
+  <h2 id="data-manipulation">Data Manipulation</h2>
+
+  <h3>INSERT Statement</h3>
+  <pre><code>INSERT INTO table_name (column1, column2, ...)
+VALUES (value1, value2, ...);</code></pre>
+  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>column1, column2, ...:</strong> List of columns.</p>
+  <p><strong>value1, value2, ...:</strong> Corresponding values to insert.</p>
+
+  <h3>SELECT Statement</h3>
+  <pre><code>SELECT [DISTINCT] column1, column2, ...
+FROM table_name
+[WHERE condition]
+[GROUP BY column]
+[HAVING condition]
+[ORDER BY column [ASC|DESC]]
+[LIMIT number [OFFSET number]];</code></pre>
+  <p><strong>DISTINCT:</strong> Optionally removes duplicate rows.</p>
+  <p><strong>column1, column2, ...:</strong> List of columns to select.</p>
+  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>condition:</strong> Conditions to filter rows.</p>
+  <p><strong>GROUP BY column:</strong> Columns to group by.</p>
+  <p><strong>HAVING condition:</strong> Filter groups based on conditions.</p>
+  <p><strong>ORDER BY column:</strong> Sort order.</p>
+  <p><strong>LIMIT number:</strong> Limits the number of rows returned.</p>
+  <p><strong>OFFSET number:</strong> Skips the first number of rows.</p>
+
+  <h3>UPDATE Statement</h3>
+  <pre><code>UPDATE table_name
+SET column1 = value1, column2 = value2, ...
+[WHERE condition];</code></pre>
+  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>column1 = value1:</strong> Column and new value.</p>
+  <p><strong>condition:</strong> Conditions to specify which rows to update.</p>
+
+  <h3>DELETE Statement</h3>
+  <pre><code>DELETE FROM table_name
+[WHERE condition];</code></pre>
+  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>condition:</strong> Conditions to specify which rows to delete.</p>
+
+  <h2>Expressions and Functions</h2>
+
+  <h3>Value Expressions</h3>
+
+
+  <h4>Comparison Predicate</h4>
+  <pre><code>column operator value;</code></pre>
+  <p><strong>operator:</strong> Comparison operators like `=`, `!=`, `<`, `>`, `<=`, `>=`.</p>
 
-    <section>
-      <h2>Literals, identifiers, variables</h2>
+  <h4>Logical Condition</h4>
+  <pre><code>(condition1 AND|OR condition2);</code></pre>
 
-      <p>An identifier can be in format</p>
-      <code>
-        tbl_name | db_name.tbl_name | db_name.tbl_name.col_name
-      </code>
-      <br/>
-
-      <p>A literal is</p>
-      <code>
-        'string' | 123 | 123.45 | TRUE | FALSE;
-      </code>
-      <br/>
-
-
-
-      <p>A variable is</p>
-
-      <code>
-          @variable_name;
-      </code>
-
-    </section>
-
-    <section>
-      <h2>Keywords</h2>
-      <code>
-        ALL, AND, ANY, AS, ASC, AUTHORIZATION, AVG, ALTER,
-        BEGIN, BETWEEN, BY, CHECK, CLOSE, COBOL, COMMIT,
-        CONTINUE, COUNT, CREATE, CURRENT, CURSOR, DECLARE, DELETE, DROP, DESC, DISTINCT, DATABASE,
-        END, ESCAPE, EXEC, EXISTS,
-        FETCH, FOR, FORTRAN, FOUND, FROM,
-        GO, GOTO, GRANT, GROUP, HAVING,
-        IN, INDEX, INDICATOR, INSERT, INTO, IS, SEQUENCE,
-        LANGUAGE, LIKE,
-        MAX, MIN, MODULE, NOT, NULL,
-        OF, ON, OPEN, OPTION, OR, ORDER,
-        PASCAL, PLI, PRECISION, PRIVILEGES, PROCEDURE, PUBLIC, ROLLBACK,
-        SCHEMA, SECTION, SELECT, SET, SOME,
-        SQL, SQLCODE, SQLERROR, SUM,
-        TABLE, TO, UNION, UNIQUE, UPDATE, USER,
-        VALUES, VIEW, WHENEVER, WHERE, WITH, WORK, USE, LIMIT, OFFSET, IDENTIFIED, CONNECT, REVOKE, SHOW,
-        PRIMARY, FOREIGN, KEY, REFERENCES, DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, DEFAULT,
-        UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE,
-        CONCAT, SUBSTRING, TRIM, GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP, SYS_DATETIME,
-        CASE, WHEN, THEN, ELSE, END, IF, ELSEIF, DEALLOCATE, NEXT, WHILE, PRINT, EXPLAIN,
-        COMPRESS, ENCRYPT
-      </code>
-    </section>
-
-    <section>
-      <h2>Creating Databases</h2>
-
-
-        <code>
-          CREATE DATABASE &#x3c;identifier&#x3e;;
-        </code>
-
-    </section>
-
-    <section>
-      <h2>Using Databases</h2>
-
-
-      <code>
-        USE &#x3c;identifier&#x3e;;
-      </code>
-
-    </section>
-
-    <section>
-      <h2>Creating tables</h2>
-
-
-      <code>
-        CREATE TABLE &#x3c;identifier&#x3e; (&#x3c;identifer&#x3e; &#x3c;datatype&#x3e;  &#x3c;keyword..&#x3e;);
-      </code>
-
-      <code>
-        CREATE TABLE users (id INT SEQUENCE PRIMARY KEY, name CHAR(255) NOT NULL, email CHAR(255) NOT NULL);
-      </code>
-
-      <br/>
-
-      <h3>Default functions</h3><br/>
-      <li>SYS_DATE - Generates DATETIME or DATE</li>
-        <li>SYS_TIME - Generates TIME</li>
-        <li>SYS_TIMESTAMP - Generates TIMESTAMP</li>
-      <li>GENERATE_UUID</li>
-      <br/>
-
-      <code>
-        DEFAULT SYS_DATE | SYS_TIME | SYS_TIMESTAMP | GENERATE_UUID
-      </code>
-
-      <code>
-        DEFAULT SYS_DATE() | SYS_TIME() | SYS_TIMESTAMP() | GENERATE_UUID()
-      </code><br/>
-
-      <h3>Data types</h3>
-      <br/>
-      <ul>
-        <li>INT | INTEGER</li>
-        <li>SMALLINT</li>
-        <li>CHAR(&#x3c;literal&#x3e;) | CHARACTER(&#x3c;literal&#x3e;)</li>
-        <li>DEC(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;) | DECIMAL(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
-        <li>DOUBLE(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
-        <li>FLOAT(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
-        <li>NUMERIC(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
-        <li>REAL</li>
-        <li>DATE</li>
-        <li>TIME</li>
-        <li>DATETIME</li>
-        <li>TIMESTAMP</li>
-        <li>BOOL | BOOLEAN</li>
-        <li>TEXT</li>
-        <li>UUID</li>
-        <li>BLOB</li>
-        <li>BINARY(&#x3c;literal&#x3e;)</li>
-      </ul>
-
-      <br/>
+  <h4>Binary Expression</h4>
+  <pre><code>expression1 operator expression2;</code></pre>
+  <p><strong>operator:</strong> Binary operators like `+`, `-`, `*`, `/`.</p>
 
-      <h3>Constraints</h3>
-        <br/>
-        <ul>
-          <li>PRIMARY KEY</li>
-          <li>FOREIGN KEY</li>
-          <li>UNIQUE</li>
-          <li>NOT NULL</li>
-          <li>CHECK</li>
-          <li>DEFAULT</li>
-          <li>REFERENCES</li>
-        </ul>
+  <h4>Aggregate Functions</h4>
+  <pre><code>AGGREGATE_FUNCTION(expression);</code></pre>
+  <p><strong>AGGREGATE_FUNCTION:</strong> Functions like `SUM()`, `AVG()`, `COUNT()`.</p>
 
-      <br/>
+  <h4>String Functions</h4>
+  <pre><code>FUNCTION_NAME(argument);</code></pre>
+  <p>Examples: `UPPER()`, `LOWER()`, `SUBSTR()`, `TRIM()`.</p>
 
+  <h4>Cast Function</h4>
+  <pre><code>CAST(expression AS data_type);</code></pre>
+  <p><strong>data_type:</strong> Desired type to cast the expression to.</p>
 
-      <h3>Table options</h3>
-        <br/>
-        <ul>
-          <li>COMPRESS</li>
-          <li>ENCRYPT</li>
-        </ul>
+  <h3>Coalesce Function</h3>
+  <pre><code>COALESCE(expression1, expression2, ...)</code></pre>
+  <p><strong>Args:</strong> List of expressions. The function returns the first non-null expression.</p>
+  <p><strong>Value:</strong> Default value to return if all expressions are null.</p>
+  <p><strong>Example:</strong> <code>COALESCE(column_name, 0)</code> - Returns the value of <code>column_name</code> if it is not null; otherwise, returns 0.</p>
 
-      <br/>
+  <h3>Reverse Function</h3>
+  <pre><code>REVERSE(expression)</code></pre>
+  <p><strong>Arg:</strong> The expression or column name to reverse. This function reverses the order of characters in a string.</p>
+  <p><strong>Example:</strong> <code>REVERSE(column_name)</code> - Returns the reverse of the string in <code>column_name</code>.</p>
 
-      <p>Placed at end of CREATE TABLE</p>
+  <h3>Round Function</h3>
+  <pre><code>ROUND(expression, [decimal_places])</code></pre>
+  <p><strong>Arg:</strong> The expression or column name to round. Rounds a number to the nearest integer or specified number of decimal places.</p>
+  <p><strong>Example:</strong> <code>ROUND(column_name, 2)</code> - Rounds the value of <code>column_name</code> to two decimal places.</p>
 
-      <code>
-        CREATE TABLE users (.., ENCRYPT(&#x3c;literal&#x3e;));
-      </code>
+  <h3>Position Function</h3>
+  <pre><code>POSITION(substring IN string)</code></pre>
+  <p><strong>Arg:</strong> The substring to search for.</p>
+  <p><strong>In:</strong> The string to be searched.</p>
+  <p><strong>Example:</strong> <code>POSITION('search_term' IN column_name)</code> - Returns the position of the first occurrence of <code>'search_term'</code> in <code>column_name</code>.</p>
 
-      <code>
-        CREATE TABLE users (.., COMPRESS);
-      </code>
+  <h3>Length Function</h3>
+  <pre><code>LENGTH(expression)</code></pre>
+  <p><strong>Arg:</strong> The expression or column name whose length is to be determined. Returns the length of a string.</p>
+  <p><strong>Example:</strong> <code>LENGTH(column_name)</code> - Returns the number of characters in <code>column_name</code>.</p>
 
-      <code>
-        CREATE TABLE users (.., COMPRESS ENCRYPT(&#x3c;literal&#x3e;));
-      </code>
 
-    </section>
+  <h4>CASE Expression</h4>
+  <pre><code>CASE
+  WHEN condition THEN result
+  [WHEN condition THEN result ...]
+  [ELSE else_result]
+END;</code></pre>
 
-    <section>
-      <h2>Inserting Data</h2>
-      <code>
-        INSERT INTO &#x3c;identifier&#x3e; (&#x3c;identifier&#x3e;, &#x3c;identifier&#x3e;, ..) VALUES (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..);
-      </code><br/>
+  <h2 id="transaction-control">Transaction Control</h2>
 
-      <p>Multiple</p><br/>
+  <h3>BEGIN Statement</h3>
+  <pre><code>BEGIN;</code></pre>
 
-      <code>
-        INSERT INTO &#x3c;identifier&#x3e; (&#x3c;identifier&#x3e;, &#x3c;identifier&#x3e;, ..) VALUES (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..), (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..), ..;
-      </code>
+  <h3>COMMIT Statement</h3>
+  <pre><code>COMMIT;</code></pre>
 
-    </section>
+  <h3>ROLLBACK Statement</h3>
+  <pre><code>ROLLBACK;</code></pre>
 
-    <section>
-      <h2>Selecting Data</h2>
+  <h2 id="user-management">User Management</h2>
 
-        <code>
-            SELECT * FROM &#x3c;identifier&#x3e;;
-        </code>
+  <h3>CREATE USER Statement</h3>
+  <pre><code>CREATE USER username WITH PASSWORD 'password';</code></pre>
 
-      <br/>
+  <h3>DROP USER Statement</h3>
+  <pre><code>DROP USER username;</code></pre>
 
-      <p>Arithmetic expressions</p>
-        <code>
-            SELECT 1 + 2;
-        </code><br/>
+  <h3>ALTER USER Statement</h3>
+  <pre><code>ALTER USER username [SET option = value];</code></pre>
 
-      <h3>Aggregation</h3>
-        <br/>
+  <h2 id="privileges-and-grants">Privileges and Grants</h2>
 
-        Binary expressions can be used with the following functions:
-        <ul>
-          <li>AVG</li>
-          <li>COUNT</li>
-          <li>MAX</li>
-          <li>MIN</li>
-          <li>SUM</li>
-        </ul>
+  <h3>GRANT Statement</h3>
+  <pre><code>GRANT privilege_type ON object TO user;</code></pre>
 
-      <br/>
+  <h3>REVOKE Statement</h3>
+  <pre><code>REVOKE privilege_type ON object FROM user;</code></pre>
 
-        Using binary expression with aggregation function
-        <code>
-            SELECT &#x3c;func&#x3e;(&#x3c;identifier&#x3e;)+1;
-        </code>
+  <h2 id="procedures-and-cursors">Procedures and Cursors</h2>
 
+  <h3>CREATE PROCEDURE Statement</h3>
+  <pre><code>CREATE PROCEDURE procedure_name
+[parameters]
+BEGIN
+  -- Procedure body
+END;</code></pre>
 
-        </br>
+  <h3>EXECUTE Procedure Statement</h3>
+  <pre><code>EXEC procedure_name [arguments];</code></pre>
 
-      <p><strong>You cannot nest aggregation functions.</strong></p>
+  <h3>DECLARE CURSOR Statement</h3>
+  <pre><code>DECLARE cursor_name CURSOR FOR select_statement;</code></pre>
 
-      <br/>
+  <h3>OPEN CURSOR Statement</h3>
+  <pre><code>OPEN cursor_name;</code></pre>
 
+  <h3>FETCH Statement</h3>
+  <pre><code>FETCH cursor_name INTO variable_list;</code></pre>
 
-        <h4>COUNT</h4>
-        <p>The count function returns the number of rows that matches the query. It can be used with the asterisk (*) to count all rows.</p>
+  <h3>CLOSE CURSOR Statement</h3>
+  <pre><code>CLOSE cursor_name;</code></pre>
 
-        <p>You can pass a column name to count the number of rows that are not null in that column.</p>
+  <h3>DEALLOCATE CURSOR Statement</h3>
+  <pre><code>DEALLOCATE cursor_name;</code></pre>
 
-        <code>
-            SELECT COUNT(*) FROM &#x3c;identifier&#x3e;;
-        </code>
+  <h2 id="flow-control">Flow Control</h2>
 
+  <h3>BEGIN...END Block</h3>
+  <pre><code>BEGIN
+  -- Statements
+END;</code></pre>
 
-        <code>
-            SELECT COUNT(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
-        </code>
+  <h3>IF Statement</h3>
+  <pre><code>IF condition THEN
+  -- Statements
+ELSEIF condition THEN
+  -- Statements
+ELSE
+  -- Statements
+END IF;</code></pre>
 
-        <br/>
+  <h3>WHILE Statement</h3>
+  <pre><code>WHILE @@FETCH_STATUS = 0
+BEGIN
+  -- Statements
+END;</code></pre>
 
-        <h4>AVG</h4>
-        <p>The avg function returns the average of the values in the column.</p>
+  <h3>PRINT Statement</h3>
+  <pre><code>PRINT message;</code></pre>
 
-        <code>
-            SELECT AVG(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
-        </code>
+  <h3>RETURN Statement</h3>
+  <pre><code>RETURN value;</code></pre>
 
-        <br/>
+  <h3>EXIT Statement</h3>
+  <pre><code>EXIT;</code></pre>
 
-        <h4>MAX</h4>
-        <p>The max function returns the maximum value in the column.</p>
+  <h3>BREAK Statement</h3>
+  <pre><code>BREAK;</code></pre>
 
-        <code>
-            SELECT MAX(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
-        </code>
-
-        <br/>
-
-        <h4>MIN</h4>
-        <p>The min function returns the minimum value in the column.</p>
-
-        <code>
-            SELECT MIN(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
-        </code>
-
-        <br/>
-
-        <h4>SUM</h4>
-        <p>The sum function returns the sum of the values in the column.</p>
-
-        <code>
-            SELECT SUM(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
-
-        </code>
-
-        <br/>
-
-      <h3>Aliases</h3>
-      <p>You can use aliases within a select list.  With column specifications, binary expressions, or aggregate functions.</p><br/>
-
-      <code>
-        SELECT &#x3c;column spec&#x3e;|&#x3c;aggregate function&#x3e;|&#x3c;binary expression&#x3e; AS &#x3c;identifier&#x3e; FROM &#x3c;identifier&#x3e;;
-      </code><br/>
-
-
-      <h3>From Clause</h3>
-      <p>In the from clause, you can use the following syntax to join tables or not.</p>
-        <br/>
-      <code>
-        FROM &#x3c;identifier&#x3e; | &#x3c;identifier&#x3e; AS &#x3c;identifier&#x3e; | &#x3c;identifier&#x3e; &#x3c;identifier&#x3e;;
-      </code>
-
-      <code>
-        FROM tbl1 | tbl1 AS a | tbl1 a;
-      </code>
-
-      <code>
-        FROM &#x3c;tables&#x3e;
-      </code>
-
-
-      <code>
-        FROM t1 a, t2 b;
-      </code><br/>
-
-
-        <h3>Where Clause</h3>
-        <p>The where clause is used to filter rows that match a condition.</p>
-        <br/>
-
-    </section>
-
-
-  </article>
-  </body>
+  <h3>SET Statement</h3>
+  <pre><code>SET @variable_name = value;</code></pre>
+  <p><strong>Variable:</strong> The name of the variable to be set. It should start with `@` and be a valid identifier.</p>
+  <p><strong>Value:</strong> The value to assign to the variable. This should be a literal value (e.g., a number, string, or date).</p>
+
+
+  <h2 id="explain-statement">EXPLAIN Statement</h2>
+
+  <h3>EXPLAIN Statement</h3>
+  <pre><code>EXPLAIN statement;</code></pre>
+  <p><strong>statement:</strong> The SQL statement to analyze, which can be a SELECT, UPDATE, or DELETE statement.</p>
+
+
+  <h2 id="joins">Joins</h2>
+
+  <h3>Implicit Join</h3>
+  <p>An implicit join, also known as a "comma join" or "old-style join," uses a simple `SELECT` statement with multiple tables listed in the `FROM` clause, separated by commas. The join condition is specified in the `WHERE` clause. This style of join is considered less readable and more prone to errors compared to explicit joins like `INNER JOIN`.</p>
+
+  <pre><code>SELECT column1, column2
+FROM table1, table2
+WHERE table1.common_column = table2.common_column;</code></pre>
+  <p><strong>table1, table2:</strong> Tables to be joined.</p>
+  <p><strong>column1, column2:</strong> Columns to be selected from the tables.</p>
+  <p><strong>table1.common_column = table2.common_column:</strong> The condition to join the tables, typically based on a common column or key.</p>
+
+  <h4>Example</h4>
+  <pre><code>SELECT employees.name, departments.department_name
+FROM employees, departments
+WHERE employees.department_id = departments.department_id;</code></pre>
+  <p>This query retrieves the names of employees and their respective department names by joining the <code>employees</code> and <code>departments</code> tables based on the common <code>department_id</code> column.</p>
+
+  <h4>Complex Implicit Joins</h4>
+  <p>Complex implicit joins involve more than two tables and multiple join conditions. This approach can handle intricate relationships between tables but may become harder to read and maintain.</p>
+
+  <pre><code>SELECT orders.order_id, customers.customer_name, products.product_name
+FROM orders, customers, products
+WHERE orders.customer_id = customers.customer_id
+AND orders.product_id = products.product_id
+AND orders.order_date BETWEEN '2024-01-01' AND '2024-12-31';</code></pre>
+  <p><strong>orders, customers, products:</strong> Three tables involved in the join.</p>
+  <p><strong>orders.customer_id = customers.customer_id:</strong> Joins the <code>orders</code> table with the <code>customers</code> table.</p>
+  <p><strong>orders.product_id = products.product_id:</strong> Joins the <code>orders</code> table with the <code>products</code> table.</p>
+  <p><strong>orders.order_date BETWEEN '2024-01-01' AND '2024-12-31':</strong> Filters the results to include only orders within the specified date range.</p>
+
+  <h4>Example with Self-Joins</h4>
+  <p>Implicit joins can also involve self-joins, where a table is joined with itself. This is often used to find hierarchical relationships or compare rows within the same table.</p>
+
+  <pre><code>SELECT e1.employee_name AS Manager, e2.employee_name AS Subordinate
+FROM employees e1, employees e2
+WHERE e1.employee_id = e2.manager_id;</code></pre>
+  <p><strong>e1, e2:</strong> The same table <code>employees</code> is used twice with different aliases.</p>
+  <p><strong>e1.employee_id = e2.manager_id:</strong> Joins rows within the same table based on a manager-subordinate relationship.</p>
+
+
+  <h2 id="set-operations">Set Operations</h2>
+
+  <h3>UNION and UNION ALL</h3>
+  <p><code>UNION</code> and <code>UNION ALL</code> are set operations used to combine the results of two or more `SELECT` queries.</p>
+
+  <h4>UNION</h4>
+  <p>The <code>UNION</code> operator combines the results of two or more `SELECT` statements and removes duplicate rows from the result set. It is used when you want to get distinct rows from multiple queries.</p>
+
+  <pre><code>SELECT column1, column2
+FROM table1
+UNION
+SELECT column1, column2
+FROM table2;</code></pre>
+  <p><strong>column1, column2:</strong> Columns to be selected from each table.</p>
+  <p><strong>table1, table2:</strong> Tables from which to retrieve data.</p>
+  <p>The result set will include distinct rows from both tables.</p>
+
+  <h4>Example</h4>
+  <pre><code>SELECT employee_name
+FROM employees
+UNION
+SELECT manager_name
+FROM managers;</code></pre>
+  <p>This query retrieves a list of unique names from both the <code>employees</code> and <code>managers</code> tables.</p>
+
+  <h4>UNION ALL</h4>
+  <p>The <code>UNION ALL</code> operator combines the results of two or more `SELECT` statements but does not remove duplicates. It is used when you want to include all rows from multiple queries, including duplicates.</p>
+
+  <pre><code>SELECT column1, column2
+FROM table1
+UNION ALL
+SELECT column1, column2
+FROM table2;</code></pre>
+  <p><strong>column1, column2:</strong> Columns to be selected from each table.</p>
+  <p><strong>table1, table2:</strong> Tables from which to retrieve data.</p>
+  <p>The result set will include all rows from both tables, including duplicates.</p>
+
+  <h4>Example</h4>
+  <pre><code>SELECT employee_name
+FROM employees
+UNION ALL
+SELECT manager_name
+FROM managers;</code></pre>
+  <p>This query retrieves a list of all names from both the <code>employees</code> and <code>managers</code> tables, including duplicates.</p>
+
+</div>
+</body>
 </html>
