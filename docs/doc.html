@@ -1,0 +1,324 @@
+<!doctype html>
+<html>
+  <head>
+    <title>AriaSQL Documentation</title>
+    <style>
+      @font-face {
+        font-family: WorkSans;
+        src: url(assets/WorkSans-VariableFont_wght.ttf);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2em;
+        background: lightgray;
+      }
+
+      header h1 {
+        font-weight: lighter;
+        padding-bottom: 1em;
+        border-bottom: 1px solid black;
+      }
+
+      section {
+        padding: 1em;
+        margin: 1em 0;
+
+      }
+
+      code {
+        background: black;
+        color: lime;
+        padding: 10px;
+        margin-top: 5px;
+        margin-bottom: 5px;
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+   <header>
+     <h1>AriaSQL <strong>Docs</strong></h1>
+   </header>
+  <article>
+    <br/>
+    <p><strong>Table of contents</strong></p>
+    <ul>
+        <li><a href="#literals-identifiers-variables">Literals, identifiers, variables</a></li>
+        <li><a href="#keywords">Keywords</a></li>
+        <li><a href="#creating-databases">Creating Databases</a></li>
+        <li><a href="#using-databases">Using Databases</a></li>
+        <li><a href="#creating-tables">Creating Tables</a></li>
+    </ul>
+
+    <section>
+      <h2>Literals, identifiers, variables</h2>
+
+      <p>An identifier can be in format</p>
+      <code>
+        tbl_name | db_name.tbl_name | db_name.tbl_name.col_name
+      </code>
+      <br/>
+
+      <p>A literal is</p>
+      <code>
+        'string' | 123 | 123.45 | TRUE | FALSE;
+      </code>
+      <br/>
+
+
+
+      <p>A variable is</p>
+
+      <code>
+          @variable_name;
+      </code>
+
+    </section>
+
+    <section>
+      <h2>Keywords</h2>
+      <code>
+        ALL, AND, ANY, AS, ASC, AUTHORIZATION, AVG, ALTER,
+        BEGIN, BETWEEN, BY, CHECK, CLOSE, COBOL, COMMIT,
+        CONTINUE, COUNT, CREATE, CURRENT, CURSOR, DECLARE, DELETE, DROP, DESC, DISTINCT, DATABASE,
+        END, ESCAPE, EXEC, EXISTS,
+        FETCH, FOR, FORTRAN, FOUND, FROM,
+        GO, GOTO, GRANT, GROUP, HAVING,
+        IN, INDEX, INDICATOR, INSERT, INTO, IS, SEQUENCE,
+        LANGUAGE, LIKE,
+        MAX, MIN, MODULE, NOT, NULL,
+        OF, ON, OPEN, OPTION, OR, ORDER,
+        PASCAL, PLI, PRECISION, PRIVILEGES, PROCEDURE, PUBLIC, ROLLBACK,
+        SCHEMA, SECTION, SELECT, SET, SOME,
+        SQL, SQLCODE, SQLERROR, SUM,
+        TABLE, TO, UNION, UNIQUE, UPDATE, USER,
+        VALUES, VIEW, WHENEVER, WHERE, WITH, WORK, USE, LIMIT, OFFSET, IDENTIFIED, CONNECT, REVOKE, SHOW,
+        PRIMARY, FOREIGN, KEY, REFERENCES, DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, DEFAULT,
+        UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE,
+        CONCAT, SUBSTRING, TRIM, GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP, SYS_DATETIME,
+        CASE, WHEN, THEN, ELSE, END, IF, ELSEIF, DEALLOCATE, NEXT, WHILE, PRINT, EXPLAIN,
+        COMPRESS, ENCRYPT
+      </code>
+    </section>
+
+    <section>
+      <h2>Creating Databases</h2>
+
+
+        <code>
+          CREATE DATABASE &#x3c;identifier&#x3e;;
+        </code>
+
+    </section>
+
+    <section>
+      <h2>Using Databases</h2>
+
+
+      <code>
+        USE &#x3c;identifier&#x3e;;
+      </code>
+
+    </section>
+
+    <section>
+      <h2>Creating tables</h2>
+
+
+      <code>
+        CREATE TABLE &#x3c;identifier&#x3e; (&#x3c;identifer&#x3e; &#x3c;datatype&#x3e;  &#x3c;keyword..&#x3e;);
+      </code>
+
+      <code>
+        CREATE TABLE users (id INT SEQUENCE PRIMARY KEY, name CHAR(255) NOT NULL, email CHAR(255) NOT NULL);
+      </code>
+
+      <br/>
+      <h3>Data types</h3>
+      <br/>
+      <ul>
+        <li>INT | INTEGER</li>
+        <li>SMALLINT</li>
+        <li>CHAR(&#x3c;literal&#x3e;) | CHARACTER(&#x3c;literal&#x3e;)</li>
+        <li>DEC(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;) | DECIMAL(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
+        <li>DOUBLE(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
+        <li>FLOAT(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
+        <li>NUMERIC(&#x3c;literal&#x3e;, &#x3c;literal&#x3e;)</li>
+        <li>REAL</li>
+        <li>DATE</li>
+        <li>TIME</li>
+        <li>DATETIME</li>
+        <li>TIMESTAMP</li>
+        <li>BOOL | BOOLEAN</li>
+        <li>TEXT</li>
+        <li>UUID</li>
+        <li>BLOB</li>
+        <li>BINARY(&#x3c;literal&#x3e;)</li>
+      </ul>
+
+      <br/>
+
+      <h3>Constraints</h3>
+        <br/>
+        <ul>
+          <li>PRIMARY KEY</li>
+          <li>FOREIGN KEY</li>
+          <li>UNIQUE</li>
+          <li>NOT NULL</li>
+          <li>CHECK</li>
+          <li>DEFAULT</li>
+          <li>REFERENCES</li>
+        </ul>
+
+      <br/>
+
+
+      <h3>Table options</h3>
+        <br/>
+        <ul>
+          <li>COMPRESS</li>
+          <li>ENCRYPT</li>
+        </ul>
+
+      <br/>
+
+      <p>Placed at end of CREATE TABLE</p>
+
+      <code>
+        CREATE TABLE users (.., ENCRYPT(&#x3c;literal&#x3e;));
+      </code>
+
+      <code>
+        CREATE TABLE users (.., COMPRESS);
+      </code>
+
+      <code>
+        CREATE TABLE users (.., COMPRESS ENCRYPT(&#x3c;literal&#x3e;));
+      </code>
+
+    </section>
+
+    <section>
+      <h2>Inserting Data</h2>
+      <code>
+        INSERT INTO &#x3c;identifier&#x3e; (&#x3c;identifier&#x3e;, &#x3c;identifier&#x3e;, ..) VALUES (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..);
+      </code><br/>
+
+      <p>Multiple</p><br/>
+
+      <code>
+        INSERT INTO &#x3c;identifier&#x3e; (&#x3c;identifier&#x3e;, &#x3c;identifier&#x3e;, ..) VALUES (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..), (&#x3c;literal&#x3e;, &#x3c;literal&#x3e;, ..), ..;
+      </code>
+
+    </section>
+
+    <section>
+      <h2>Selecting Data</h2>
+
+        <code>
+            SELECT * FROM &#x3c;identifier&#x3e;;
+        </code>
+
+      <br/>
+
+      <p>Arithmetic expressions</p>
+        <code>
+            SELECT 1 + 2;
+        </code><br/>
+
+      <h3>Aggregation</h3>
+        <br/>
+
+        Binary expressions can be used with the following functions:
+        <ul>
+          <li>AVG</li>
+          <li>COUNT</li>
+          <li>MAX</li>
+          <li>MIN</li>
+          <li>SUM</li>
+        </ul>
+
+      <br/>
+
+        Using binary expression with aggregation function
+        <code>
+            SELECT &#x3c;func&#x3e;(&#x3c;identifier&#x3e;)+1;
+        </code>
+
+
+        </br>
+
+      <p><strong>You cannot nest aggregation functions.</strong></p>
+
+      <br/>
+
+
+        <h4>COUNT</h4>
+        <p>The count function returns the number of rows that matches the query. It can be used with the asterisk (*) to count all rows.</p>
+
+        <p>You can pass a column name to count the number of rows that are not null in that column.</p>
+
+        <code>
+            SELECT COUNT(*) FROM &#x3c;identifier&#x3e;;
+        </code>
+
+
+        <code>
+            SELECT COUNT(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
+        </code>
+
+        <br/>
+
+        <h4>AVG</h4>
+        <p>The avg function returns the average of the values in the column.</p>
+
+        <code>
+            SELECT AVG(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
+        </code>
+
+        <br/>
+
+        <h4>MAX</h4>
+        <p>The max function returns the maximum value in the column.</p>
+
+        <code>
+            SELECT MAX(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
+        </code>
+
+        <br/>
+
+        <h4>MIN</h4>
+        <p>The min function returns the minimum value in the column.</p>
+
+        <code>
+            SELECT MIN(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
+        </code>
+
+        <br/>
+
+        <h4>SUM</h4>
+        <p>The sum function returns the sum of the values in the column.</p>
+
+        <code>
+            SELECT SUM(&#x3c;identifier&#x3e;) FROM &#x3c;identifier&#x3e;;
+
+        </code>
+
+        <br/>
+
+      <h3>Aliases</h3>
+      <p>You can use aliases within a select list.  With column specifications, binary expressions, or aggregate functions.</p><br/>
+
+      <code>
+        SELECT &#x3c;column spec&#x3e;|&#x3c;aggregate function&#x3e;|&#x3c;binary expression&#x3e; AS &#x3c;identifier&#x3e; FROM &#x3c;identifier&#x3e;;
+      </code>
+    </section>
+  </article>
+  </body>
+</html>
