@@ -582,6 +582,36 @@ ALTER USER newusername SET PASSWORD 'newpassword';
 
   <h2 id="privileges-and-grants">Privileges and Grants</h2>
 
+  <h3>Privileges</h3>
+  <p><strong>SELECT</strong> selecting from specific databases and or tables.</p>
+  <p><strong>INSERT INTO</strong> inserting into specific databases and or tables.</p>
+  <p><strong>UPDATE</strong> updating specific databases and or tables.</p>
+  <p><strong>DELETE FROM</strong> deleting from specific databases and or tables.</p>
+  <p><strong>CREATE</strong> creating databases and or tables.</p>
+  <p><strong>DROP</strong> dropping databases and or tables.</p>
+  <p><strong>GRANT</strong> granting privileges to users.</p>
+  <p><strong>REVOKE</strong> revoking privileges from users.</p>
+  <p><strong>SHOW</strong> showing databases, tables, users, indexes, procedures.</p>
+  <p><strong>CONNECT</strong> connecting to the server.</p>
+  <p><strong>ALL</strong> all privileges.</p>
+  <p><strong>COMMIT</strong> committing transactions.</p>
+  <p><strong>ROLLBACK</strong> rolling back transactions.</p>
+  <p><strong>BEGIN</strong> beginning transactions.</p>
+  <p><strong>EXPLAIN</strong> explaining statements.</p>
+  <p><strong>EXEC</strong> executing procedures.</p>
+  <p><strong>DEALLOCATE</strong> deallocating cursors.</p>
+  <p><strong>CLOSE</strong> closing cursors.</p>
+  <p><strong>DECLARE</strong> declaring cursors.</p>
+  <p><strong>PRINT</strong> printing messages to log.</p>
+  <p><strong>FETCH</strong> fetching rows.</p>
+  <p><strong>OPEN</strong> opening cursors.</p>
+  <p><strong>WHILE</strong> looping.</p>
+  <p><strong>RETURN</strong> returning from procedures.</p>
+  <p><strong>BREAK</strong> breaking loops.</p>
+  <p><strong>SET</strong> setting variables.</p>
+  <p><strong>ALTER</strong> altering databases, users, tables, procedures.</p>
+
+
   <h3>GRANT Statement</h3>
   <pre><code>GRANT privilege_type ON object TO user;</code></pre>
 
@@ -684,7 +714,7 @@ WHERE employees.department_id = departments.department_id;</code></pre>
   <p>This query retrieves the names of employees and their respective department names by joining the <code>employees</code> and <code>departments</code> tables based on the common <code>department_id</code> column.</p>
 
   <h4>Complex Implicit Joins</h4>
-  <p>Complex implicit joins involve more than two tables and multiple join conditions. This approach can handle intricate relationships between tables but may become harder to read and maintain.</p>
+  <p>Complex implicit joins involve more than two tables and multiple join conditions.</p>
 
   <pre><code>SELECT orders.order_id, customers.customer_name, products.product_name
 FROM orders, customers, products
