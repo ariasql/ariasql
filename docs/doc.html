@@ -100,6 +100,7 @@
       <li><a href="#joins">Joins</a></li>
       <li><a href="#set-operations">Set Operations</a></li>
       <li><a href="#wal-recovery">WAL Recovery</a></li>
+      <li><a href="#replication">Replication</a></li>
 
     </ul>
   </div>
@@ -567,6 +568,29 @@ FROM managers;</code></pre>
 
   <h3>NOTE</h3>
   <p>Will remove current data and recreate based on what's been appended to WAL.</p>
+
+
+  <h2 id="replication">Replication</h2>
+  In AriaSQL replication is done by relaying WAL writes to replica servers.
+
+  You can configure replicas in your <code>ariaconf.yaml</code> file.
+
+  <pre><code>datadir: /var/lib/ariasql
+logging: false
+replicas:
+  - host: 0.1.0.0
+    port: 1234
+    tls: false
+    tlscert: ""
+    tlskey: ""
+  - host: 1.0.0.0
+    port: 1234
+    tls: false
+    tlscert: ""
+    tlskey: ""
+
+
+</code></pre>
 </div>
 
 <footer>

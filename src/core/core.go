@@ -52,8 +52,8 @@ type Channel struct {
 // Config is the configuration for AriaSQL
 type Config struct {
 	// The path to the data directory
-	DataDir  string
-	Logging  bool
+	DataDir  string     // Data directory
+	Logging  bool       // Enable logging
 	Replicas []*Replica // Every wal write will be sent to these replicas
 }
 
@@ -61,12 +61,12 @@ type Config struct {
 type Replica struct {
 	Host    string       // Hostname or IP address
 	Port    int          // TCP port
-	Conn    *net.Conn    // TCP connection
 	TLS     bool         // true if TLS is enabled
 	TLSKey  string       // TLS key
 	TLSCert string       // TLS certificate
-	Addr    *net.TCPAddr // TCP address
-	Status  bool         // true if connected
+	status  bool         // true if connected
+	conn    *net.Conn    // TCP connection
+	addr    *net.TCPAddr // TCP address
 }
 
 // New creates a new AriaSQL object
