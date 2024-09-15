@@ -91,8 +91,9 @@ type Table struct {
 	Directory    string            // Directory is the directory where table data is stored
 	SequenceFile *os.File          // Table sequence file
 	SeqLock      *sync.Mutex       // Sequence mutex
-	Compress     bool              // Compress is true if the table data is compressed (not implemented)
-	Encrypt      bool              // Encrypt is true if the table data is encrypted (not implemented)
+	Compress     bool              // Compress is true if the table data is compressed
+	Encrypt      bool              // Encrypt is true if the table data is encrypted
+	HashedKey    []byte            // HashedKey is the hashed key used to encrypt the table data
 }
 
 // Procedure is a procedure object
