@@ -48,6 +48,7 @@ var (
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
 		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT", "EXPLAIN",
+		"COMPRESS", "ENCRYPT",
 	}, shared.DataTypes...)
 )
 
@@ -2287,8 +2288,37 @@ func (p *Parser) parseTableConstraints(createTableStmt *CreateTableStmt, columnN
 				createTableStmt.TableSchema.ColumnDefinitions[columnName].Sequence = true
 
 				p.consume() // Consume SEQUENCE
+			case "ENCRYPT":
+				createTableStmt.Encrypt = true
+
+				p.consume() // Consume ENCRYPT
+
+				// look for (
+				if p.peek(0).tokenT != LPAREN_TOK {
+					return errors.New("expected (")
+				}
+
+				p.consume()
+
+				key, err := p.parseLiteral()
+				if err != nil {
+					return err
+				}
+
+				createTableStmt.EncryptKey = key.(*Literal)
+
+				// look for )
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+			case "COMPRESS":
+				createTableStmt.Compress = true
+				p.consume() // Consume COMPRESS
+
 			default:
-				return errors.New("expected NOT NULL or UNIQUE or SEQUENCE")
+				return errors.New("expected NOT NULL, UNIQUE, SEQUENCE, PRIMARY KEY, FOREIGN KEY, CHECK, DEFAULT, COMPRESS, ENCRYPT")
 			}
 
 		}

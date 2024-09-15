@@ -6884,3 +6884,71 @@ func TestNewParserExplainStmt(t *testing.T) {
 	}
 
 }
+
+func TestNewParserCreateTable6(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT, col2 CHAR(50), COMPRESS ENCRYPT('some key'));
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//sel, err := PrintAST(createTableStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if createTableStmt.TableName.Value != "TEST" {
+		t.Fatalf("expected TEST, got %s", createTableStmt.TableName.Value)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType != "INT" {
+		t.Fatalf("expected INT, got %s", createTableStmt.TableSchema.ColumnDefinitions["col1"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType != "CHAR" {
+		t.Fatalf("expected CHAR, got %s", createTableStmt.TableSchema.ColumnDefinitions["col2"].DataType)
+	}
+
+	if createTableStmt.TableSchema.ColumnDefinitions["col2"].Length != 50 {
+		t.Fatalf("expected 50, got %d", createTableStmt.TableSchema.ColumnDefinitions["col2"].Length)
+	}
+
+	if !createTableStmt.Compress {
+		t.Fatalf("expected true, got %v", createTableStmt.Compress)
+	}
+
+	if !createTableStmt.Encrypt {
+		t.Fatalf("expected true, got %v", createTableStmt.Encrypt)
+	}
+
+	if createTableStmt.EncryptKey.Value != "'some key'" {
+		t.Fatalf("expected some key, got %s", createTableStmt.EncryptKey.Value)
+	}
+}

@@ -68,6 +68,9 @@ type DropIndexStmt struct {
 type CreateTableStmt struct {
 	TableName   *Identifier
 	TableSchema *catalog.TableSchema
+	Compress    bool
+	Encrypt     bool
+	EncryptKey  *Literal
 }
 
 // DropTableStmt represents a DROP TABLE statement
