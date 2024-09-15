@@ -26,9 +26,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"log"
 	"os"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -201,9 +199,9 @@ func (cat *Catalog) Open() error {
 				db.ProceduresFileLock = &sync.Mutex{}
 
 				// Check if {db.name}.DB_PROC_EXTENSION exists
-				if _, err := os.Stat(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION)); err == nil {
+				if _, err := os.Stat(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION)); err == nil {
 					// Open procedure file
-					db.ProceduresFile, err = os.Open(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION))
+					db.ProceduresFile, err = os.Open(fmt.Sprintf("%s%s%s%s", db.Directory, shared.GetOsPathSeparator(), db.Name, DB_PROC_EXTENSION))
 					if err != nil {
 						return err
 					}
@@ -211,13 +209,6 @@ func (cat *Catalog) Open() error {
 					// Decode procedures
 					dec := gob.NewDecoder(db.ProceduresFile)
 					err = dec.Decode(&db.Procedures)
-					if err != nil {
-						return err
-					}
-
-				} else {
-					// Create procedure file
-					db.ProceduresFile, err = os.Create(fmt.Sprintf("%s%s%s", db.Directory, db.Name, DB_PROC_EXTENSION))
 					if err != nil {
 						return err
 					}
@@ -233,86 +224,88 @@ func (cat *Catalog) Open() error {
 				db.Tables = make(map[string]*Table)
 
 				for _, tblDir := range tblDirs {
-					tbl := &Table{
-						Name:      tblDir.Name(),
-						Directory: fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), tblDir.Name()),
-					}
+					if tblDir.IsDir() {
+						tbl := &Table{
+							Name:      tblDir.Name(),
+							Directory: fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), tblDir.Name()),
+						}
 
-					// Within each table there is a schema file, index files , sequence file, and data file
+						// Within each table there is a schema file, index files , sequence file, and data file
 
-					// Read schema file
-					schemaFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION)))
-					if err != nil {
-						return err
-					}
+						// Read schema file
+						schemaFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION)))
+						if err != nil {
+							return err
+						}
 
-					// Decode schema
-					dec := gob.NewDecoder(schemaFile)
-					tblSchema := &TableSchema{}
-					err = dec.Decode(tblSchema)
+						// Decode schema
+						dec := gob.NewDecoder(schemaFile)
+						tblSchema := &TableSchema{}
+						err = dec.Decode(tblSchema)
 
-					if err != nil {
-						return err
-					}
+						if err != nil {
+							return err
+						}
 
-					tbl.TableSchema = tblSchema
+						tbl.TableSchema = tblSchema
 
-					// Read data file
-					rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_DATA_FILE_EXTENSION)), os.O_RDWR, 0755)
-					if err != nil {
-						return err
-					}
+						// Read data file
+						rowFile, err := btree.OpenPager(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_DATA_FILE_EXTENSION)), os.O_RDWR, 0755)
+						if err != nil {
+							return err
+						}
 
-					tbl.Rows = rowFile
+						tbl.Rows = rowFile
 
-					// Read sequence file
-					seqFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION)))
-					if err != nil {
-						return err
-					}
+						// Read sequence file
+						seqFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("%s%s", tblDir.Name(), DB_SCHEMA_TABLE_SEQ_FILE_EXTENSION)))
+						if err != nil {
+							return err
+						}
 
-					tbl.SequenceFile = seqFile
+						tbl.SequenceFile = seqFile
 
-					tblFiles, err := os.ReadDir(fmt.Sprintf("%s", tbl.Directory))
-					if err != nil {
-						return err
-					}
+						tblFiles, err := os.ReadDir(fmt.Sprintf("%s", tbl.Directory))
+						if err != nil {
+							return err
+						}
 
-					tbl.Indexes = make(map[string]*Index)
+						tbl.Indexes = make(map[string]*Index)
 
-					for _, tblFile := range tblFiles {
-						if strings.HasSuffix(tblFile.Name(), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION) {
-							// Read index file
-							indexFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tblFile.Name()))
-							if err != nil {
-								return err
+						for _, tblFile := range tblFiles {
+							if strings.HasSuffix(tblFile.Name(), DB_SCHEMA_TABLE_INDEX_FILE_EXTENSION) {
+								// Read index file
+								indexFile, err := os.Open(fmt.Sprintf("%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tblFile.Name()))
+								if err != nil {
+									return err
+								}
+
+								// Decode index
+								dec := gob.NewDecoder(indexFile)
+								idx := &Index{}
+								err = dec.Decode(idx)
+
+								if err != nil {
+									return err
+								}
+
+								// Open btree
+								bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", idx.Name), ".bt"), os.O_RDWR, 0755, 6)
+								if err != nil {
+									return err
+								}
+
+								idx.btree = bt
+
+								tbl.Indexes[idx.Name] = idx
+								tbl.Indexes[idx.Name].lock = &sync.Mutex{}
+
 							}
-
-							// Decode index
-							dec := gob.NewDecoder(indexFile)
-							idx := &Index{}
-							err = dec.Decode(idx)
-
-							if err != nil {
-								return err
-							}
-
-							// Open btree
-							bt, err := btree.Open(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), fmt.Sprintf("idx_%s", idx.Name), ".bt"), os.O_RDWR, 0755, 6)
-							if err != nil {
-								return err
-							}
-
-							idx.btree = bt
-
-							tbl.Indexes[idx.Name] = idx
-							tbl.Indexes[idx.Name].lock = &sync.Mutex{}
 
 						}
 
+						db.Tables[tbl.Name] = tbl
 					}
-
-					db.Tables[tbl.Name] = tbl
 				}
 
 			}
@@ -391,20 +384,32 @@ func (cat *Catalog) CreateDatabase(name string) error {
 		return err
 	}
 
-	// Create procedures file
-	procFile, err := os.Create(fmt.Sprintf("%s%sdatabases%s%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name, DB_PROC_EXTENSION))
-	if err != nil {
-		return err
-	}
-
 	// Create database
 	cat.Databases[name] = &Database{
 		Name:               name,
 		Tables:             make(map[string]*Table),
 		Procedures:         make(map[string]*Procedure),
 		ProceduresFileLock: &sync.Mutex{},
-		ProceduresFile:     procFile,
 		Directory:          fmt.Sprintf("%s%sdatabases%s%s", cat.Directory, shared.GetOsPathSeparator(), shared.GetOsPathSeparator(), name),
+	}
+
+	// Create procedures file
+	procFile, err := os.Create(fmt.Sprintf("%s%s%s%s", cat.Databases[name].Directory, shared.GetOsPathSeparator(), name, DB_PROC_EXTENSION))
+	if err != nil {
+		return err
+	}
+
+	cat.Databases[name].ProceduresFile = procFile
+
+	cat.Databases[name].ProceduresFileLock.Lock()
+	defer cat.Databases[name].ProceduresFileLock.Unlock()
+
+	// Write to procedures file
+	enc := gob.NewEncoder(procFile)
+	err = enc.Encode(cat.Databases[name].Procedures)
+	if err != nil {
+		return err
+
 	}
 
 	return nil
@@ -1416,7 +1421,6 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 
 					if _, ok := row[colName].(int); !ok {
 						if _, ok := row[colName].(uint64); !ok {
-							log.Println(reflect.TypeOf(row[colName]))
 							return fmt.Errorf("column %s is not an int", colName)
 						} else {
 							row[colName] = int(row[colName].(uint64))
