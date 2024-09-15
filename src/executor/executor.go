@@ -21,6 +21,7 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/shared"
+	"ariasql/storage/btree"
 	"errors"
 	"fmt"
 	"log"
@@ -3407,9 +3408,37 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 
 					if idx != nil {
 						// check if value is literal
-						key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", colValue["value"])))
-						if err != nil {
-							return err
+
+						// check if table is using compression
+						if tbl.Compress {
+							// Compress the value
+							colValue["value"], err = catalog.Compress([]byte(fmt.Sprintf("%v", colValue["value"])))
+						}
+
+						// Check if encryption is enabled
+						if tbl.Encrypt {
+							// Encrypt the value
+							colValue["value"], err = catalog.Encrypt(tbl.HashedKey, tbl.Nonce, []byte(fmt.Sprintf("%v", colValue["value"])))
+						}
+
+						var key *btree.Key
+
+						if tbl.Encrypt || tbl.Compress {
+							idx.GetLock().Lock()
+							key, err = idx.GetBtree().Get(colValue["value"].([]byte))
+							if err != nil {
+								idx.GetLock().Unlock()
+								return err
+							}
+							idx.GetLock().Unlock()
+						} else {
+							idx.GetLock().Lock()
+							key, err = idx.GetBtree().Get([]byte(fmt.Sprintf("%v", colValue["value"])))
+							if err != nil {
+								idx.GetLock().Unlock()
+								return err
+							}
+							idx.GetLock().Unlock()
 						}
 
 						if key != nil {
@@ -3486,14 +3515,49 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				}
 
 				if idx != nil {
-					idx.GetLock().Lock()
-					key, err := idx.GetBtree().Get([]byte(fmt.Sprintf("%v", val)))
-					if err != nil {
-						idx.GetLock().Unlock()
-						return err
+
+					var key *btree.Key
+
+					if tbl.Compress {
+						var err error
+						// Compress the value
+						val, err = catalog.Compress([]byte(fmt.Sprintf("%v", val)))
+						if err != nil {
+							return err
+						}
+
 					}
 
-					idx.GetLock().Unlock()
+					if tbl.Encrypt {
+						var err error
+						// Encrypt the value
+						val, err = catalog.Encrypt(tbl.HashedKey, tbl.Nonce, []byte(fmt.Sprintf("%v", val)))
+						if err != nil {
+							return err
+						}
+					}
+
+					if tbl.Encrypt || tbl.Compress {
+						var err error
+						idx.GetLock().Lock()
+						key, err = idx.GetBtree().Get(val.([]byte))
+						if err != nil {
+							idx.GetLock().Unlock()
+							return err
+						}
+
+						idx.GetLock().Unlock()
+					} else {
+						var err error
+						idx.GetLock().Lock()
+						key, err = idx.GetBtree().Get([]byte(fmt.Sprintf("%v", val)))
+						if err != nil {
+							idx.GetLock().Unlock()
+							return err
+						}
+
+						idx.GetLock().Unlock()
+					}
 
 					if key != nil {
 						for _, v := range key.V {

@@ -1130,14 +1130,14 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 				// Check for compression
 				if tbl.Compress {
-					val, err = compress([]byte(fmt.Sprintf("%v", val)))
+					val, err = Compress([]byte(fmt.Sprintf("%v", val)))
 					if err != nil {
 						return -1, err
 					}
 				}
 
 				if tbl.Encrypt {
-					val, err = encrypt(tbl.HashedKey, tbl.Nonce, val.([]byte))
+					val, err = Encrypt(tbl.HashedKey, tbl.Nonce, val.([]byte))
 					if err != nil {
 						return -1, err
 					}
@@ -1172,7 +1172,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// check if table has compression set
 	if tbl.Compress {
 		// compress row
-		encoded, err = compress(encoded)
+		encoded, err = Compress(encoded)
 		if err != nil {
 			return -1, err
 		}
@@ -1182,7 +1182,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// Check if table has encryption set
 	if tbl.Encrypt {
 		// encrypt row
-		encoded, err = encrypt(tbl.HashedKey, tbl.Nonce, encoded)
+		encoded, err = Encrypt(tbl.HashedKey, tbl.Nonce, encoded)
 		if err != nil {
 			return -1, err
 		}
@@ -2039,8 +2039,8 @@ func (db *Database) EncodeProceduresToFile() error {
 	return nil
 }
 
-// compress compresses a row with ZSTD
-func compress(row []byte) ([]byte, error) {
+// Compress compresses a row with ZSTD
+func Compress(row []byte) ([]byte, error) {
 	return zstd.Compress(nil, row)
 
 }
@@ -2050,8 +2050,8 @@ func decompress(row []byte) ([]byte, error) {
 	return zstd.Decompress(nil, row)
 }
 
-// encrypt encrypts a row with ChaCha20
-func encrypt(key [32]byte, nonce [12]byte, row []byte) ([]byte, error) {
+// Encrypt encrypts a row with ChaCha20
+func Encrypt(key [32]byte, nonce [12]byte, row []byte) ([]byte, error) {
 	var ciphertext = make([]byte, len(row))
 
 	// Create a new ChaCha20 cipher

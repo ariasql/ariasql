@@ -1442,7 +1442,7 @@ func TestCatalog_Compress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	compressed, err := compress(encoded)
+	compressed, err := Compress(encoded)
 	if err != nil {
 		t.Fatal(err)
 	}
