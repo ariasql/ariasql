@@ -118,6 +118,7 @@
     <li><a href="#set-operations">Set Operations</a></li>
     <li><a href="#wal-recovery">WAL Recovery</a></li>
     <li><a href="#replication">Replication</a></li>
+    <li><a href="#keywords">Keywords</a></li>
 
   </ul>
 </aside>
@@ -146,6 +147,7 @@
       <li><a href="#set-operations">Set Operations</a></li>
       <li><a href="#wal-recovery">WAL Recovery</a></li>
       <li><a href="#replication">Replication</a></li>
+      <li><a href="#keywords">Keywords</a></li>
 
     </ul>
   </div>
@@ -263,27 +265,31 @@ echo -n "admin\0admin" | base64
   <h2 id="database-management">Database Management</h2>
 
   <h3>CREATE DATABASE Statement</h3>
-  <pre><code>CREATE DATABASE database_name;</code></pre>
-  <p><strong>database_name:</strong> The name of the database to be created.</p>
+  <pre><code>CREATE DATABASE [identifier];</code></pre>
+  <p><strong>identifier:</strong> in format database_name, databasename</p>
 
   <h3>DROP DATABASE Statement</h3>
-  <pre><code>DROP DATABASE database_name;</code></pre>
-  <p><strong>database_name:</strong> The name of the database to be dropped.</p>
+  <pre><code>DROP DATABASE [identifier];</code></pre>
+  <p><strong>identifier:</strong> in format database_name, databasename</p>
 
   <h2 id="index-management">Index Management</h2>
 
   <h3>CREATE INDEX Statement</h3>
-  <pre><code>CREATE [UNIQUE] INDEX index_name
-ON table_name (column_name[, ...]);</code></pre>
-  <p><strong>index_name:</strong> The name of the index.</p>
-  <p><strong>table_name:</strong> The name of the table on which the index is created.</p>
-  <p><strong>column_name:</strong> List of column names to be indexed.</p>
+  <pre><code>CREATE [UNIQUE] INDEX [identifier]
+ON [identifier] ([column specification][, ...]);</code></pre>
+  <p><strong>identifier:</strong> in format indexName, idx_name, tblName, etc</p>
+    <p><strong>column specification:</strong> column name</p>
   <p><strong>UNIQUE:</strong> Specifies that the index should enforce uniqueness.</p>
 
+  <h4>Example</h4>
+    <pre><code>CREATE INDEX idx_name ON tbl_name (col_name);</code></pre>
+
   <h3>DROP INDEX Statement</h3>
-  <pre><code>DROP INDEX index_name ON table_name;</code></pre>
-  <p><strong>index_name:</strong> The name of the index.</p>
-  <p><strong>table_name:</strong> The name of the table from which the index is dropped.</p>
+  <pre><code>DROP INDEX [identifier] ON [identifier];</code></pre>
+  <p><strong>identifier:</strong> in format indexName, idx_name, tblName, etc</p>
+
+  <h4>Example</h4>
+    <pre><code>DROP INDEX idx_name ON tbl_name;</code></pre>
 
   <h2 id="table-management">Table Management</h2>
 
@@ -746,6 +752,9 @@ replicas:
 
 
 </code></pre>
+
+  <h3 id="keywords">Keywords</h3>
+  ALL, AND, ANY, AS, ASC, AUTHORIZATION, AVG, ALTER, BEGIN, BETWEEN, BY, CHECK, CLOSE, COBOL, COMMIT, CONTINUE, COUNT, CREATE, CURRENT, CURSOR, DECLARE, DELETE, DROP, DESC, DISTINCT, DATABASE, END, ESCAPE, EXEC, EXISTS, FETCH, FOR, FORTRAN, FOUND, FROM, GO, GOTO, GRANT, GROUP, HAVING, IN, INDEX, INDICATOR, INSERT, INTO, IS, SEQUENCE, LANGUAGE, LIKE, MAX, MIN, MODULE, NOT, NULL, OF, ON, OPEN, OPTION, OR, ORDER, PASCAL, PLI, PRECISION, PRIVILEGES, PROCEDURE, PUBLIC, ROLLBACK, SCHEMA, SECTION, SELECT, SET, SOME, SQL, SQLCODE, SQLERROR, SUM, TABLE, TO, UNION, UNIQUE, UPDATE, USER, VALUES, VIEW, WHENEVER, WHERE, WITH, WORK, USE, LIMIT, OFFSET, IDENTIFIED, CONNECT, REVOKE, SHOW, PRIMARY, FOREIGN, KEY, REFERENCES, DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, DEFAULT, UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM, GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP, SYS_DATETIME, CASE, WHEN, THEN, ELSE, END, IF, ELSEIF, DEALLOCATE, NEXT, WHILE, PRINT, EXPLAIN, COMPRESS, ENCRYPT
 </div>
 
 <footer>
