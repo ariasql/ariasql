@@ -21,12 +21,14 @@ import (
 	"ariasql/shared"
 	"ariasql/storage/btree"
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/DataDog/zstd"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/chacha20"
 	"os"
 	"slices"
 	"strconv"
@@ -94,7 +96,8 @@ type Table struct {
 	SeqLock      *sync.Mutex       // Sequence mutex
 	Compress     bool              // Compress is true if the table data is compressed
 	Encrypt      bool              // Encrypt is true if the table data is encrypted
-	HashedKey    []byte            // HashedKey is the hashed key used to encrypt the table data
+	HashedKey    [32]byte          // HashedKey is the hashed key used to encrypt the table data
+	Nonce        [12]byte          // Nonce is the nonce used to encrypt the table data
 }
 
 // Procedure is a procedure object
@@ -475,7 +478,7 @@ func (db *Database) DropTable(name string) error {
 }
 
 // CreateTable creates a new table in a schema
-func (db *Database) CreateTable(name string, tblSchema *TableSchema) error {
+func (db *Database) CreateTable(name string, tblSchema *TableSchema, encrypt bool, compress bool, key []byte) error {
 	if tblSchema == nil {
 		return fmt.Errorf("table schema is nil")
 	}
@@ -587,6 +590,29 @@ func (db *Database) CreateTable(name string, tblSchema *TableSchema) error {
 			os.RemoveAll(fmt.Sprintf("%s%s%s", db.Directory, shared.GetOsPathSeparator(), name))
 			return fmt.Errorf("invalid data type %s", colDef.DataType)
 		}
+	}
+
+	if encrypt {
+		db.Tables[name].Encrypt = true
+
+		// sha256 hash the key
+		hash := sha256.New()
+
+		// Write data to the hash
+		hash.Write(key)
+
+		// Calculate the hash
+		hashBytes := hash.Sum(nil)
+
+		db.Tables[name].HashedKey = [32]byte(hashBytes)
+
+		// The nonce is 12 bytes of the end of the hash
+		db.Tables[name].Nonce = [12]byte{}
+		db.Tables[name].Nonce = [12]byte(append(db.Tables[name].Nonce[:], hashBytes[len(hashBytes)-12:]...))
+	}
+
+	if compress {
+		db.Tables[name].Compress = true
 	}
 
 	// Create sequence file
@@ -1123,9 +1149,28 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// Write row to table
 
 	// encode row to bytes
-	encoded, err := encodeRow(row)
+	encoded, err := EncodeRow(row)
 	if err != nil {
 		return -1, err
+	}
+
+	// check if table has compression set
+	if tbl.Compress {
+		// compress row
+		encoded, err = compress(encoded)
+		if err != nil {
+			return -1, err
+		}
+
+	}
+
+	// Check if table has encryption set
+	if tbl.Encrypt {
+		// encrypt row
+		encoded, err = encrypt(tbl.HashedKey, tbl.Nonce, encoded)
+		if err != nil {
+			return -1, err
+		}
 	}
 
 	rowId, err := tbl.Rows.Write(encoded)
@@ -1137,7 +1182,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 }
 
 // EncodeRow encodes a row to a byte slice
-func encodeRow(n map[string]interface{}) ([]byte, error) {
+func EncodeRow(n map[string]interface{}) ([]byte, error) {
 	// use gob
 	buff := new(bytes.Buffer)
 
@@ -1451,7 +1496,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 	}
 
 	// Encode row
-	encoded, err := encodeRow(row)
+	encoded, err := EncodeRow(row)
 	if err != nil {
 		return err
 	}
@@ -1973,6 +2018,36 @@ func compress(row []byte) ([]byte, error) {
 // decompress decompresses a row with ZSTD
 func decompress(row []byte) ([]byte, error) {
 	return zstd.Decompress(nil, row)
+}
+
+// encrypt encrypts a row with ChaCha20
+func encrypt(key [32]byte, nonce [12]byte, row []byte) ([]byte, error) {
+	var ciphertext = make([]byte, len(row))
+
+	// Create a new ChaCha20 cipher
+	c, err := chacha20.NewUnauthenticatedCipher(key[:], nonce[:])
+	if err != nil {
+		return nil, err
+	}
+
+	// Encrypt the plaintext
+	c.XORKeyStream(ciphertext, row)
+	return ciphertext, nil
+}
+
+// Decrypt decrypts ciphertext using ChaCha20
+func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
+	var plaintext = make([]byte, len(cipherRow))
+
+	// Create a new ChaCha20 cipher
+	c, err := chacha20.NewUnauthenticatedCipher(key[:], nonce[:])
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt the ciphertext
+	c.XORKeyStream(plaintext, cipherRow)
+	return plaintext, nil
 }
 
 // @todo AlterTable

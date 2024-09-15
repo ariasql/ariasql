@@ -101,6 +101,7 @@ func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 	gob.Register(&parser.BeginStmt{})
 	gob.Register(&parser.CommitStmt{})
 	gob.Register(&parser.RollbackStmt{})
+	gob.Register(&parser.SelectStmt{})
 
 	return &WAL{
 		file:     wal,

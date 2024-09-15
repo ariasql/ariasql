@@ -132,7 +132,7 @@ func TestCatalog_Open2(t *testing.T) {
 				NotNull:  true,
 			},
 		},
-	})
+	}, false, false, nil)
 
 	c.Close()
 
@@ -254,7 +254,7 @@ func TestDatabase_CreateTable(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestDatabase_DropTable(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,7 +407,7 @@ func TestDatabase_GetTable(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +457,7 @@ func TestTable_CreateIndex(t *testing.T) {
 				Unique:   false,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -529,7 +529,7 @@ func TestTable_GetIndex(t *testing.T) {
 				Unique:   false,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -588,7 +588,7 @@ func TestTable_DropIndex(t *testing.T) {
 				Unique:   false,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -653,7 +653,7 @@ func TestTable_CheckIndexedColumn(t *testing.T) {
 				Unique:   true, // should be indexed
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -708,7 +708,7 @@ func TestTable_IncrementSequence(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -775,7 +775,7 @@ func TestTable_Insert(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -845,7 +845,7 @@ func TestTable_GetRow(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -914,7 +914,7 @@ func TestTable_IOCount(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -980,7 +980,7 @@ func TestTable_NewIterator(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1056,7 +1056,7 @@ func TestTable_DeleteRow(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1132,7 +1132,7 @@ func TestTable_UpdateRow(t *testing.T) {
 				Unique:   true,
 			},
 		},
-	})
+	}, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1437,7 +1437,7 @@ func TestCatalog_Compress(t *testing.T) {
 	}
 
 	// encode
-	encoded, err := encodeRow(row)
+	encoded, err := EncodeRow(row)
 	if err != nil {
 		t.Fatal(err)
 	}

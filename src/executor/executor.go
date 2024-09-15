@@ -393,8 +393,12 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			return err
 		}
 
+		encKey := s.EncryptKey.Value.(string) // if any
+
+		encKey = strings.TrimSuffix(strings.TrimPrefix(encKey, "'"), "'")
+
 		// Create the table
-		err = ex.ch.Database.CreateTable(s.TableName.Value, s.TableSchema)
+		err = ex.ch.Database.CreateTable(s.TableName.Value, s.TableSchema, s.Encrypt, s.Compress, []byte(encKey))
 		if err != nil {
 			return err
 		}
