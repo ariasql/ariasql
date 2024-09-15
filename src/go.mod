@@ -3,6 +3,7 @@ module ariasql
 go 1.23.0
 
 require (
+	github.com/DataDog/zstd v1.5.6
 	github.com/briandowns/spinner v1.23.1
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-msgpack v0.5.5

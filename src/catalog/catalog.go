@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/DataDog/zstd"
 	"github.com/google/uuid"
 	"os"
 	"slices"
@@ -1122,7 +1123,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 	// Write row to table
 
 	// encode row to bytes
-	encoded, err := EncodeRow(row)
+	encoded, err := encodeRow(row)
 	if err != nil {
 		return -1, err
 	}
@@ -1136,7 +1137,7 @@ func (tbl *Table) writeRow(row map[string]interface{}) (int64, error) {
 }
 
 // EncodeRow encodes a row to a byte slice
-func EncodeRow(n map[string]interface{}) ([]byte, error) {
+func encodeRow(n map[string]interface{}) ([]byte, error) {
 	// use gob
 	buff := new(bytes.Buffer)
 
@@ -1450,7 +1451,7 @@ func (tbl *Table) UpdateRow(rowId int64, row map[string]interface{}, sets []*Set
 	}
 
 	// Encode row
-	encoded, err := EncodeRow(row)
+	encoded, err := encodeRow(row)
 	if err != nil {
 		return err
 	}
@@ -1961,6 +1962,17 @@ func (db *Database) EncodeProceduresToFile() error {
 	}
 
 	return nil
+}
+
+// compress compresses a row with ZSTD
+func compress(row []byte) ([]byte, error) {
+	return zstd.Compress(nil, row)
+
+}
+
+// decompress decompresses a row with ZSTD
+func decompress(row []byte) ([]byte, error) {
+	return zstd.Decompress(nil, row)
 }
 
 // @todo AlterTable

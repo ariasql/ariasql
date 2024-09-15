@@ -1413,3 +1413,58 @@ func TestCatalog_ReadUsersFromFile(t *testing.T) {
 	}
 
 }
+
+func TestCatalog_Compress(t *testing.T) {
+	defer os.RemoveAll("test/")
+	cat := New("test/")
+	err := cat.Open()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cat.Close()
+
+	err = cat.Open()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	row := map[string]interface{}{
+		"id":   1,
+		"name": "'john_doe'",
+	}
+
+	// encode
+	encoded, err := encodeRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	compressed, err := compress(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// decompress
+	decompressed, err := decompress(compressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// decode
+	decoded, err := decodeRow(decompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded["id"] != 1 {
+		t.Fatalf("expected 1, got %d", decoded["id"])
+	}
+
+	if decoded["name"] != "'john_doe'" {
+		t.Fatalf("expected 'john_doe', got %s", decoded["name"])
+	}
+
+}
