@@ -25,6 +25,8 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
+	"log"
 	"os"
 	"sync"
 )
@@ -36,6 +38,7 @@ type AriaSQL struct {
 	Channels     []*Channel       // Channel to the database, could be through shell or network
 	ChannelsLock *sync.Mutex      // Channels lock
 	WAL          *wal.WAL         // Write ahead log
+	LogFile      *os.File         // Log file
 }
 
 // Channel is a connection to the database
@@ -49,6 +52,7 @@ type Channel struct {
 type Config struct {
 	// The path to the data directory
 	DataDir string
+	Logging bool
 }
 
 // New creates a new AriaSQL object
@@ -64,6 +68,55 @@ func New(config *Config) (*AriaSQL, error) {
 	if _, err := os.Stat(config.DataDir); os.IsNotExist(err) {
 		os.Mkdir(config.DataDir, os.ModePerm)
 
+	}
+
+	// create ariaconf.yaml
+	if _, err := os.Stat(fmt.Sprintf("%s%sariaconf.yaml", config.DataDir, shared.GetOsPathSeparator())); os.IsNotExist(err) {
+		confFile, err := os.Create(fmt.Sprintf("%s%sariaconf.yaml", config.DataDir, shared.GetOsPathSeparator()))
+		if err != nil {
+			return nil, err
+		}
+
+		defer confFile.Close()
+
+		// encode default configuration to yaml
+		yamlConf, err := yaml.Marshal(config)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = confFile.Write(yamlConf)
+		if err != nil {
+			return nil, err
+		}
+
+	} else {
+		// read configuration from file
+		confFile, err := os.Open(fmt.Sprintf("%s%sariaconf.yaml", config.DataDir, shared.GetOsPathSeparator()))
+		if err != nil {
+			return nil, err
+		}
+
+		defer confFile.Close()
+
+		decoder := yaml.NewDecoder(confFile)
+		err = decoder.Decode(config)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var logFile *os.File
+
+	// if logging is set to true, create log file
+	if config.Logging {
+		var err error
+		logFile, err = os.OpenFile(fmt.Sprintf("%s%saria.log", config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_APPEND|os.O_RDWR, 0644)
+		if err != nil {
+			return nil, err
+		}
+
+		log.SetOutput(logFile)
 	}
 
 	wal, err := wal.OpenWAL(fmt.Sprintf("%s%swal.dat", config.DataDir, shared.GetOsPathSeparator()), os.O_CREATE|os.O_RDWR, 0644)
@@ -82,6 +135,7 @@ func New(config *Config) (*AriaSQL, error) {
 		},
 		WAL:          wal,
 		ChannelsLock: &sync.Mutex{},
+		LogFile:      logFile,
 	}, err
 }
 
@@ -129,5 +183,12 @@ func (ariasql *AriaSQL) GetChannel(channelID uint64) *Channel {
 // Close closes the AriaSQL instance
 func (ariasql *AriaSQL) Close() error {
 	ariasql.Catalog.Close()
+
+	if ariasql.Config.Logging {
+		log.SetOutput(os.Stdout)
+
+		ariasql.LogFile.Close()
+	}
+
 	return ariasql.WAL.Close()
 }

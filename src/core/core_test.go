@@ -25,9 +25,14 @@ import (
 func TestNew(t *testing.T) {
 	defer os.Remove("wal.dat")
 	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
+	defer os.Remove("ariaconf.yaml")
+	aria, err := New(&Config{
 		DataDir: "./",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if aria == nil {
 		t.Fatal("expected non-nil AriaSQL")
 	}
@@ -41,9 +46,14 @@ func TestNew(t *testing.T) {
 func TestAriaSQL_OpenChannel(t *testing.T) {
 	defer os.Remove("wal.dat")
 	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
+	defer os.Remove("ariaconf.yaml")
+	aria, err := New(&Config{
 		DataDir: "./",
 	})
+	if err != nil {
+		t.Fatal(err)
+
+	}
 
 	channel := aria.OpenChannel(nil)
 	if channel == nil {
@@ -66,12 +76,17 @@ func TestAriaSQL_OpenChannel(t *testing.T) {
 func TestAriaSQL_RemoveChannel(t *testing.T) {
 	defer os.Remove("wal.dat")
 	defer os.Remove("wal.dat.del")
-	aria := New(&Config{
+	defer os.Remove("ariaconf.yaml")
+	aria, err := New(&Config{
 		DataDir: "./",
 	})
 
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	channel := aria.OpenChannel(nil)
-	err := aria.CloseChannel(channel)
+	err = aria.CloseChannel(channel)
 	if err != nil {
 		t.Fatal(err)
 	}
