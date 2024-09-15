@@ -6952,3 +6952,44 @@ func TestNewParserCreateTable6(t *testing.T) {
 		t.Fatalf("expected some key, got %s", createTableStmt.EncryptKey.Value)
 	}
 }
+
+func TestNewParserAlterTable(t *testing.T) {
+	statement := []byte(`
+	CREATE TABLE TEST (col1 INT, col2 CHAR(50), COMPRESS ENCRYPT('some key'));
+`)
+
+	lexer := NewLexer(statement)
+	t.Log(string(statement))
+
+	parser := NewParser(lexer)
+	if parser == nil {
+		t.Fatal("expected non-nil parser")
+	}
+
+	stmt, err := parser.Parse()
+	if err != nil {
+		t.Fatal(err)
+
+	}
+
+	if stmt == nil {
+		t.Fatal("expected non-nil statement")
+	}
+
+	createTableStmt, ok := stmt.(*CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected *CreateTableStmt, got %T", stmt)
+	}
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//sel, err := PrintAST(createTableStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+}

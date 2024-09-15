@@ -400,6 +400,31 @@ type ShowStmt struct {
 	From     *Identifier
 }
 
+type AlterTableType int
+
+const (
+	_ AlterTableType = iota
+	ALTER_TABLE_ADD_COLUMN
+	ALTER_TABLE_DROP_COLUMN
+	ALTER_TABLE_ADD_CONSTRAINT
+)
+
+// AlterTableStmt represents an ALTER TABLE statement
+type AlterTableStmt struct {
+	TableName  *Identifier        // Table name
+	AlterType  AlterTableType     // Type of alter statement
+	DataType   string             // Column data type
+	NotNull    bool               // Column cannot be null
+	Sequence   bool               // Column is auto increment/sequence
+	Unique     bool               // Column is unique
+	Length     int                // Column length
+	Scale      int                // Column scale
+	Precision  int                // Column precision
+	References *catalog.Reference // References is a foreign key reference
+	Default    interface{}        // Default value for the column
+	Check      interface{}        // Check constraint for the column
+}
+
 type AlterUserSetType int
 
 const (
