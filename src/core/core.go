@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"gopkg.in/yaml.v3"
 	"log"
+	"net"
 	"os"
 	"sync"
 )
@@ -51,8 +52,21 @@ type Channel struct {
 // Config is the configuration for AriaSQL
 type Config struct {
 	// The path to the data directory
-	DataDir string
-	Logging bool
+	DataDir  string
+	Logging  bool
+	Replicas []*Replica // Every wal write will be sent to these replicas
+}
+
+// Replica is a replica server
+type Replica struct {
+	Host    string       // Hostname or IP address
+	Port    int          // TCP port
+	Conn    *net.Conn    // TCP connection
+	TLS     bool         // true if TLS is enabled
+	TLSKey  string       // TLS key
+	TLSCert string       // TLS certificate
+	Addr    *net.TCPAddr // TCP address
+	Status  bool         // true if connected
 }
 
 // New creates a new AriaSQL object
