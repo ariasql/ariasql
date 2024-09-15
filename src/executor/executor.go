@@ -121,6 +121,7 @@ func New(aria *core.AriaSQL, ch *core.Channel) *Executor {
 // Execute executes an abstract syntax tree statement
 func (ex *Executor) Execute(stmt parser.Statement) error {
 
+	// If we are explaining an execution we will create a new plan
 	if ex.explaining {
 		// Start new plan
 		ex.plan = &Plan{}
@@ -129,33 +130,40 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 	// We will handle the statement based on the type
 	switch s := stmt.(type) {
 	case *parser.BeginStmt:
+
+		// A database must be selected to begin a transaction.  Transactions are of INSERT, UPDATE, DELETE statement type
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
 		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "*", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
-			return errors.New("user does not have the privilege to BEGIN on system. A user must have BEGIN privilege for specific database")
+			return errors.New("user does not have the privilege to BEGIN a transaction on system. A user must have BEGIN privilege for specific database")
 		}
 
+		// Check if transactions already begun
 		if ex.TransactionBegun {
 			return errors.New("transaction already begun")
 		}
 
+		// Set transaction begun flag
 		ex.TransactionBegun = true
 
 		ex.Transaction = &Transaction{Statements: []*TransactionStmt{}} // Initialize the transaction
 
 		return nil
 	case *parser.RollbackStmt: // Rollback statement
+
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
 		// Check user has the privilege to rollback
 		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "*", []shared.PrivilegeAction{shared.PRIV_ROLLBACK}) {
-			return errors.New("user does not have the privilege to ROLLBACK on system. A user must have ROLLBACK privilege for specific database")
+			return errors.New("user does not have the privilege to ROLLBACK transaction on system. A user must have ROLLBACK privilege for specific database")
 		}
 
+		// Check if transaction has begun
 		if !ex.TransactionBegun {
 			return errors.New("no transaction begun")
 		}
@@ -168,19 +176,24 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 		return nil
 	case *parser.CommitStmt:
+		// Check if a database is selected
 		if ex.ch.Database == nil {
 			return errors.New("no database selected")
 		}
 
+		// Check user has the privilege to commit
 		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, "*", []shared.PrivilegeAction{shared.PRIV_COMMIT}) {
-			return errors.New("user does not have the privilege to COMMIT on system. A user must have COMMIT privilege for specific database")
+			return errors.New("user does not have the privilege to COMMIT transactions on system. A user must have COMMIT privilege for specific database")
 		}
 
 		// Transactions are made up of INSERT, UPDATE, DELETE statements
 		for j, tx := range ex.Transaction.Statements {
 			switch ss := tx.Stmt.(type) {
-			case *parser.DeleteStmt:
+			case *parser.DeleteStmt: // Execute delete statement
+
+				// Check if a database is selected
 				if ex.ch.Database == nil {
+					// If somehow nil, rollback the transaction
 					err := ex.rollback() // Rollback the transaction
 					if err != nil {
 						return err
@@ -190,14 +203,17 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 				}
 
+				// Execute the delete statement
+				// Gather deleted rowIds and deleted rows in case of rollback
 				rowIds, deletedRows, err := ex.executeDeleteStmt(ss)
 				if err != nil {
 					return err
 				}
 
-				if ex.TransactionBegun {
+				if ex.TransactionBegun { // If transaction has begun
 
 					for i, r := range deletedRows {
+						// Append the row to the rollback data
 						ex.Transaction.Statements[j].Rollback.Rows = append(ex.Transaction.Statements[len(ex.Transaction.Statements)-1].Rollback.Rows, &Before{
 							RowId: rowIds[i],
 							Row:   r,
