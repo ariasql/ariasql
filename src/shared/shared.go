@@ -67,26 +67,16 @@ const (
 )
 
 // SysDate represents system datetime
-type SysDate struct{}
+type SysDate struct{} // Current DATE or DATETIME
 
 // SysTime
-type SysTime struct{}
+type SysTime struct{} // Current TIME
 
 // SysTimestamp
-type SysTimestamp struct{}
+type SysTimestamp struct{} // Current TIMESTAMP alias for DATETIME
 
 // GenUUID
-type GenUUID struct{}
-
-type CascadeOption int
-
-const (
-	_           CascadeOption = iota
-	CASCADE                   // Cascade the action
-	RESTRICT                  // Restrict the action
-	SET_NULL                  // Set the value to NULL
-	SET_DEFAULT               // Set the default value
-)
+type GenUUID struct{} // Generate a UUID
 
 // You grant privileges to a user on a database or table
 // GRANT SELECT, INSERT, UPDATE, DELETE ON database.table TO user;
