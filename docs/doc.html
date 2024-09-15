@@ -415,6 +415,12 @@ SET column1 = value1, column2 = value2, ...
 END;</code></pre>
 
   <h2 id="transaction-control">Transaction Control</h2>
+  <p>Transactions on AriaSQL are only supported for INSERT, UPDATE, and DELETE statements.</p>
+  <p>If any statement fails within a transaction, the entire transaction is rolled back.</p>
+
+  <p>This is referred to as an <u>all-or-nothing</u> or <u>atomic</u> transaction model.</p>
+
+
 
   <h3>BEGIN Statement</h3>
   <pre><code>BEGIN;</code></pre>
@@ -424,6 +430,13 @@ END;</code></pre>
 
   <h3>ROLLBACK Statement</h3>
   <pre><code>ROLLBACK;</code></pre>
+
+  <h3>Example</h3>
+  <pre><code>BEGIN;
+INSERT INTO employees (name, salary) VALUES ('Alice', 500);
+INSERT INTO employees (name, salary) VALUES ('Bob', 600);
+...
+COMMIT;</code></pre>
 
   <h2 id="user-management">User Management</h2>
 
