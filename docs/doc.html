@@ -294,13 +294,13 @@ ON [identifier] ([column specification][, ...]);</code></pre>
   <h2 id="table-management">Table Management</h2>
 
   <h3>CREATE TABLE Statement</h3>
-  <pre><code>CREATE TABLE table_name (
-    column_name data_type [constraints],
+  <pre><code>CREATE TABLE [identifier] (
+    [column specification] data_type [constraints],
     ...
   [storage_options]
     );</code></pre>
-  <p><strong>table_name:</strong> The name of the table.</p>
-  <p><strong>column_name:</strong> Name of the column.</p>
+  <p><strong>identifier:</strong> The name of the table.</p>
+  <p><strong>column specification:</strong> The name of the column.</p>
   <p><strong>data_type:</strong> Data type of the column.</p>
   <p><strong>constraints:</strong> Any constraints like PRIMARY KEY, FOREIGN KEY, etc.</p>
   <p><strong>storage_options:</strong> COMPRESS and or ENCRYPT([encrypt_key])</p>
@@ -458,17 +458,20 @@ FROM [from clause]
   <p><strong>OFFSET number:</strong> Skips the first number of rows.</p>
 
   <h3>UPDATE Statement</h3>
-  <pre><code>UPDATE table_name
-SET column1 = value1, column2 = value2, ...
+  <pre><code>UPDATE [identifier]
+SET [column specification] = [literal [binary expression]], [column specification] = [literal [binary expression]], ...
 [WHERE condition];</code></pre>
-  <p><strong>table_name:</strong> The name of the table.</p>
-  <p><strong>column1 = value1:</strong> Column and new value.</p>
-  <p><strong>condition:</strong> Conditions to specify which rows to update.</p>
+    <p><strong>identifier:</strong> The name of the table to update.</p>
+    <p><strong>column specification:</strong> The column to update.</p>
+    <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
+    <p><strong>binary expression:</strong> An expression that evaluates to a value.</p>
+    <p><strong>condition:</strong> Conditions to specify which rows to update.</p>
+
 
   <h3>DELETE Statement</h3>
-  <pre><code>DELETE FROM table_name
+  <pre><code>DELETE FROM [identifier]
 [WHERE condition];</code></pre>
-  <p><strong>table_name:</strong> The name of the table.</p>
+  <p><strong>identifier:</strong> The name of the table to delete from.</p>
   <p><strong>condition:</strong> Conditions to specify which rows to delete.</p>
 
   <h2>Expressions and Functions</h2>
@@ -660,7 +663,7 @@ END;</code></pre>
   <h2 id="joins">Joins</h2>
 
   <h3>Implicit Join</h3>
-  <p>An implicit join, also known as a "comma join" or "old-style join," uses a simple `SELECT` statement with multiple tables listed in the `FROM` clause, separated by commas. The join condition is specified in the `WHERE` clause. This style of join is considered less readable and more prone to errors compared to explicit joins like `INNER JOIN`.</p>
+  <p>An implicit join, also known as a "comma join" or "old-style join," uses a simple `SELECT` statement with multiple tables listed in the `FROM` clause, separated by commas. The join condition is specified in the `WHERE` clause.</p>
 
   <pre><code>SELECT column1, column2
 FROM table1, table2
@@ -668,6 +671,8 @@ WHERE table1.common_column = table2.common_column;</code></pre>
   <p><strong>table1, table2:</strong> Tables to be joined.</p>
   <p><strong>column1, column2:</strong> Columns to be selected from the tables.</p>
   <p><strong>table1.common_column = table2.common_column:</strong> The condition to join the tables, typically based on a common column or key.</p>
+
+  <p>You can join multiple tables.</p>
 
   <h4>Example</h4>
   <pre><code>SELECT employees.name, departments.department_name
