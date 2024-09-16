@@ -950,7 +950,7 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 
 			} else {
 				// Check length
-				if len(row[colName].(string)) > colDef.Length {
+				if len(strings.TrimSuffix(strings.TrimPrefix(row[colName].(string), "'"), "'")) > colDef.Length {
 					return -1, fmt.Errorf("column %s is too long", colName)
 				}
 			}
