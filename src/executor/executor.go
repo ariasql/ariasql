@@ -1563,6 +1563,35 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 		ex.explaining = false // Set explaining flag to false
 
 		return nil
+	case *parser.AlterTableStmt:
+		// Check if a database is selected
+		if ex.ch.Database == nil {
+			return errors.New("no database selected")
+		}
+
+		// Check if user has the privilege to alter table
+		if !ex.ch.User.HasPrivilege(ex.ch.Database.Name, s.TableName.Value, []shared.PrivilegeAction{shared.PRIV_ALTER}) {
+			return errors.New("user does not have the privilege to ALTER on table " + s.TableName.Value)
+		}
+
+		// Append to wal
+		err := ex.aria.WAL.Append(ex.aria.WAL.Encode(s))
+		if err != nil {
+			return err
+		}
+
+		// Get the table
+		table := ex.ch.Database.GetTable(s.TableName.Value)
+		if table == nil {
+			return errors.New("table does not exist")
+
+		}
+
+		// Alter the table
+		err = table.Alter(s.ColumnName.Value, s.ColumnDefinition)
+		if err != nil {
+			return err
+		}
 
 	default:
 		return errors.New("unsupported statement " + reflect.TypeOf(s).String())

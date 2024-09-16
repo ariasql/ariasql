@@ -102,6 +102,7 @@ func OpenWAL(filePath string, flags int, perm os.FileMode) (*WAL, error) {
 	gob.Register(&parser.CommitStmt{})
 	gob.Register(&parser.RollbackStmt{})
 	gob.Register(&parser.SelectStmt{})
+	gob.Register(&parser.AlterTableStmt{})
 
 	return &WAL{
 		file:     wal,
@@ -495,6 +496,12 @@ func (w *WAL) Encode(stmt interface{}) []byte {
 		if err != nil {
 			return nil
 		}
+	case *parser.AlterTableStmt:
+		enc := gob.NewEncoder(buff)
+		err := enc.Encode(stmt)
+		if err != nil {
+			return nil
+		}
 
 	default:
 		return nil
@@ -559,6 +566,7 @@ func (w *WAL) Decode(data []byte) interface{} {
 		&parser.RollbackStmt{},
 		&parser.CreateProcedureStmt{},
 		&parser.DropProcedureStmt{},
+		&parser.AlterTableStmt{},
 	}
 
 	for _, stmtType := range stmtTypes {
@@ -708,6 +716,15 @@ func (w *WAL) Decode(data []byte) interface{} {
 			}
 
 			return stmt
+		case *parser.AlterTableStmt:
+			dec := gob.NewDecoder(bytes.NewBuffer(data))
+			stmt := &parser.AlterTableStmt{}
+			err := dec.Decode(stmt)
+			if err != nil {
+				continue
+			}
+
+			return stmt
 
 		}
 
@@ -838,7 +855,8 @@ func (w *WAL) RecoverASTs() ([]interface{}, error) {
 				stmts = append(stmts, stmt)
 			case *parser.DropProcedureStmt:
 				stmts = append(stmts, stmt)
-
+			case *parser.AlterTableStmt:
+				stmts = append(stmts, stmt)
 			default:
 				return nil, errors.New("unknown statement type found in WAL")
 			}
