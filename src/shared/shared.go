@@ -430,3 +430,14 @@ func IdenticalMap(x, y map[string]interface{}) bool {
 
 	return true
 }
+
+// RemoveSingleQuotesFromResult removes single quotes from strings in a result set
+func RemoveSingleQuotesFromResult(data *[]map[string]interface{}) {
+	for _, row := range *data {
+		for key, value := range row {
+			if _, ok := value.(string); ok {
+				row[key] = strings.TrimPrefix(strings.TrimSuffix(value.(string), "'"), "'")
+			}
+		}
+	}
+}

@@ -973,6 +973,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 			} else {
 				var err error
+				shared.RemoveSingleQuotesFromResult(&results)
 				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
 				if err != nil {
 					return err
@@ -995,6 +996,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 			} else {
 				var err error
+				shared.RemoveSingleQuotesFromResult(&results)
 				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
 				if err != nil {
 					return err
@@ -1021,6 +1023,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 			} else {
 				var err error
+				shared.RemoveSingleQuotesFromResult(&results)
 				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
 				if err != nil {
 					return err
@@ -1789,6 +1792,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 		ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
 	} else {
 		var err error
+		shared.RemoveSingleQuotesFromResult(&results)
 		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
 		if err != nil {
 			return nil, err
@@ -1855,6 +1859,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
 	} else {
 		var err error
+		shared.RemoveSingleQuotesFromResult(&rows)
 		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(rows)
 		if err != nil {
 			return nil, nil, err
@@ -1910,6 +1915,7 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
 	} else {
 		var err error
+		shared.RemoveSingleQuotesFromResult(&rows)
 		ex.ResultSetBuffer, err = shared.CreateJSONByteArray(rows)
 		if err != nil {
 			return nil, nil, err

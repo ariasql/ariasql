@@ -247,3 +247,17 @@ func TestCopyDir(t *testing.T) {
 	}
 
 }
+
+func TestRemoveSingleQuotesFromResult(t *testing.T) {
+	data := []map[string]interface{}{
+		{
+			"ID":   1,
+			"Name": "'John'",
+		},
+	}
+
+	RemoveSingleQuotesFromResult(&data)
+	if data[0]["Name"] != "John" {
+		t.Errorf("expected John, got %v", data[0]["Name"])
+	}
+}
