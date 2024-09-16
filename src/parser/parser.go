@@ -48,7 +48,7 @@ var (
 		"UPPER", "LOWER", "CAST", "COALESCE", "REVERSE", "ROUND", "POSITION", "LENGTH", "REPLACE",
 		"CONCAT", "SUBSTRING", "TRIM", "GENERATE_UUID", "SYS_DATE", "SYS_TIME", "SYS_TIMESTAMP", "SYS_DATETIME",
 		"CASE", "WHEN", "THEN", "ELSE", "END", "IF", "ELSEIF", "DEALLOCATE", "NEXT", "WHILE", "PRINT", "EXPLAIN",
-		"COMPRESS", "ENCRYPT",
+		"COMPRESS", "ENCRYPT", "COLUMN", "CONSTRAINT",
 	}, shared.DataTypes...)
 )
 
@@ -988,11 +988,175 @@ func (p *Parser) parseAlterStmt() (Node, error) {
 	switch p.peek(0).value {
 	case "USER":
 		return p.parseAlterUserStmt()
-		//case "TABLE":
-		//	return p.parseAlterTableStmt()
+	case "TABLE":
+		return p.parseAlterTableStmt()
 	}
 
 	return nil, errors.New("expected USER or TABLE")
+
+}
+
+// parseAlterTableStmt
+func (p *Parser) parseAlterTableStmt() (Node, error) {
+	p.consume() // Consume TABLE
+
+	tableName := ""
+
+	if p.peek(0).tokenT != IDENT_TOK {
+		return nil, errors.New("expected identifier")
+	}
+
+	tableName = p.peek(0).value.(string)
+
+	p.consume() // Consume table name
+
+	// ALTER COLUMN [identifier] [column_definition]
+	// DROP COLUMN [identifier]
+
+	if p.peek(0).tokenT != KEYWORD_TOK {
+		return nil, errors.New("expected keyword")
+	}
+
+	switch p.peek(0).value {
+	case "DROP":
+		p.consume() // Consume DROP
+
+		if p.peek(0).tokenT != KEYWORD_TOK {
+			return nil, errors.New("expected keyword")
+		}
+
+		p.consume() // Consume COLUMN
+
+		if p.peek(0).tokenT != IDENT_TOK {
+			return nil, errors.New("expected identifier")
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		p.consume()
+
+		return &AlterTableStmt{
+			TableName:  &Identifier{Value: tableName},
+			ColumnName: &Identifier{Value: columnName},
+		}, nil
+
+	case "ALTER":
+		p.consume() // Consume ALTER
+
+		if p.peek(0).tokenT != KEYWORD_TOK {
+			return nil, errors.New("expected keyword")
+		}
+
+		p.consume() // Consume COLUMN
+
+		dummyCreateTblStatement := &CreateTableStmt{
+			TableSchema: &catalog.TableSchema{
+				ColumnDefinitions: make(map[string]*catalog.ColumnDefinition),
+			},
+		}
+
+		if p.peek(0).tokenT != IDENT_TOK {
+
+			err := p.parseTableConstraints(dummyCreateTblStatement, "")
+			if err != nil {
+				return nil, err
+			}
+			break
+		}
+
+		columnName := p.peek(0).value.(string)
+
+		p.consume() // Consume column name
+
+		if p.peek(0).tokenT != DATATYPE_TOK {
+
+			return nil, errors.New("expected data type")
+		}
+
+		dataType := p.peek(0).value.(string)
+
+		dummyCreateTblStatement.TableSchema.ColumnDefinitions[columnName] = &catalog.ColumnDefinition{
+			DataType: dataType,
+		}
+
+		p.consume() // Consume data type
+
+		// check for DATATYPE(LEN) or DATATYPE(PRECISION, SCALE)
+		if p.peek(0).tokenT == LPAREN_TOK {
+			switch dataType {
+
+			case "CHAR", "CHARACTER", "BINARY":
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+
+					return nil, errors.New("expected literal")
+				}
+
+				length := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				dummyCreateTblStatement.TableSchema.ColumnDefinitions[columnName].Length = int(length)
+			case "DEC", "DECIMAL", "NUMERIC", "REAL", "FLOAT", "DOUBLE":
+
+				p.consume() // Consume (
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				precision := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != COMMA_TOK {
+					return nil, errors.New("expected ,")
+				}
+
+				p.consume() // Consume ,
+
+				if p.peek(0).tokenT != LITERAL_TOK {
+					return nil, errors.New("expected literal")
+				}
+
+				scale := p.peek(0).value.(uint64)
+
+				p.consume() // Consume literal
+
+				if p.peek(0).tokenT != RPAREN_TOK {
+					return nil, errors.New("expected )")
+				}
+
+				p.consume() // Consume )
+
+				dummyCreateTblStatement.TableSchema.ColumnDefinitions[columnName].Precision = int(precision)
+				dummyCreateTblStatement.TableSchema.ColumnDefinitions[columnName].Scale = int(scale)
+
+			}
+		}
+
+		err := p.parseTableConstraints(dummyCreateTblStatement, columnName)
+		if err != nil {
+			return nil, err
+
+		}
+
+		return &AlterTableStmt{
+			TableName:        &Identifier{Value: tableName},
+			ColumnName:       &Identifier{Value: columnName},
+			ColumnDefinition: dummyCreateTblStatement.TableSchema.ColumnDefinitions[columnName],
+		}, nil
+
+	}
+
+	return nil, errors.New("expected ADD, DROP, SET, RENAME, or MODIFY")
 
 }
 

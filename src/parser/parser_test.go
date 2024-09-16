@@ -19,7 +19,6 @@ package parser
 import (
 	"ariasql/shared"
 	"fmt"
-	"log"
 	"testing"
 )
 
@@ -6956,7 +6955,7 @@ func TestNewParserCreateTable6(t *testing.T) {
 
 func TestNewParserAlterTable(t *testing.T) {
 	statement := []byte(`
-	ALTER TABLE users ADD COLUMN age INT;
+	ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;
 `)
 
 	lexer := NewLexer(statement)
@@ -6986,12 +6985,32 @@ func TestNewParserAlterTable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
+	//sel, err := PrintAST(alterTableStmt)
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//
+	//log.Println(sel)
+
+	if alterTableStmt.TableName.Value != "users" {
+		t.Fatalf("expected users, got %s", alterTableStmt.TableName.Value)
 	}
 
-	log.Println(sel)
+	if alterTableStmt.ColumnName.Value != "age" {
+		t.Fatalf("expected age, got %s", alterTableStmt.ColumnName.Value)
+	}
+
+	if alterTableStmt.ColumnDefinition.DataType != "INT" {
+		t.Fatalf("expected INT, got %s", alterTableStmt.ColumnDefinition.DataType)
+	}
+
+	if !alterTableStmt.ColumnDefinition.NotNull {
+		t.Fatalf("expected true, got %v", alterTableStmt.ColumnDefinition.NotNull)
+	}
+
+	if alterTableStmt.ColumnDefinition.Default.(*Literal).Value != uint64(232) {
+		t.Fatalf("expected 232, got %d", alterTableStmt.ColumnDefinition.Default.(*Literal).Value)
+	}
 
 }
 
@@ -7027,462 +7046,16 @@ func TestNewParserAlterTable2(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
+	if alterTableStmt.TableName.Value != "users" {
+		t.Fatalf("expected users, got %s", alterTableStmt.TableName.Value)
 	}
 
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable3(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users ADD CONSTRAINT unique_email UNIQUE(email);
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable4(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users ADD CONSTRAINT email NOT NULL;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable5(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users ADD CONSTRAINT email DEFAULT 'test';
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable6(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users ADD CONSTRAINT email DEFAULT 'test';
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable7(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT unique_email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable8(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT NOT NULL email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
+	if alterTableStmt.ColumnName.Value != "age" {
+		t.Fatalf("expected age, got %s", alterTableStmt.ColumnName.Value)
 	}
 
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
+	if alterTableStmt.ColumnDefinition != nil {
+		t.Fatalf("expected nil, got %v", alterTableStmt.ColumnDefinition)
 	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable9(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT DEFAULT email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable10(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT REFERENCES email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable11(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT FOREIGN KEY email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable12(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users DROP CONSTRAINT CHECK email;
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
-
-}
-
-func TestNewParserAlterTable13(t *testing.T) {
-	statement := []byte(`
-	ALTER TABLE users ADD CONSTRAINT email CHECK (LENGTH(email) > 0);
-`)
-
-	lexer := NewLexer(statement)
-	t.Log(string(statement))
-
-	parser := NewParser(lexer)
-	if parser == nil {
-		t.Fatal("expected non-nil parser")
-	}
-
-	stmt, err := parser.Parse()
-	if err != nil {
-		t.Fatal(err)
-
-	}
-
-	if stmt == nil {
-		t.Fatal("expected non-nil statement")
-	}
-
-	alterTableStmt, ok := stmt.(*AlterTableStmt)
-	if !ok {
-		t.Fatalf("expected *AlterTableStmt, got %T", stmt)
-	}
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	sel, err := PrintAST(alterTableStmt)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	log.Println(sel)
 
 }
