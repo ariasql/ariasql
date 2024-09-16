@@ -12,6 +12,11 @@
       src: url(assets/WorkSans-VariableFont_wght.ttf);
     }
 
+    @font-face {
+      font-family: DMMono;
+      src: url(assets/DMMono-Medium.ttf);
+    }
+
     body {
       font-family: WorkSans, sans-serif;
       line-height: 1.6;
@@ -46,7 +51,8 @@
     }
 
     code {
-      font-family: monospace;
+      font-family: DMMono;
+      font-size: 14px
     }
 
     .toc {
@@ -66,10 +72,8 @@
     }
 
     footer {
-      padding-top: 20px;
-      padding-bottom: 20px;
       width: 100%;
-      color: rgba(255,255,255,0.8);
+      color: rgba(157, 157, 157, 0.8);
       font-size: 12px;
       text-align: center;
     }
@@ -82,7 +86,7 @@
       width: 268px;
       background: white;
       overflow-y: scroll;
-      height: 100vh;
+      height: calc(100vh - 80px);
     }
 
     aside ul {
@@ -93,6 +97,15 @@
     aside ul li {
         padding: 10px;
         border-bottom: 1px solid #eaeaea;
+    }
+
+    aside footer {
+      position: fixed;
+      bottom: 0;
+      index: 1000;
+      background: #e8e8e8;
+      width: 268px;
+      height: 80px;
     }
   </style>
 </head>
@@ -122,6 +135,11 @@
     <li><a href="#altering-tables">Altering tables</a></li>
 
   </ul>
+
+  <footer>
+    <p>&copy; 2024 AriaSQL</p>
+    <p>all rights reserved</p>
+  </footer>
 </aside>
 
 <div class="container">
@@ -247,9 +265,7 @@ ALTER USER admin SET USERNAME 'newusername';</code></pre>
   <p>You can connect to your server using netcat.</p>
 
   <p>You must encode your username and password in base64.</p>
-  <pre><code>
-echo -n "admin\0admin" | base64
-  </code></pre>
+  <pre><code>echo -n "admin\0admin" | base64</code></pre>
 
   <img src="assets/nc.png" />
 
@@ -831,10 +847,7 @@ replicas:
     port: 1234
     tls: false
     tlscert: ""
-    tlskey: ""
-
-
-</code></pre>
+    tlskey: ""</code></pre>
 
   <h2 id="keywords">Keywords</h2>
   ALL, AND, ANY, AS, ASC, AUTHORIZATION, AVG, ALTER, BEGIN, BETWEEN, BY, CHECK, CLOSE, COBOL, COMMIT, CONTINUE, COUNT, CREATE, CURRENT, CURSOR, DECLARE, DELETE, DROP, DESC, DISTINCT, DATABASE, END, ESCAPE, EXEC, EXISTS, FETCH, FOR, FORTRAN, FOUND, FROM, GO, GOTO, GRANT, GROUP, HAVING, IN, INDEX, INDICATOR, INSERT, INTO, IS, SEQUENCE, LANGUAGE, LIKE, MAX, MIN, MODULE, NOT, NULL, OF, ON, OPEN, OPTION, OR, ORDER, PASCAL, PLI, PRECISION, PRIVILEGES, PROCEDURE, PUBLIC, ROLLBACK, SCHEMA, SECTION, SELECT, SET, SOME, SQL, SQLCODE, SQLERROR, SUM, TABLE, TO, UNION, UNIQUE, UPDATE, USER, VALUES, VIEW, WHENEVER, WHERE, WITH, WORK, USE, LIMIT, OFFSET, IDENTIFIED, CONNECT, REVOKE, SHOW, PRIMARY, FOREIGN, KEY, REFERENCES, DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, DEFAULT, UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM, GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP, SYS_DATETIME, CASE, WHEN, THEN, ELSE, END, IF, ELSEIF, DEALLOCATE, NEXT, WHILE, PRINT, EXPLAIN, COMPRESS, ENCRYPT,
@@ -845,13 +858,9 @@ replicas:
   <h2 id="altering-tables">Altering tables</h2>
   <p>In AriaSQL you can alter your column definitions for a table.</p>
   <p>You can add to a definition or remove from it.</p>
-  <pre><code>
-ALTER TABLE [identifier] [ALTER|DROP] COLUMN [column specification];
-  </code></pre>
+  <pre><code>ALTER TABLE [identifier] [ALTER|DROP] COLUMN [column specification];</code></pre>
 
-  <pre><code>
-ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;
-  </code></pre>
+  <pre><code>ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;</code></pre>
 
   <p>If a column does not exist, it will be created. </p>
 
@@ -859,9 +868,7 @@ ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;
   <p>Dropping a column will remove the column, also any indexes that are tied to it, if the index is created for 1 column.  If the column is tied to a non unique index the indexed values will be removed.</p>
 
   <pre>
-  <code>
-ALTER TABLE users DROP COLUMN age;
-  </code>
+  <code>ALTER TABLE users DROP COLUMN age;</code>
 </pre>
 
 </div>
