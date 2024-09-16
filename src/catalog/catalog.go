@@ -2079,3 +2079,70 @@ func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
 	c.XORKeyStream(plaintext, cipherRow)
 	return plaintext, nil
 }
+
+// Alter alters a table, specifically a column
+func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
+	if columnDef == nil {
+		// Drop column
+
+		// Find indexes that are using that column
+		for _, idx := range tbl.Indexes {
+			// if the index is just using that column drop the index
+			// if the index is using multiple columns, remove the column from the index
+
+			if slices.Contains(idx.Columns, columnName) {
+				if len(idx.Columns) == 1 {
+					// Drop index
+					tbl.DropIndex(idx.Name)
+				} else {
+					// Remove column from index
+					for i, col := range idx.Columns {
+						if col == columnName {
+							idx.Columns = append(idx.Columns[:i], idx.Columns[i+1:]...)
+						}
+					}
+
+				}
+			}
+		}
+
+		// Drop column from schema
+		delete(tbl.TableSchema.ColumnDefinitions, columnName)
+
+		// iterate over all rows and remove the column
+		ri := tbl.NewIterator()
+
+		for ri.Valid() {
+			row, err := ri.Next()
+			if err != nil {
+				continue
+			}
+
+			// Remove column from row
+			delete(row, columnName)
+
+			encoded, err := EncodeRow(row)
+			if err != nil {
+				continue
+			}
+
+			if tbl.Compress {
+				encoded, err = Compress(encoded)
+				if err != nil {
+					continue
+				}
+			}
+
+			if tbl.Encrypt {
+				encoded, err = Encrypt(tbl.HashedKey, tbl.Nonce, encoded)
+				if err != nil {
+					continue
+				}
+			}
+
+			// Write row back to table
+			tbl.Rows.WriteTo(ri.Current(), encoded)
+		}
+	}
+
+}
