@@ -3924,6 +3924,16 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 				// check if left is a float
 				if _, ok := left.(float64); ok {
+					if _, ok := right.(uint64); ok {
+						right = float64(right.(uint64))
+
+					}
+
+					if _, ok := upper.(uint64); ok {
+						upper = float64(upper.(uint64))
+
+					}
+
 					return left.(float64) >= right.(float64) && left.(float64) <= upper.(float64) // left >= lower && left <= upper
 				}
 

@@ -1278,7 +1278,7 @@ func (tbl *Table) GetRow(rowId int64) (map[string]interface{}, error) {
 	}
 
 	if tbl.Compress {
-		row, err = decompress(row)
+		row, err = Decompress(row)
 		if err != nil {
 			return nil, err
 		}
@@ -2045,8 +2045,8 @@ func Compress(row []byte) ([]byte, error) {
 
 }
 
-// decompress decompresses a row with ZSTD
-func decompress(row []byte) ([]byte, error) {
+// Decompress decompresses a row with ZSTD
+func Decompress(row []byte) ([]byte, error) {
 	return zstd.Decompress(nil, row)
 }
 
@@ -2327,7 +2327,7 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) error {
 							}
 
 							if tbl.Compress {
-								r, err = decompress(r)
+								r, err = Decompress(r)
 								if err != nil {
 									return errors.New("problem getting unique rows")
 								}
