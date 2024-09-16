@@ -1693,17 +1693,29 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 		//If there is a group by clause
 		if stmt.TableExpression.GroupByClause != nil {
+
 			// Group the results
 			groupedRows, err := ex.group(results, stmt.TableExpression.GroupByClause)
 			if err != nil {
 				return nil, err
 			}
+
 			// Check for having clause
 			if stmt.TableExpression.HavingClause != nil {
 				// Filter the results based on the having clause
 				results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause)
 				if err != nil {
 					return nil, err
+				}
+
+				// Because we evaluated the aggregates in the having clause we don't need to evaluate the aggregates in the select list,
+				// We can just filter the columns based on the select list
+				ex.removeAggregatesFromSelectList(stmt.SelectList)
+
+				err = ex.selectListFilter(&results, stmt.SelectList)
+				if err != nil {
+					return nil, err
+
 				}
 			} else {
 				// No having clause, return the grouped rows
@@ -1801,6 +1813,28 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 	}
 
 	return nil, nil // We return rows in result set buffer
+
+}
+
+// removeAggregatesFromSelectList removes aggregates from the select list, after evaluating the having clause
+func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList) {
+	for i, expr := range selectList.Expressions {
+		if agg, ok := expr.Value.(*parser.AggregateFunc); ok {
+			selectList.Expressions = append(selectList.Expressions[:i], selectList.Expressions[i+1:]...)
+
+			// add argument columns to select list
+			for _, arg := range agg.Args {
+				if _, ok := arg.(*parser.ColumnSpecification); ok {
+
+					if expr.Alias != nil {
+						selectList.Expressions = append(selectList.Expressions, &parser.ValueExpression{Value: arg, Alias: expr.Alias})
+					} else {
+						selectList.Expressions = append(selectList.Expressions, &parser.ValueExpression{Value: arg})
+					}
+				}
+			}
+		}
+	}
 
 }
 
@@ -1961,232 +1995,289 @@ func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause, row *map[stri
 func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{}, having *parser.HavingClause) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
-	for _, row := range groupedRows {
-		switch having.SearchCondition.(type) {
-		case *parser.LogicalCondition:
-			// left and right must be comparison predicates
+	var leftCondition, rightCondition interface{}
+	var logicalOp parser.LogicalOperator
 
-			// we will recursively evaluate the left and right conditions
+	// check if logical expression
+	if _, ok := having.SearchCondition.(*parser.LogicalCondition); ok {
+		leftCondition = having.SearchCondition.(*parser.LogicalCondition).Left
+		rightCondition = having.SearchCondition.(*parser.LogicalCondition).Right
+		logicalOp = having.SearchCondition.(*parser.LogicalCondition).Op
+	} else {
+		leftCondition = having.SearchCondition
 
-			leftHaving := having.SearchCondition.(*parser.LogicalCondition).Left.(*parser.ComparisonPredicate)
-			rightHaving := having.SearchCondition.(*parser.LogicalCondition).Right.(*parser.ComparisonPredicate)
+	}
 
-			i, err := ex.having(groupedRows, &parser.HavingClause{SearchCondition: leftHaving})
+	for _, group := range groupedRows {
+		leftResults, err := ex.evalHavingCondition(leftCondition, group)
+		if err != nil {
+			return nil, err
+		}
+
+		if rightCondition != nil {
+			rightResults, err := ex.evalHavingCondition(rightCondition, group)
 			if err != nil {
 				return nil, err
 			}
 
-			j, err := ex.having(groupedRows, &parser.HavingClause{SearchCondition: rightHaving})
-			if err != nil {
-				return nil, err
-			}
-
-			switch having.SearchCondition.(*parser.LogicalCondition).Op {
-			case parser.OP_AND:
-				if len(i) > 0 && len(j) > 0 {
-					results = append(results, row[0])
+			if logicalOp == parser.OP_AND {
+				if len(leftResults) > 0 && len(rightResults) > 0 {
+					results = append(results, rightResults...)
 				}
-			case parser.OP_OR:
-				if len(i) > 0 || len(j) > 0 {
-					results = append(results, row[0])
+			} else if logicalOp == parser.OP_OR {
+				if len(leftResults) > 0 || len(rightResults) > 0 {
+					results = append(results, rightResults...)
+					results = append(results, leftResults...)
 				}
 			}
 
-		case *parser.ComparisonPredicate:
-			// left must be an aggregate function
-			// right must be a literal
+		} else {
+			results = append(results, leftResults...)
+		}
 
-			// Get the aggregate function
-			aggFunc := having.SearchCondition.(*parser.ComparisonPredicate).Left.Value.(*parser.AggregateFunc)
+	}
 
-			// Get the right value
-			//rightVal := having.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value
+	return results, nil
+}
 
-			// Get the aggregate function name
-			aggFuncName := aggFunc.FuncName
+func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]interface{}) ([]map[string]interface{}, error) {
+	var results []map[string]interface{}
 
-			// Get the aggregate function arguments
-			aggFuncArgs := aggFunc.Args
+	switch cond.(type) {
+	case *parser.ComparisonPredicate:
+		// left must be an aggregate function
+		// right must be a literal
 
-			// Get the column name
-			//colName := aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value
+		// Get the aggregate function
+		aggFunc := cond.(*parser.ComparisonPredicate).Left.Value.(*parser.AggregateFunc)
 
-			switch aggFuncName {
-			case "COUNT":
-				count := len(row)
+		// Get the right value
+		//rightVal := having.SearchCondition.(*parser.ComparisonPredicate).Right.Value.(*parser.Literal).Value
 
-				having.SearchCondition.(*parser.ComparisonPredicate).Left.Value = &parser.Literal{Value: count}
+		// Get the aggregate function name
+		aggFuncName := aggFunc.FuncName
 
-				rows := []map[string]interface{}{
-					{"COUNT": count},
-				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
-				if ok {
-					results = append(results, row[0])
-				}
+		// Get the aggregate function arguments
+		aggFuncArgs := aggFunc.Args
 
-			case "SUM":
-				// Sum the values
-				var sum int
+		// Get the column name
+		//colName := aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value
 
-				for _, r := range row {
-					for _, arg := range aggFuncArgs {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := r[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
+		switch aggFuncName {
+		case "COUNT":
 
-							switch r[arg.ColumnName.Value].(type) {
-							case int:
-								sum += r[arg.ColumnName.Value].(int)
-							case int64:
-								sum += int(r[arg.ColumnName.Value].(int64))
-							case float64:
-								sum += int(r[arg.ColumnName.Value].(float64))
+			// map is grouped
+			// i.e 2024/09/16 15:19:47 before group [map[customer_id:1 order_date:'2024-01-01' order_id:1] map[customer_id:1 order_date:'2024-01-15' order_id:2] map[customer_id:2 order_date:'2024-01-10' order_id:3] map[customer_id:2 order_date:'2024-01-20' order_id:4] map[customer_id:3 order_date:'2024-01-05' order_id:5] map[customer_id:3 order_date:'2024-01-25' order_id:6] map[customer_id:3 order_date:'2024-01-30' order_id:7]]
+			//  map[1:[map[customer_id:1 order_date:'2024-01-01' order_id:1] map[customer_id:1 order_date:'2024-01-15' order_id:2]] 2:[map[customer_id:2 order_date:'2024-01-10' order_id:3] map[customer_id:2 order_date:'2024-01-20' order_id:4]] 3:[map[customer_id:3 order_date:'2024-01-05' order_id:5] map[customer_id:3 order_date:'2024-01-25' order_id:6] map[customer_id:3 order_date:'2024-01-30' order_id:7]]]
 
-							}
+			// Count the number of rows
+			count := len(group)
+
+			newComparisonPredicate := &parser.ComparisonPredicate{
+				Left:  &parser.ValueExpression{Value: aggFuncArgs[0].(*parser.ColumnSpecification)},
+				Op:    cond.(*parser.ComparisonPredicate).Op,
+				Right: cond.(*parser.ComparisonPredicate).Right,
+			}
+
+			rows := []map[string]interface{}{
+				{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: count},
+			}
+
+			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+			if ok {
+				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = count
+				results = append(results, group[0])
+			}
+
+		case "SUM":
+			// Sum the values
+			var sum int
+
+			for _, r := range group {
+				for _, arg := range aggFuncArgs {
+					switch arg := arg.(type) {
+					case *parser.ColumnSpecification:
+						if _, ok := r[arg.ColumnName.Value]; !ok {
+							return nil, errors.New("column does not exist")
 						}
 
-					}
-				}
+						switch r[arg.ColumnName.Value].(type) {
+						case int:
+							sum += r[arg.ColumnName.Value].(int)
+						case int64:
+							sum += int(r[arg.ColumnName.Value].(int64))
+						case float64:
+							sum += int(r[arg.ColumnName.Value].(float64))
 
-				newComparisonPredicate := parser.ComparisonPredicate{
-					Left: &parser.ValueExpression{Value: &parser.Literal{Value: sum}},
-				}
-
-				rows := []map[string]interface{}{
-					{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: sum},
-				}
-
-				ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
-				if ok {
-					results = append(results, row[0])
-				}
-
-			case "AVG":
-				// Average the values
-				var sum int
-				var count int
-
-				for _, r := range row {
-					for _, arg := range aggFuncArgs {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := r[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch r[arg.ColumnName.Value].(type) {
-							case int:
-								sum += r[arg.ColumnName.Value].(int)
-							case int64:
-								sum += int(r[arg.ColumnName.Value].(int64))
-							case float64:
-								sum += int(r[arg.ColumnName.Value].(float64))
-
-							}
-						}
-
-					}
-				}
-
-				count = len(row)
-				avg := sum / count
-
-				rows := []map[string]interface{}{
-					{"AVG": avg},
-				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
-				if ok {
-					results = append(results, row[0])
-				}
-
-			case "MAX":
-				// Find the maximum value
-
-				var mx int
-
-				for _, r := range row {
-					for _, arg := range aggFuncArgs {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := r[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
-							}
-
-							switch r[arg.ColumnName.Value].(type) {
-							case int:
-								if r[arg.ColumnName.Value].(int) > mx {
-									mx = r[arg.ColumnName.Value].(int)
-								}
-							case int64:
-								if int(r[arg.ColumnName.Value].(int64)) > mx {
-									mx = int(r[arg.ColumnName.Value].(int64))
-								}
-							case float64:
-								if int(r[arg.ColumnName.Value].(float64)) > mx {
-									mx = int(r[arg.ColumnName.Value].(float64))
-								}
-							}
 						}
 					}
+
+				}
+			}
+
+			newComparisonPredicate := &parser.ComparisonPredicate{
+				Left:  &parser.ValueExpression{Value: aggFuncArgs[0].(*parser.ColumnSpecification)},
+				Op:    cond.(*parser.ComparisonPredicate).Op,
+				Right: cond.(*parser.ComparisonPredicate).Right,
+			}
+
+			rows := []map[string]interface{}{
+				{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: sum},
+			}
+
+			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+			if ok {
+
+				results = append(results, group[0])
+			}
+		case "AVG":
+			// Average the values
+			var sum int
+
+			for _, r := range group {
+				for _, arg := range aggFuncArgs {
+					switch arg := arg.(type) {
+					case *parser.ColumnSpecification:
+						if _, ok := r[arg.ColumnName.Value]; !ok {
+							return nil, errors.New("column does not exist")
+						}
+
+						switch r[arg.ColumnName.Value].(type) {
+						case int:
+							sum += r[arg.ColumnName.Value].(int)
+						case int64:
+							sum += int(r[arg.ColumnName.Value].(int64))
+						case float64:
+							sum += int(r[arg.ColumnName.Value].(float64))
+
+						}
+					}
+
 				}
 
-				rows := []map[string]interface{}{
-					{"MIN": mx},
-				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
-				if ok {
-					results = append(results, row[0])
-				}
+			}
 
-			case "MIN":
-				// Find the minimum value
+			avg := sum / len(group)
 
-				var mn int
+			newComparisonPredicate := &parser.ComparisonPredicate{
+				Left:  &parser.ValueExpression{Value: aggFuncArgs[0].(*parser.ColumnSpecification)},
+				Op:    cond.(*parser.ComparisonPredicate).Op,
+				Right: cond.(*parser.ComparisonPredicate).Right,
+			}
 
-				mn = int(^uint(0) >> 1)
+			rows := []map[string]interface{}{
+				{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: avg},
+			}
 
-				for _, r := range row {
-					for _, arg := range aggFuncArgs {
-						switch arg := arg.(type) {
-						case *parser.ColumnSpecification:
-							if _, ok := r[arg.ColumnName.Value]; !ok {
-								return nil, errors.New("column does not exist")
+			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+			if ok {
+				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = avg
+
+				results = append(results, group[0])
+			}
+
+		case "MAX":
+			// Find the maximum value
+			var mx int
+
+			for _, r := range group {
+
+				for _, arg := range aggFuncArgs {
+					switch arg := arg.(type) {
+					case *parser.ColumnSpecification:
+						if _, ok := r[arg.ColumnName.Value]; !ok {
+							return nil, errors.New("column does not exist")
+						}
+
+						switch r[arg.ColumnName.Value].(type) {
+						case int:
+							if r[arg.ColumnName.Value].(int) > mx {
+								mx = r[arg.ColumnName.Value].(int)
 							}
-
-							switch r[arg.ColumnName.Value].(type) {
-							case int:
-								if r[arg.ColumnName.Value].(int) < mn {
-									mn = r[arg.ColumnName.Value].(int)
-								}
-							case int64:
-								if int(r[arg.ColumnName.Value].(int64)) < mn {
-									mn = int(r[arg.ColumnName.Value].(int64))
-								}
-							case float64:
-								if int(r[arg.ColumnName.Value].(float64)) < mn {
-									mn = int(r[arg.ColumnName.Value].(float64))
-								}
+						case int64:
+							if int(r[arg.ColumnName.Value].(int64)) > mx {
+								mx = int(r[arg.ColumnName.Value].(int64))
+							}
+						case float64:
+							if int(r[arg.ColumnName.Value].(float64)) > mx {
+								mx = int(r[arg.ColumnName.Value].(float64))
 							}
 						}
 					}
+
 				}
 
-				rows := []map[string]interface{}{
-					{"MIN": mn},
+			}
+
+			newComparisonPredicate := &parser.ComparisonPredicate{
+				Left:  &parser.ValueExpression{Value: aggFuncArgs[0].(*parser.ColumnSpecification)},
+				Op:    cond.(*parser.ComparisonPredicate).Op,
+				Right: cond.(*parser.ComparisonPredicate).Right,
+			}
+
+			rows := []map[string]interface{}{
+				{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: mx},
+			}
+
+			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+			if ok {
+				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = mx
+				results = append(results, group[0])
+			}
+
+		case "MIN":
+			// Find the minimum value
+			mn := int(^uint(0) >> 1) // Max int value
+
+			for _, r := range group {
+				for _, arg := range aggFuncArgs {
+					switch arg := arg.(type) {
+					case *parser.ColumnSpecification:
+						if _, ok := r[arg.ColumnName.Value]; !ok {
+							return nil, errors.New("column does not exist")
+						}
+
+						switch r[arg.ColumnName.Value].(type) {
+						case int:
+							if r[arg.ColumnName.Value].(int) < mn {
+								mn = r[arg.ColumnName.Value].(int)
+							}
+						case int64:
+							if int(r[arg.ColumnName.Value].(int64)) < mn {
+								mn = int(r[arg.ColumnName.Value].(int64))
+							}
+						case float64:
+							if int(r[arg.ColumnName.Value].(float64)) < mn {
+								mn = int(r[arg.ColumnName.Value].(float64))
+							}
+						}
+					}
+
 				}
-				ok := ex.evaluateCondition(having.SearchCondition, &rows, nil, nil)
-				if ok {
-					results = append(results, row[0])
-				}
+
+			}
+
+			newComparisonPredicate := &parser.ComparisonPredicate{
+				Left:  &parser.ValueExpression{Value: aggFuncArgs[0].(*parser.ColumnSpecification)},
+				Op:    cond.(*parser.ComparisonPredicate).Op,
+				Right: cond.(*parser.ComparisonPredicate).Right,
+			}
+
+			rows := []map[string]interface{}{
+				{aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value: mn},
+			}
+
+			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
+			if ok {
+				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = mn
+				results = append(results, group[0])
 			}
 
 		}
 	}
 
 	return results, nil
+
 }
 
 // group groups the results
@@ -4240,6 +4331,7 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 					return false
 				}
 			} else {
+
 				switch left.(type) {
 				case int:
 					return left.(int) <= right.(int)
@@ -4356,8 +4448,8 @@ func (ex *Executor) evaluateCaseCondition(expr *parser.CaseExpr, rows *[]map[str
 }
 
 // EvaluateValueExpression evaluates a value expression
-func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
-	switch expr := expr.Value.(type) {
+func (ex *Executor) evaluateValueExpression(vexpr *parser.ValueExpression, rows *[]map[string]interface{}) interface{} {
+	switch expr := vexpr.Value.(type) {
 	case *parser.CaseExpr:
 		// check if left is column spec
 		col, err := ex.evaluateCaseExpr(expr, rows)
@@ -4857,7 +4949,9 @@ func (ex *Executor) evaluateValueExpression(expr *parser.ValueExpression, rows *
 		}
 
 	case *parser.Literal:
+
 		return expr.Value
+
 	case *parser.ColumnSpecification:
 
 		if expr.TableName == nil {
@@ -5291,6 +5385,10 @@ func (ex *Executor) orderBy(results []map[string]interface{}, orderBy *parser.Or
 	if order == parser.ASC {
 		sort.SliceStable(results, less)
 	} else {
+		if len(results) == 0 {
+			return results, nil
+		}
+
 		// For descending order, we can use the same function but negate the result
 		switch results[0][colName].(type) {
 		case int:
