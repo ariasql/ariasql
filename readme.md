@@ -10,7 +10,8 @@ AriaSQL is a relational database management system designed and engineered from 
 ## Features
 - [x] SQL1+ handwritten parser, lexer implementation (**AriaSQL follows and implements majority of SQL1 standard with some minor upgrades**)
 - [x] BTrees for indexes
-- [x] Optimized execution engine / compiler
+- [x] Concurreny control with fine grained locking
+- [x] Executer for query execution
 - [x] SQL Server (TCP Server on port `3695`)
 - [x] User authentication and privileges
 - [x] Atomic transactions with rollback support on error
