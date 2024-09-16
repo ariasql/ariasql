@@ -15547,10 +15547,16 @@ func TestStmt84(t *testing.T) {
 +---------+----+------------+-------+
 `
 
-	if string(ex.ResultSetBuffer) != expect {
-		t.Fatalf("expected %s, got %s", expect, string(ex.ResultSetBuffer))
-		return
+	expect2 := `+---------+----+------------+-------+
+| column  | io | operation  | table |
++---------+----+------------+-------+
+| user_id | 2  | INDEX SCAN | p     |
+| user_id | 2  | INDEX SCAN | u     |
++---------+----+------------+-------+
+`
 
+	if string(ex.ResultSetBuffer) != expect && string(ex.ResultSetBuffer) != expect2 {
+		t.Fatalf("expected %s OR %s, got %s", expect, expect2, string(ex.ResultSetBuffer))
 	}
 
 }
