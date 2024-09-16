@@ -2081,7 +2081,7 @@ func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
 }
 
 // Alter alters a table, specifically a column
-func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
+func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) error {
 	if columnDef == nil {
 		// Drop column
 		var existingIndexValues *Index
@@ -2094,7 +2094,10 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
 			if slices.Contains(idx.Columns, columnName) {
 				if len(idx.Columns) == 1 {
 					// Drop index
-					tbl.DropIndex(idx.Name)
+					err := tbl.DropIndex(idx.Name)
+					if err != nil {
+						return err
+					}
 				} else {
 					// Remove column from index
 					for i, col := range idx.Columns {
@@ -2154,8 +2157,176 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
 			}
 
 			// Write row back to table
-			tbl.Rows.WriteTo(ri.Current(), encoded)
+			err = tbl.Rows.WriteTo(ri.Current(), encoded)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		// check if column exists
+		if _, ok := tbl.TableSchema.ColumnDefinitions[columnName]; !ok {
+			// Column does not exist, add column
+
+			if len(columnName) > MAX_COLUMN_NAME_SIZE {
+				return fmt.Errorf("column name is too long, max length is %d", MAX_COLUMN_NAME_SIZE)
+			}
+
+			if !shared.IsValidDataType(columnDef.DataType) {
+				return fmt.Errorf("invalid data type %s", columnDef.DataType)
+			}
+
+			if columnDef.Unique {
+				err := tbl.CreateIndex(fmt.Sprintf("unique_%s", columnName), []string{columnName}, true)
+				if err != nil {
+					return err
+				}
+			}
+
+			if columnDef.Sequence {
+				// Check if sequence column exists
+				var sequenceDefined bool
+				for _, colDef := range tbl.TableSchema.ColumnDefinitions {
+					if colDef.Sequence {
+						sequenceDefined = true
+					}
+				}
+
+				if sequenceDefined {
+					return errors.New("sequence column already defined")
+				}
+
+				// Sequenced column must be unique and not null
+
+				if !columnDef.Unique || !columnDef.NotNull {
+
+					return fmt.Errorf("sequence column %s must be unique and not null", columnName)
+				}
+
+				// Datatype MUST be an integer
+				if strings.ToUpper(columnDef.DataType) != "INT" && strings.ToUpper(columnDef.DataType) != "INTEGER" {
+					return fmt.Errorf("sequence column %s must be an integer", columnName)
+				}
+
+				sequenceDefined = true
+			}
+
+			switch strings.ToUpper(columnDef.DataType) {
+			case "CHARACTER", "CHAR":
+				// A character datatype requires a length
+				if columnDef.Length == 0 {
+					return fmt.Errorf("column %s requires a length", columnName)
+				}
+			case "NUMERIC", "DECIMAL", "DEC", "FLOAT", "DOUBLE", "REAL":
+				// A numeric datatype requires a precision and scale
+				if columnDef.Precision == 0 {
+					return fmt.Errorf("column %s requires a precision", columnName)
+				}
+
+				if columnDef.Scale == 0 {
+					return fmt.Errorf("column %s requires a scale", columnName)
+				}
+			case "INT", "INTEGER", "SMALLINT":
+			case "DATE", "TIME", "TIMESTAMP", "DATETIME":
+			case "BINARY":
+			case "UUID":
+			case "BOOLEAN", "BOOL":
+			case "TEXT":
+			case "BLOB":
+
+			default:
+				return fmt.Errorf("invalid data type %s", columnDef.DataType)
+			}
+
+			// update schema
+			tbl.TableSchema.ColumnDefinitions[columnName] = columnDef
+
+			// write schema to file
+			schemaFile, err := os.Create(fmt.Sprintf("%s%s%s%s", tbl.Directory, shared.GetOsPathSeparator(), tbl.Name, DB_SCHEMA_TABLE_SCHEMA_FILE_EXTENSION))
+			if err != nil {
+				return err
+			}
+
+			defer schemaFile.Close()
+
+			// Encode schema to file
+			enc := gob.NewEncoder(schemaFile)
+
+			err = enc.Encode(tbl.TableSchema)
+			if err != nil {
+				return err
+			}
+
+			// iterate over all rows and add the column
+			ri := tbl.NewIterator()
+
+			for ri.Valid() {
+				row, err := ri.Next()
+				if err != nil {
+					continue
+				}
+
+				if columnDef.NotNull {
+					if _, ok := row[columnName]; !ok {
+						return fmt.Errorf("column %s cannot be null", columnName)
+					}
+				}
+
+				if columnDef.Unique {
+					if _, ok := row[columnName]; !ok {
+						return fmt.Errorf("column %s cannot be null", columnName)
+					}
+
+					idx := tbl.CheckIndexedColumn(columnName, true)
+					if idx == nil {
+						return fmt.Errorf("problem getting unique rows for column %s", columnName)
+					}
+
+					// Check if unique key exists
+					key, err := idx.btree.Get([]byte(fmt.Sprintf("%v", row[columnName])))
+					if err != nil {
+						return fmt.Errorf("problem getting unique rows for column %s", columnName)
+					}
+
+					if key != nil {
+
+						for _, rowId := range key.V {
+							// We store a []byte(rowId) in the btree
+							// We need to convert it to an int64
+
+							// Convert []byte to int64
+							id, err := strconv.ParseInt(string(rowId), 10, 64)
+							if err != nil {
+								return errors.New("problem getting unique rows")
+							}
+
+							// Get row from table
+							r, err := tbl.Rows.GetPage(id)
+							if err != nil {
+								return errors.New("problem getting unique rows")
+							}
+
+							// Decode row
+							decoded, err := decodeRow(r)
+							if err != nil {
+								return errors.New("problem getting unique rows")
+							}
+
+							// Check if row exists
+							if decoded[columnName] == row[columnName] {
+								return fmt.Errorf("row with %s %v already exists", columnName, row[columnName])
+							}
+
+						}
+					}
+				}
+
+			}
+
+		} else {
+			return errors.New("you can only drop a column or add a new column")
 		}
 	}
+
+	return nil
 
 }
