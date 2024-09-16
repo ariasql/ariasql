@@ -119,6 +119,7 @@
     <li><a href="#wal-recovery">WAL Recovery</a></li>
     <li><a href="#replication">Replication</a></li>
     <li><a href="#keywords">Keywords</a></li>
+    <li><a href="#altering-tables">Altering tables</a></li>
 
   </ul>
 </aside>
@@ -816,7 +817,29 @@ replicas:
 
   <h2 id="keywords">Keywords</h2>
   ALL, AND, ANY, AS, ASC, AUTHORIZATION, AVG, ALTER, BEGIN, BETWEEN, BY, CHECK, CLOSE, COBOL, COMMIT, CONTINUE, COUNT, CREATE, CURRENT, CURSOR, DECLARE, DELETE, DROP, DESC, DISTINCT, DATABASE, END, ESCAPE, EXEC, EXISTS, FETCH, FOR, FORTRAN, FOUND, FROM, GO, GOTO, GRANT, GROUP, HAVING, IN, INDEX, INDICATOR, INSERT, INTO, IS, SEQUENCE, LANGUAGE, LIKE, MAX, MIN, MODULE, NOT, NULL, OF, ON, OPEN, OPTION, OR, ORDER, PASCAL, PLI, PRECISION, PRIVILEGES, PROCEDURE, PUBLIC, ROLLBACK, SCHEMA, SECTION, SELECT, SET, SOME, SQL, SQLCODE, SQLERROR, SUM, TABLE, TO, UNION, UNIQUE, UPDATE, USER, VALUES, VIEW, WHENEVER, WHERE, WITH, WORK, USE, LIMIT, OFFSET, IDENTIFIED, CONNECT, REVOKE, SHOW, PRIMARY, FOREIGN, KEY, REFERENCES, DATE, TIME, TIMESTAMP, DATETIME, UUID, BINARY, DEFAULT, UPPER, LOWER, CAST, COALESCE, REVERSE, ROUND, POSITION, LENGTH, REPLACE, CONCAT, SUBSTRING, TRIM, GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP, SYS_DATETIME, CASE, WHEN, THEN, ELSE, END, IF, ELSEIF, DEALLOCATE, NEXT, WHILE, PRINT, EXPLAIN, COMPRESS, ENCRYPT
+
+
+
+  <h2 id="altering-tables">Altering tables</h2>
+  <p>In AriaSQL you can alter your column definitions for a table.</p>
+
+  <pre><code>
+ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;
+  </code></pre>
+
+  <p>If a column does not exist, it will be created.  When modifying a column you're altering the entire definition.</p>
+
+  <h4>Dropping a column</h4>
+  <p>Dropping a column will remove the column, also any indexes that are tied to it, if the index is created for 1 column.</p>
+
+  <pre>
+  <code>
+ALTER TABLE users DROP COLUMN age;
+  </code>
+</pre>
+
 </div>
+
 
 <footer>
   &copy; 2024 AriaSQL, all rights reserved.
