@@ -2281,6 +2281,20 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) error {
 						return fmt.Errorf("problem getting unique rows for column %s", columnName)
 					}
 
+					if tbl.Compress {
+						row[columnName], err = Compress([]byte(fmt.Sprintf("%v", row[columnName])))
+						if err != nil {
+							return err
+						}
+					}
+
+					if tbl.Encrypt {
+						row[columnName], err = Encrypt(tbl.HashedKey, tbl.Nonce, row[columnName].([]byte))
+						if err != nil {
+							return err
+						}
+					}
+
 					// Check if unique key exists
 					key, err := idx.btree.Get([]byte(fmt.Sprintf("%v", row[columnName])))
 					if err != nil {
@@ -2303,6 +2317,20 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) error {
 							r, err := tbl.Rows.GetPage(id)
 							if err != nil {
 								return errors.New("problem getting unique rows")
+							}
+
+							if tbl.Encrypt {
+								r, err = decrypt(tbl.HashedKey, tbl.Nonce, r)
+								if err != nil {
+									return errors.New("problem getting unique rows")
+								}
+							}
+
+							if tbl.Compress {
+								r, err = decompress(r)
+								if err != nil {
+									return errors.New("problem getting unique rows")
+								}
 							}
 
 							// Decode row
