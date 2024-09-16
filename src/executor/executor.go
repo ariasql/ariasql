@@ -3669,49 +3669,29 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 					// Check if value is time.Time
 					if _, ok := v.(time.Time); ok {
 						// if so we need to read the schema to get the type
-						if len(tbls) > 1 {
-							// split the key and get the table name
-							tblName := strings.Split(k, ".")[0]
 
-							// get the table
-							for _, tbl := range tbls {
-								if tbl.Name == tblName {
-									// get the column type
-									for name, col := range tbl.TableSchema.ColumnDefinitions {
-										if name == strings.Split(k, ".")[1] {
-											switch col.DataType {
-											case "DATE":
-												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
-											case "TIME":
-												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
-											case "TIMESTAMP", "DATETIME":
-												currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
-											}
+						// split the key and get the table name
+						tblName := strings.Split(k, ".")[0]
+
+						// get the table
+						for _, tbl := range tbls {
+							if tbl.Name == tblName {
+								// get the column type
+								for name, col := range tbl.TableSchema.ColumnDefinitions {
+									if name == strings.Split(k, ".")[1] {
+										switch col.DataType {
+										case "DATE":
+											currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
+										case "TIME":
+											currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
+										case "TIMESTAMP", "DATETIME":
+											currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
 										}
 									}
 								}
 							}
-						} else {
-
-							tbl := tbls[0]
-							// get the column type
-							for name, col := range tbl.TableSchema.ColumnDefinitions {
-
-								if name == k {
-									switch col.DataType {
-									case "DATE":
-										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02"))
-									case "TIME":
-										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("15:04:05"))
-									case "TIMESTAMP":
-										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
-									case "DATETIME":
-										currentRowsMap[i][k] = fmt.Sprintf("'%s'", v.(time.Time).Format("2006-01-02 15:04:05"))
-									}
-								}
-							}
-
 						}
+
 					}
 
 					if len(tbls) == 1 {

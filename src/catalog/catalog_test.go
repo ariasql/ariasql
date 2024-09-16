@@ -1449,7 +1449,7 @@ func TestCatalog_Compress(t *testing.T) {
 	}
 
 	// decompress
-	decompressed, err := decompress(compressed)
+	decompressed, err := Decompress(compressed)
 	if err != nil {
 		t.Fatal(err)
 	}
