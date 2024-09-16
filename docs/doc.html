@@ -822,15 +822,19 @@ replicas:
 
   <h2 id="altering-tables">Altering tables</h2>
   <p>In AriaSQL you can alter your column definitions for a table.</p>
+  <p>You can add to a definition or remove from it.</p>
+  <pre><code>
+ALTER TABLE [identifier] [ALTER|DROP] COLUMN [column specification];
+  </code></pre>
 
   <pre><code>
 ALTER TABLE users ALTER COLUMN age INT NOT NULL DEFAULT 232;
   </code></pre>
 
-  <p>If a column does not exist, it will be created.  When modifying a column you're altering the entire definition.</p>
+  <p>If a column does not exist, it will be created. </p>
 
   <h4>Dropping a column</h4>
-  <p>Dropping a column will remove the column, also any indexes that are tied to it, if the index is created for 1 column.</p>
+  <p>Dropping a column will remove the column, also any indexes that are tied to it, if the index is created for 1 column.  If the column is tied to a non unique index the indexed values will be removed.</p>
 
   <pre>
   <code>
