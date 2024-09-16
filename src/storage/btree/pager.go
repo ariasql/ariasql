@@ -409,6 +409,7 @@ func (p *Pager) GetPage(pageID int64) ([]byte, error) {
 	return result, nil
 }
 
+// GetDeletedPages returns the list of deleted pages
 func (p *Pager) GetDeletedPages() []int64 {
 	p.deletedPagesLock.Lock()
 	defer p.deletedPagesLock.Unlock()

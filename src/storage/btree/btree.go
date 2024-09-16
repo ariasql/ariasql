@@ -493,6 +493,7 @@ func (b *BTree) PrintTree() error {
 	return nil
 }
 
+// printTree prints the tree (for debugging purposes ****)
 func (b *BTree) printTree(node *Node, indent string, last bool) error {
 	fmt.Print(indent)
 	if last {
@@ -784,6 +785,7 @@ func (b *BTree) deleteRecursive(x *Node, k []byte) error {
 	return nil
 }
 
+// findPredecessor finds the predecessor of a key
 func (b *BTree) findPredecessor(x *Node, i int) (*Key, error) {
 
 	curBytes, err := b.Pager.GetPage(x.Children[i])
@@ -826,6 +828,7 @@ func (b *BTree) findPredecessor(x *Node, i int) (*Key, error) {
 	return cur.Keys[len(cur.Keys)-1], nil
 }
 
+// mergeNodes merges two nodes
 func (b *BTree) mergeNodes(x *Node, i int) error {
 
 	if len(x.Children) == i+1 {
@@ -1015,6 +1018,7 @@ func removeNilFromKeys(keys []*Key) []*Key {
 	return newKeys
 }
 
+// InOrderTraversal returns all keys in the BTree in order
 func (b *BTree) InOrderTraversal() ([]*Key, error) {
 	root, err := b.getRoot()
 	if err != nil {
@@ -1024,6 +1028,7 @@ func (b *BTree) InOrderTraversal() ([]*Key, error) {
 	return b.inOrderTraversal(root)
 }
 
+// inOrderTraversal returns all keys in the BTree in order
 func (b *BTree) inOrderTraversal(x *Node) ([]*Key, error) {
 	keys := make([]*Key, 0)
 	if x != nil {
