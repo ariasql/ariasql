@@ -417,11 +417,12 @@ ON [identifier] ([column specification][, ...]);</code></pre>
 
   <h3>INSERT Statement</h3>
   <pre><code>INSERT INTO [identifier ([column specification], [column specification], ...)
-VALUES ([literal [binary expression]], [literal [binary expression]], ...);</code></pre>
+VALUES ([literal [binary expression] [system function], [literal [binary expression] [system function]], ...);</code></pre>
   <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
   <p><strong>binary expression:</strong> An expression that evaluates to a value.</p>
   <p><strong>identifier:</strong> The name of the table to insert into.</p>
   <p><strong>column specification:</strong> The column to insert into.</p>
+  <p><strong>system function:</strong> A system function like GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP.</p>
 
   <h4>Example</h4>
     <pre><code>INSERT INTO employees (name, department_id, salary, hire_date)
