@@ -19,6 +19,7 @@ package catalog
 
 import (
 	"ariasql/shared"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"testing"
@@ -1455,6 +1456,56 @@ func TestCatalog_Compress(t *testing.T) {
 
 	// decode
 	decoded, err := decodeRow(decompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if decoded["id"] != 1 {
+		t.Fatalf("expected 1, got %d", decoded["id"])
+	}
+
+	if decoded["name"] != "'john_doe'" {
+		t.Fatalf("expected 'john_doe', got %s", decoded["name"])
+	}
+
+}
+
+func TestEncrypt(t *testing.T) {
+
+	// sha256 hash the key
+	hash := sha256.New()
+
+	// Write data to the hash
+	hash.Write([]byte("hello world"))
+
+	// Calculate the hash
+	hashBytes := hash.Sum(nil)
+
+	key := [32]byte(hashBytes)
+	nonce := [12]byte{}
+	nonce = [12]byte(append(nonce[:], hashBytes[len(hashBytes)-12:]...))
+
+	row := map[string]interface{}{
+		"id":   1,
+		"name": "'john_doe'",
+	}
+
+	encoded, err := EncodeRow(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enc, err := Encrypt(key, nonce, encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dec, err := Decrypt(key, nonce, enc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := decodeRow(dec)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1271,7 +1271,7 @@ func (tbl *Table) GetRow(rowId int64) (map[string]interface{}, error) {
 
 	// check for encryption
 	if tbl.Encrypt {
-		row, err = decrypt(tbl.HashedKey, tbl.Nonce, row)
+		row, err = Decrypt(tbl.HashedKey, tbl.Nonce, row)
 		if err != nil {
 			return nil, err
 		}
@@ -2066,7 +2066,7 @@ func Encrypt(key [32]byte, nonce [12]byte, row []byte) ([]byte, error) {
 }
 
 // Decrypt decrypts ciphertext using ChaCha20
-func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
+func Decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
 	var plaintext = make([]byte, len(cipherRow))
 
 	// Create a new ChaCha20 cipher
@@ -2320,7 +2320,7 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) error {
 							}
 
 							if tbl.Encrypt {
-								r, err = decrypt(tbl.HashedKey, tbl.Nonce, r)
+								r, err = Decrypt(tbl.HashedKey, tbl.Nonce, r)
 								if err != nil {
 									return errors.New("problem getting unique rows")
 								}
