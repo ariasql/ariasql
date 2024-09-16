@@ -399,7 +399,7 @@ func FormatToDateTime(date time.Time) string {
 
 // FormatToTimeStamp converts a time.Time to a string
 func FormatToTimeStamp(date time.Time) string {
-	return date.Format("2006-01-02T15:04:05")
+	return date.Format("2006-01-02 15:04:05")
 }
 
 // GenerateUUID generates a UUID

@@ -19,7 +19,9 @@ package shared
 
 import (
 	"log"
+	"os"
 	"testing"
+	"time"
 )
 
 func TestIsValidDataType(t *testing.T) {
@@ -131,4 +133,117 @@ func TestReverseString(t *testing.T) {
 	if reversed != "olleh" {
 		t.Errorf("expected olleh, got %s", reversed)
 	}
+}
+
+func TestIdenticalMaps(t *testing.T) {
+	m1 := map[string]interface{}{
+		"ID":   1,
+		"Name": "John",
+	}
+
+	m2 := map[string]interface{}{
+		"ID":   1,
+		"Name": "John",
+	}
+
+	if !IdenticalMap(m1, m2) {
+		t.Errorf("expected maps to be identical")
+	}
+}
+
+func TestFormatToTimeStamp(t *testing.T) {
+	ti := time.Now()
+	timestamp := FormatToTimeStamp(ti)
+
+	if timestamp != ti.Format("2006-01-02 15:04:05") {
+		t.Errorf("expected %v, got %v", ti.Format("2006-01-02 15:04:05"), timestamp)
+	}
+}
+
+func TestFormatToDate(t *testing.T) {
+	ti := time.Now()
+	date := FormatToDate(ti)
+
+	if date != ti.Format("2006-01-02") {
+		t.Errorf("expected %v, got %v", ti.Format("2006-01-02"), date)
+	}
+}
+
+func TestFormatToDateTime(t *testing.T) {
+	ti := time.Now()
+	datetime := FormatToDateTime(ti)
+
+	if datetime != ti.Format("2006-01-02 15:04:05") {
+		t.Errorf("expected %v, got %v", ti.Format("2006-01-02 15:04:05"), datetime)
+	}
+}
+
+func TestFormatToTime(t *testing.T) {
+	ti := time.Now()
+	time := FormatToTime(ti)
+
+	if time != ti.Format("15:04:05") {
+		t.Errorf("expected %v, got %v", ti.Format("15:04:05"), time)
+	}
+}
+
+func TestStringToGOTime(t *testing.T) {
+	toParse := []string{
+		"2006-01-02",
+		"15:04:05",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05",
+	}
+
+	for _, s := range toParse {
+		_, err := StringToGOTime(s)
+		if err != nil {
+			t.Errorf("expected %v to be valid", s)
+		}
+	}
+}
+
+func TestIsValidTimeFormat(t *testing.T) {
+	valid := []string{
+		"15:04:05",
+	}
+
+	for _, v := range valid {
+		if !IsValidTimeFormat(v) {
+			t.Errorf("expected %v to be valid", v)
+		}
+	}
+}
+
+func TestIsValidDateTimeFormat(t *testing.T) {
+	valid := []string{
+		"2006-01-02 15:04:05",
+	}
+
+	for _, v := range valid {
+		if !IsValidDateTimeFormat(v) {
+			t.Errorf("expected %v to be valid", v)
+		}
+	}
+}
+
+func TestCopyDir(t *testing.T) {
+	src := "testdata"
+	dest := "testdata_copy"
+
+	defer os.RemoveAll(src)
+	defer os.RemoveAll(dest)
+
+	os.Mkdir(src, 0755)
+
+	err := CopyDir(src, dest)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Check if the directory was copied
+	if _, err := os.Stat(dest); os.IsNotExist(err) {
+		t.Error("expected directory to be copied")
+	}
+
 }
