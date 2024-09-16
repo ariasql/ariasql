@@ -188,21 +188,17 @@ i.e C:\ProgramData\AriaSQL
   <pre><code>/var/lib/ariasql</code></pre>
 
   <h4>ariaconfig.yaml</h4>
-  <pre><code>
-datadir: /var/lib/ariasql # The data directory for AriaSQL
-logging: false # Enable logging to aria.log
-  </code></pre>
+  <pre><code>datadir: /var/lib/ariasql # The data directory for AriaSQL
+logging: false # Enable logging to aria.log</code></pre>
 
   <h4>ariaserver.yaml</h4>
-  <pre><code>
-port: 3695 # server port
+  <pre><code>port: 3695 # server port
 host: 0.0.0.0 # server host
 buffersize: 1024 # buffer size for the server
 tls: false # enable tls
 tlscert: "" # path to tls cert
 tlskey: "" # path to tls key
-json: false # enable json output
-  </code></pre>
+json: false # enable json output</code></pre>
 
   <h4>users.usrs</h4>
   <p>System users, encoded file.</p>
@@ -731,6 +727,31 @@ END;</code></pre>
   <pre><code>EXPLAIN [statement];</code></pre>
   <p><strong>statement:</strong> The SQL statement to analyze, which can be a SELECT, UPDATE, or DELETE statement.</p>
 
+  <pre><code>EXPLAIN SELECT * FROM t;</code></pre>
+
+  <pre><code>+--------+----+-----------+-------+
+| column | io | operation | table |
++--------+----+-----------+-------+
+| n/a    | 5  | FULL SCAN | t     |
++--------+----+-----------+-------+</code></pre>
+
+
+  <pre><code>EXPLAIN SELECT * FROM t WHERE id = 4 AND val = 4;</code></pre>
+
+  <pre><code>+--------+----+------------+-------+
+| column | io | operation  | table |
++--------+----+------------+-------+
+| id     | 2  | INDEX SCAN | t     |
++--------+----+------------+-------+</code></pre>
+
+<pre><code>EXPLAIN SELECT * FROM users u, posts p WHERE u.user_id = p.user_id;</code></pre>
+
+  <pre><code>+---------+----+------------+-------+
+| column  | io | operation  | table |
++---------+----+------------+-------+
+| user_id | 2  | INDEX SCAN | u     |
+| user_id | 2  | INDEX SCAN | p     |
++---------+----+------------+-------+</code></pre>
 
   <h2 id="joins">Joins</h2>
 
