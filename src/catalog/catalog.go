@@ -2084,6 +2084,7 @@ func decrypt(key [32]byte, nonce [12]byte, cipherRow []byte) ([]byte, error) {
 func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
 	if columnDef == nil {
 		// Drop column
+		var existingIndexValues *Index
 
 		// Find indexes that are using that column
 		for _, idx := range tbl.Indexes {
@@ -2099,7 +2100,12 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
 					for i, col := range idx.Columns {
 						if col == columnName {
 							idx.Columns = append(idx.Columns[:i], idx.Columns[i+1:]...)
+
+							if !idx.Unique {
+								existingIndexValues = idx
+							}
 						}
+
 					}
 
 				}
@@ -2116,6 +2122,13 @@ func (tbl *Table) Alter(columnName string, columnDef *ColumnDefinition) {
 			row, err := ri.Next()
 			if err != nil {
 				continue
+			}
+
+			if _, ok := row[columnName]; ok {
+				if existingIndexValues != nil {
+					// remove from indexes
+					existingIndexValues.btree.Remove([]byte(fmt.Sprintf("%v", row[columnName])), []byte(fmt.Sprintf("%d", ri.Current())))
+				}
 			}
 
 			// Remove column from row
