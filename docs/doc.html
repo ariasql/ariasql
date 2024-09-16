@@ -22,7 +22,7 @@
 
     .container {
       max-width: 760px;
-      margin-left: 220px;
+      margin-left: 288px;
       padding: 20px;
       background: #fff;
     }
@@ -79,7 +79,7 @@
       left: 0;
       top: 0;
       float: left;
-      width: 200px;
+      width: 268px;
       background: white;
       overflow-y: scroll;
       height: 100vh;
@@ -107,7 +107,7 @@
     <li><a href="#table-management">Table Management</a></li>
     <li><a href="#database-context">Database Context</a></li>
     <li><a href="#data-manipulation">Data Manipulation</a></li>
-    <li><a href="#expressions-and-functions">Expressions and Functions</a></li>
+    <li><a href="#pred-func">Predicates and Functions</a></li>
     <li><a href="#transaction-control">Transaction Control</a></li>
     <li><a href="#user-management">User Management</a></li>
     <li><a href="#privileges-and-grants">Privileges and Grants</a></li>
@@ -137,7 +137,7 @@
       <li><a href="#table-management">Table Management</a></li>
       <li><a href="#database-context">Database Context</a></li>
       <li><a href="#data-manipulation">Data Manipulation</a></li>
-      <li><a href="#expressions-and-functions">Expressions and Functions</a></li>
+      <li><a href="#pred-func">Predicates and Functions</a></li>
       <li><a href="#transaction-control">Transaction Control</a></li>
       <li><a href="#user-management">User Management</a></li>
       <li><a href="#privileges-and-grants">Privileges and Grants</a></li>
@@ -477,14 +477,35 @@ WHERE [condition];</code></pre>
   <p><strong>identifier:</strong> The name of the table to delete from.</p>
   <p><strong>condition:</strong> Conditions to specify which rows to delete.</p>
 
-  <h2>Expressions and Functions</h2>
-
-  <h3>Value Expressions</h3>
+  <h2 id="pred-func">Predicates and Functions</h2>
 
 
   <h4>Comparison Predicate</h4>
-  <pre><code>column operator value;</code></pre>
+  <pre><code>[column specification|binary expression|system function] operator [column specification|binary expression|system function];</code></pre>
   <p><strong>operator:</strong> Comparison operators like `=`, `!=`, `<`, `>`, `<=`, `>=`.</p>
+
+  <h4>IN Predicate</h4>
+  <pre><code>[column specification|binary expression|system function] IN (literal, literal, ...|sub select query);</code></pre>
+  <p><strong>literal:</strong> A constant value like a string, number, or date.</p>
+
+  <h4>LIKE Predicate</h4>
+  <pre><code>[column specification|system function] LIKE 'pattern';</code></pre>
+  <p><strong>pattern:</strong> A string pattern to match against.</p>
+
+  <h4>IS NULL Predicate</h4>
+  <pre><code>[column specification] IS NULL;</code></pre>
+
+  <h4>IS NOT NULL Predicate</h4>
+  <pre><code>[column specification] IS NOT NULL;</code></pre>
+
+  <h4>NOT Predicate</h4>
+  <pre><code>NOT [condition];</code></pre>
+
+  <h4>EXISTS Predicate</h4>
+  <pre><code>EXISTS (SELECT ...);</code></pre>
+
+
+
 
   <h4>Logical Condition</h4>
   <pre><code>(condition1 AND|OR condition2);</code></pre>
