@@ -35,9 +35,9 @@ AriaSQL is a relational database management system designed and engineered from 
 - [x] DEFAULT constraint
 - [x] CHECK constraint
 - [x] GENERATE_UUID, SYS_DATE, SYS_TIME, SYS_TIMESTAMP `functions which can be used with CREATE TABLE, or INSERT INTO, UPDATE, SELECT`
-- [x] Logging to file (aria.log)
-- [x] Encryption (ChaCha20) - Encrypts row data for storage with table level encryption
-- [x] Compression (ZSTD) - Compresses row data for storage
+- [x] Logging to file (aria.log) [optional]
+- [x] Encryption (ChaCha20) - Encrypts row data for storage with table level encryption [optional]
+- [x] Compression (ZSTD) - Compresses row data for storage [optional]
 - [x] Alter table (migration)
 - [ ] Replication - Replication to slave nodes, replicates wal entries from master to slave nodes.
 

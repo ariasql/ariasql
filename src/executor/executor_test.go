@@ -21,6 +21,7 @@ import (
 	"ariasql/core"
 	"ariasql/parser"
 	"ariasql/wal"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -18466,4 +18467,34 @@ func TestStmt99(t *testing.T) {
 		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
 		return
 	}
+
+	stmt = []byte(`
+	SELECT u.Username, t.Content, t.CreatedAt
+	FROM Tweets t
+	JOIN Users u ON t.UserID = u.UserID
+	WHERE t.CreatedAt = (
+		SELECT MAX(t2.CreatedAt)
+		FROM Tweets t2
+		WHERE t2.UserID = t.UserID
+	);
+
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	log.Println(string(ex.ResultSetBuffer))
 }
