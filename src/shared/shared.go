@@ -150,16 +150,20 @@ func getColumnWidths(data []map[string]interface{}, headers []string) map[string
 }
 
 // Get Headers Get the headers of the data
-func GetHeaders(data []map[string]interface{}) []string {
+func GetHeaders(data []map[string]interface{}, sortColumns bool) []string {
 	if len(data) == 0 {
 		return []string{}
 	}
+
 	headers := make([]string, 0)
 	for header := range data[0] {
 		headers = append(headers, header)
 	}
 
-	sort.Sort(sort.StringSlice(headers))
+	if sortColumns {
+		sort.Sort(sort.StringSlice(headers))
+
+	}
 
 	return headers
 }
@@ -440,4 +444,19 @@ func RemoveSingleQuotesFromResult(data *[]map[string]interface{}) {
 			}
 		}
 	}
+}
+
+// RemoveDupesStringSlice removes duplicates from a string slice
+func RemoveDupesStringSlice(slice *[]string) []string {
+	keys := make(map[string]bool)
+	var list []string
+
+	for _, entry := range *slice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+
+	return list
 }

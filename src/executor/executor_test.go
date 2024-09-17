@@ -6693,13 +6693,13 @@ func TestStmt35(t *testing.T) {
 		return
 	}
 
-	expect := `+-------+---------+
-| money | user_id |
-+-------+---------+
-| 500   | 5       |
-| 400   | 4       |
-| 300   | 3       |
-+-------+---------+
+	expect := `+---------+-------+
+| user_id | money |
++---------+-------+
+| 5       | 500   |
+| 4       | 400   |
+| 3       | 300   |
++---------+-------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -9855,11 +9855,11 @@ func TestStmt52(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+----------+
-| has_dog | username |
-+---------+----------+
-| true    | 'ALEX'   |
-+---------+----------+
+	expect := `+----------+---------+
+| username | has_dog |
++----------+---------+
+| 'ALEX'   | true    |
++----------+---------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -10026,12 +10026,12 @@ func TestStmt53(t *testing.T) {
 		return
 	}
 
-	expect := `+---------+----------+
-| has_dog | username |
-+---------+----------+
-| 'true'  | 'alex'   |
-| 'true'  | 'dave'   |
-+---------+----------+
+	expect := `+----------+---------+
+| username | has_dog |
++----------+---------+
+| 'alex'   | 'true'  |
+| 'dave'   | 'true'  |
++----------+---------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -11737,13 +11737,13 @@ func TestStmt64(t *testing.T) {
 		return
 	}
 
-	expect := `+-----------+---------+------------+
-| mola      | user_id | username   |
-+-----------+---------+------------+
-| 'no mola' | 1       | 'Jonathan' |
-| 'no mola' | 2       | 'Joe'      |
-| 'no mola' | 3       | 'Jane'     |
-+-----------+---------+------------+
+	expect := `+---------+------------+-----------+
+| user_id | username   | mola      |
++---------+------------+-----------+
+| 1       | 'Jonathan' | 'no mola' |
+| 2       | 'Joe'      | 'no mola' |
+| 3       | 'Jane'     | 'no mola' |
++---------+------------+-----------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -12081,13 +12081,13 @@ func TestStmt66(t *testing.T) {
 		return
 	}
 
-	expect := `+-------+------------+
-| money | username   |
-+-------+------------+
-| 22    | 'Jonathan' |
-| 39    | 'Joe'      |
-| 21    | 'Jane'     |
-+-------+------------+
+	expect := `+------------+-------+
+| username   | money |
++------------+-------+
+| 'Jonathan' | 22    |
+| 'Joe'      | 39    |
+| 'Jane'     | 21    |
++------------+-------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -12253,13 +12253,13 @@ func TestStmt67(t *testing.T) {
 		return
 	}
 
-	expect := `+-----+------------+
-| pos | username   |
-+-----+------------+
-| 5   | 'Jonathan' |
-| -1  | 'Joe'      |
-| -1  | 'Jane'     |
-+-----+------------+
+	expect := `+------------+-----+
+| username   | pos |
++------------+-----+
+| 'Jonathan' | 5   |
+| 'Joe'      | -1  |
+| 'Jane'     | -1  |
++------------+-----+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -12941,13 +12941,13 @@ func TestStmt71(t *testing.T) {
 		return
 	}
 
-	expect := `+----------+------------+
-| money    | username   |
-+----------+------------+
-| '$22.44' | 'Jonathan' |
-| '$38.78' | 'Joe'      |
-| '$21.10' | 'Jane'     |
-+----------+------------+
+	expect := `+------------+----------+
+| username   | money    |
++------------+----------+
+| 'Jonathan' | '$22.44' |
+| 'Joe'      | '$38.78' |
+| 'Jane'     | '$21.10' |
++------------+----------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -13118,13 +13118,13 @@ func TestStmt72(t *testing.T) {
 		return
 	}
 
-	expect := `+--------------+------------+
-| money_status | username   |
-+--------------+------------+
-| 'rich class' | 'Jonathan' |
-| 'poor class' | 'Joe'      |
-| 'poor class' | 'Jane'     |
-+--------------+------------+
+	expect := `+------------+--------------+
+| username   | money_status |
++------------+--------------+
+| 'Jonathan' | 'rich class' |
+| 'Joe'      | 'poor class' |
+| 'Jane'     | 'poor class' |
++------------+--------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -13295,13 +13295,13 @@ func TestStmt73(t *testing.T) {
 		return
 	}
 
-	expect := `+--------------+------------+
-| case_result  | username   |
-+--------------+------------+
-| 'rich class' | 'Jonathan' |
-| 'poor class' | 'Joe'      |
-| 'poor class' | 'Jane'     |
-+--------------+------------+
+	expect := `+------------+--------------+
+| username   | case_result  |
++------------+--------------+
+| 'Jonathan' | 'rich class' |
+| 'Joe'      | 'poor class' |
+| 'Jane'     | 'poor class' |
++------------+--------------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {
@@ -16240,15 +16240,15 @@ func TestStmt87(t *testing.T) {
 		return
 	}
 
-	expect := `+--------+----------+--------+
-| Amount | Product  | SaleID |
-+--------+----------+--------+
-| 30     | 'Widget' | 4      |
-| 25     | 'Widget' | 3      |
-| 25     | 'Widget' | 1      |
-| 20     | 'Gadget' | 7      |
-| 20     | 'Widget' | 6      |
-+--------+----------+--------+
+	expect := `+--------+--------+----------+
+| SaleID | Amount | Product  |
++--------+--------+----------+
+| 4      | 30     | 'Widget' |
+| 3      | 25     | 'Widget' |
+| 1      | 25     | 'Widget' |
+| 7      | 20     | 'Gadget' |
+| 6      | 20     | 'Widget' |
++--------+--------+----------+
 `
 
 	if !strings.Contains(string(ex.ResultSetBuffer), expect) {
@@ -18232,12 +18232,12 @@ func TestStmt98(t *testing.T) {
 		return
 	}
 
-	expect := `+---------------+------------+
-| department_id | min_salary |
-+---------------+------------+
-| 4             | 80000      |
-| 2             | 70000      |
-+---------------+------------+
+	expect := `+----------------+-------------+----------+
+| salesperson_id | total_sales | max_sale |
++----------------+-------------+----------+
+| 1              | 2200        | 1200     |
+| 2              | 2300        | 1500     |
++----------------+-------------+----------+
 `
 
 	if string(ex.ResultSetBuffer) != expect {

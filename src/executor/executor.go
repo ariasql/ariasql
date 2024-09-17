@@ -924,7 +924,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			if !ex.json {
-				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results, true))
 			} else {
 				var err error
 				ex.ResultSetBuffer, err = shared.CreateJSONByteArray(results)
@@ -970,7 +970,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			if !ex.json {
-				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results, true))
 			} else {
 				var err error
 				shared.RemoveSingleQuotesFromResult(&results)
@@ -993,7 +993,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			if !ex.json {
-				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results, true))
 			} else {
 				var err error
 				shared.RemoveSingleQuotesFromResult(&results)
@@ -1020,7 +1020,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			}
 
 			if !ex.json {
-				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+				ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results, true))
 			} else {
 				var err error
 				shared.RemoveSingleQuotesFromResult(&results)
@@ -1606,7 +1606,8 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 
 // executeSelectStmt executes a select statement
 func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([]map[string]interface{}, error) {
-	var results []map[string]interface{}
+	var results []map[string]interface{} // Final results
+	var headers []string                 // Headers, final select list headers(columns,keys)
 
 	// Check for select list
 	if stmt.SelectList == nil {
@@ -1703,7 +1704,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			// Check for having clause
 			if stmt.TableExpression.HavingClause != nil {
 				// Filter the results based on the having clause
-				results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause)
+				results, err = ex.having(groupedRows, stmt.TableExpression.HavingClause, stmt.SelectList)
 				if err != nil {
 					return nil, err
 				}
@@ -1712,7 +1713,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 				// We can just filter the columns based on the select list
 				ex.removeAggregatesFromSelectList(stmt.SelectList)
 
-				err = ex.selectListFilter(&results, stmt.SelectList)
+				err = ex.selectListFilter(&results, stmt.SelectList, &headers)
 				if err != nil {
 					return nil, err
 
@@ -1729,7 +1730,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 			// We should evaluate the select list
 			// Based on projection (select list), we can filter the columns
 
-			err = ex.selectListFilter(&results, stmt.SelectList)
+			err = ex.selectListFilter(&results, stmt.SelectList, &headers)
 			if err != nil {
 				return nil, err
 
@@ -1801,7 +1802,12 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	// Now we format the results
 	if !ex.json {
-		ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results))
+		if len(headers) == 0 {
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, shared.GetHeaders(results, true))
+		} else {
+			ex.ResultSetBuffer = shared.CreateTableByteArray(results, headers)
+
+		}
 	} else {
 		var err error
 		shared.RemoveSingleQuotesFromResult(&results)
@@ -1816,23 +1822,39 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 }
 
+// checkWildcard checks select list for wildcard
+func (ex *Executor) checkWildcard(selectList *parser.SelectList) bool {
+	for _, expr := range selectList.Expressions {
+		if _, ok := expr.Value.(*parser.Wildcard); ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // removeAggregatesFromSelectList removes aggregates from the select list, after evaluating the having clause
 func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList) {
+
 	for i, expr := range selectList.Expressions {
 		if agg, ok := expr.Value.(*parser.AggregateFunc); ok {
-			selectList.Expressions = append(selectList.Expressions[:i], selectList.Expressions[i+1:]...)
 
-			// add argument columns to select list
+			// replace aggregate function with column specification
 			for _, arg := range agg.Args {
-				if _, ok := arg.(*parser.ColumnSpecification); ok {
+				if colSpec, ok := arg.(*parser.ColumnSpecification); ok {
 
 					if expr.Alias != nil {
-						selectList.Expressions = append(selectList.Expressions, &parser.ValueExpression{Value: arg, Alias: expr.Alias})
+						selectList.Expressions[i] = &parser.ValueExpression{Value: colSpec, Alias: expr.Alias}
+						selectList.Expressions[i] = &parser.ValueExpression{Value: &parser.ColumnSpecification{ColumnName: &parser.Identifier{
+							Value: expr.Alias.Value,
+						}}}
 					} else {
-						selectList.Expressions = append(selectList.Expressions, &parser.ValueExpression{Value: arg})
+						selectList.Expressions[i] = &parser.ValueExpression{Value: colSpec}
 					}
+
 				}
 			}
+
 		}
 	}
 
@@ -1890,7 +1912,7 @@ func (ex *Executor) executeUpdateStmt(stmt *parser.UpdateStmt) ([]int64, []map[s
 
 	// Now we format the results
 	if !ex.json {
-		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows, true))
 	} else {
 		var err error
 		shared.RemoveSingleQuotesFromResult(&rows)
@@ -1946,7 +1968,7 @@ func (ex *Executor) executeDeleteStmt(stmt *parser.DeleteStmt) ([]int64, []map[s
 
 	// Now we format the results
 	if !ex.json {
-		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows))
+		ex.ResultSetBuffer = shared.CreateTableByteArray(rows, shared.GetHeaders(rows, true))
 	} else {
 		var err error
 		shared.RemoveSingleQuotesFromResult(&rows)
@@ -1992,7 +2014,7 @@ func convertSetClauseToCatalogLike(setClause *[]*parser.SetClause, row *map[stri
 }
 
 // having filters the results based on the having clause
-func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{}, having *parser.HavingClause) ([]map[string]interface{}, error) {
+func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{}, having *parser.HavingClause, selectList *parser.SelectList) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
 	var leftCondition, rightCondition interface{}
@@ -2009,13 +2031,13 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 	}
 
 	for _, group := range groupedRows {
-		leftResults, err := ex.evalHavingCondition(leftCondition, group)
+		leftResults, err := ex.evalHavingCondition(leftCondition, group, selectList)
 		if err != nil {
 			return nil, err
 		}
 
 		if rightCondition != nil {
-			rightResults, err := ex.evalHavingCondition(rightCondition, group)
+			rightResults, err := ex.evalHavingCondition(rightCondition, group, selectList)
 			if err != nil {
 				return nil, err
 			}
@@ -2040,7 +2062,8 @@ func (ex *Executor) having(groupedRows map[interface{}][]map[string]interface{},
 	return results, nil
 }
 
-func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]interface{}) ([]map[string]interface{}, error) {
+// evalHavingCondition evaluates the having condition
+func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]interface{}, selectList *parser.SelectList) ([]map[string]interface{}, error) {
 	var results []map[string]interface{}
 
 	switch cond.(type) {
@@ -2127,8 +2150,25 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 
 			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 			if ok {
+				usingAlias := false
+				// Check if agg is within select list, if so get alias
+				if selectList != nil {
+					for _, expr := range selectList.Expressions {
+						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
+							if expr.Value.(*parser.AggregateFunc).FuncName == "SUM" {
+								if expr.Alias != nil {
+									group[0][expr.Alias.Value] = sum
+								} else {
+									group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = sum
+								}
+							}
+						}
+					}
+				}
 
-				results = append(results, group[0])
+				if !usingAlias {
+					results = append(results, group[0])
+				}
 			}
 		case "AVG":
 			// Average the values
@@ -2221,7 +2261,26 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 
 			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 			if ok {
-				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = mx
+
+				usingAlias := false
+				// Check if agg is within select list, if so get alias
+				if selectList != nil {
+					for _, expr := range selectList.Expressions {
+						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
+							if expr.Value.(*parser.AggregateFunc).FuncName == "MAX" {
+								if expr.Alias != nil {
+									group[0][expr.Alias.Value] = mx
+									usingAlias = true
+								}
+							}
+						}
+					}
+				}
+
+				if !usingAlias {
+					group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = mx
+				}
+
 				results = append(results, group[0])
 			}
 
@@ -2318,7 +2377,7 @@ func getFirstAggFuncFromBinaryExpression(expr *parser.BinaryExpression) *parser.
 }
 
 // selectListFilter filters the results based on the select list
-func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectList *parser.SelectList) error {
+func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectList *parser.SelectList, headers *[]string) error {
 
 	if ex.explaining {
 		return nil
@@ -2332,8 +2391,6 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 	if len(selectList.Expressions) == 0 {
 		return errors.New("no select list")
 	}
-
-	var columns []string // The columns to be selected
 
 	for i, expr := range selectList.Expressions {
 
@@ -2369,9 +2426,9 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 				}
 
 				if selectList.Expressions[i].Alias == nil {
-					columns = append(columns, col.ColumnName.Value)
+					*headers = append(*headers, col.ColumnName.Value)
 				} else {
-					columns = append(columns, selectList.Expressions[i].Alias.Value)
+					*headers = append(*headers, selectList.Expressions[i].Alias.Value)
 				}
 			} else {
 				// is aggregate function
@@ -2385,10 +2442,10 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 
 				if selectList.Expressions[i].Alias == nil {
 					*results = []map[string]interface{}{map[string]interface{}{getFirstAggFuncFromBinaryExpression(expr).FuncName: val}}
-					columns = []string{getFirstAggFuncFromBinaryExpression(expr).FuncName}
+					*headers = []string{getFirstAggFuncFromBinaryExpression(expr).FuncName}
 				} else {
 					*results = []map[string]interface{}{map[string]interface{}{selectList.Expressions[i].Alias.Value: val}}
-					columns = []string{selectList.Expressions[i].Alias.Value}
+					*headers = []string{selectList.Expressions[i].Alias.Value}
 				}
 
 			}
@@ -2405,7 +2462,7 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 						for k, v := range row {
 							if strings.HasPrefix(k, expr.TableName.Value+".") {
 								row[k] = v
-								columns = append(columns, k)
+								*headers = append(*headers, k)
 							}
 						}
 					}
@@ -2413,7 +2470,7 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 				}
 
 			} else {
-				columns = append(columns, selectList.Expressions[i].Alias.Value)
+				*headers = append(*headers, selectList.Expressions[i].Alias.Value)
 				// Replace all instances of the column name with the alias
 				for _, row := range *results {
 
@@ -2424,19 +2481,19 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 				}
 			}
 
-			columns = append(columns, expr.ColumnName.Value)
+			*headers = append(*headers, expr.ColumnName.Value)
 		case *parser.AggregateFunc:
 			var err error
 
 			// evaluate the aggregate function
-			err = evaluateAggregate(expr, results, &columns, selectList.Expressions[i].Alias)
+			err = evaluateAggregate(expr, results, headers, selectList.Expressions[i].Alias)
 			if err != nil {
 				return err
 			}
 		case *parser.CaseExpr:
 			var err error
 
-			err = ex.evaluateSelectCase(expr, results, &columns, selectList.Expressions[i].Alias)
+			err = ex.evaluateSelectCase(expr, results, headers, selectList.Expressions[i].Alias)
 			if err != nil {
 				return err
 			}
@@ -2444,7 +2501,7 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 			*parser.TrimFunc, *parser.SubstrFunc, *parser.ConcatFunc, *parser.CastFunc, *shared.GenUUID, *shared.SysDate,
 			*shared.SysTime, *shared.SysTimestamp, *parser.CoalesceFunc, *parser.ReverseFunc:
 			var err error
-			err = evaluateSystemFunc(expr, results, &columns, selectList.Expressions[i].Alias)
+			err = evaluateSystemFunc(expr, results, headers, selectList.Expressions[i].Alias)
 			if err != nil {
 				return err
 			}
@@ -2452,9 +2509,20 @@ func (ex *Executor) selectListFilter(results *[]map[string]interface{}, selectLi
 
 	}
 
+	// remove dupes from columns
+	*headers = shared.RemoveDupesStringSlice(headers)
+
+	// check if * is in headers
+	for i, h := range *headers {
+		if h == "*" {
+			// remove
+			*headers = append((*headers)[:i], (*headers)[i+1:]...)
+		}
+	}
+
 	for _, row := range *results {
 		for k, _ := range row {
-			if !slices.Contains(columns, k) {
+			if !slices.Contains(*headers, k) {
 				delete(row, k)
 			}
 		}
@@ -3144,7 +3212,7 @@ func (ex *Executor) search(tbls []*catalog.Table, where *parser.WhereClause, upd
 		}
 
 		if ex.explaining {
-			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan)))
+			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan), true))
 			return filteredRows, nil
 		}
 
@@ -3583,7 +3651,7 @@ func (ex *Executor) filter(where *parser.WhereClause, tbls []*catalog.Table, fil
 				}
 			}
 
-			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan)))
+			ex.ResultSetBuffer = shared.CreateTableByteArray(convertPlanToRows(ex.plan), shared.GetHeaders(convertPlanToRows(ex.plan), true))
 
 			return nil
 
