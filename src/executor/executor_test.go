@@ -18247,3 +18247,223 @@ func TestStmt98(t *testing.T) {
 	}
 
 }
+
+func TestStmt99(t *testing.T) {
+	defer os.RemoveAll("./test/")
+
+	// Create a new AriaSQL instance
+	aria, err := core.New(&core.Config{
+		DataDir: "./test",
+	})
+	if err != nil {
+		t.Fatal(err)
+		return
+
+	}
+
+	aria.Catalog = catalog.New(aria.Config.DataDir)
+
+	if err := aria.Catalog.Open(); err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	defer aria.Close()
+
+	aria.Channels = make([]*core.Channel, 0)
+	aria.ChannelsLock = &sync.Mutex{}
+
+	user := aria.Catalog.GetUser("admin")
+	ch := aria.OpenChannel(user)
+	ex := New(aria, ch)
+
+	stmt := []byte(`
+	CREATE DATABASE test;
+`)
+
+	lexer := parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p := parser.NewParser(lexer)
+	ast, err := p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+	}
+
+	stmt = []byte(`
+	USE test;
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE Users (
+		UserID INT PRIMARY KEY SEQUENCE,
+		Username CHAR(50) NOT NULL UNIQUE,
+		Email CHAR(100) NOT NULL UNIQUE,
+		CreatedAt TIMESTAMP DEFAULT SYS_TIMESTAMP
+	);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	CREATE TABLE Tweets (
+		TweetID INT PRIMARY KEY SEQUENCE,
+		UserID INT,
+		Content TEXT NOT NULL,
+		CreatedAt TIMESTAMP DEFAULT SYS_TIMESTAMP,
+		FOREIGN KEY (UserID) REFERENCES Users(UserID)
+	);
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO Users (Username, Email, CreatedAt) VALUES
+		('john_doe', 'john@example.com', '2024-01-15 10:00:00'),
+		('jane_smith', 'jane@example.com', '2024-02-20 11:30:00'),
+		('alice_jones', 'alice@example.com', '2024-03-10 09:15:00'),
+		('bob_brown', 'bob@example.com', '2024-04-05 14:45:00'),
+		('charlie_clark', 'charlie@example.com', '2024-05-25 16:00:00');
+
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+
+	stmt = []byte(`
+	INSERT INTO Tweets (UserID, Content, CreatedAt) VALUES
+		(1, 'Hello, world! This is my first tweet.', '2024-01-15 10:05:00'),
+		(1, 'Just had a great coffee. #morning', '2024-01-16 08:30:00'),
+		(2, 'Excited for the weekend! #TGIF', '2024-02-21 09:00:00'),
+		(2, 'Just finished reading a great book.', '2024-02-22 18:20:00'),
+		(3, 'Had an amazing day at the park. #sunnyday', '2024-03-11 14:00:00'),
+		(3, 'Looking forward to the new movie release!', '2024-03-12 20:45:00'),
+		(4, 'Working on a new project. Stay tuned!', '2024-04-06 10:15:00'),
+		(4, 'Can’t wait for the weekend getaway.', '2024-04-07 15:30:00'),
+		(5, 'Enjoying a quiet evening at home.', '2024-05-26 19:00:00'),
+		(5, 'Just started a new hobby – painting!', '2024-05-27 11:00:00');
+
+
+`)
+
+	lexer = parser.NewLexer(stmt)
+	t.Log(string(stmt))
+
+	p = parser.NewParser(lexer)
+	ast, err = p.Parse()
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	err = ex.Execute(ast)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	//log.Println(string(ex.resultSetBuffer))
+	// result should be empty
+	if len(ex.ResultSetBuffer) != 0 {
+		t.Fatalf("expected empty result set buffer, got %s", string(ex.ResultSetBuffer))
+		return
+	}
+}

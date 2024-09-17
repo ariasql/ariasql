@@ -342,7 +342,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 				}
 
 				// We get inserted rowIds and inserted rows in case of rollback
-				rowIds, insertedRows, err := tbl.Insert(rows)
+				rowIds, insertedRows, err := tbl.Insert(rows, ex.ch.Database)
 				if err != nil {
 					if j > 0 {
 						// rollback
@@ -601,7 +601,7 @@ func (ex *Executor) Execute(stmt parser.Statement) error {
 			})
 		} else {
 
-			_, _, err = tbl.Insert(rows)
+			_, _, err = tbl.Insert(rows, ex.ch.Database)
 			if err != nil {
 				return err
 			}

@@ -747,13 +747,13 @@ func (tbl *Table) GetIndex(name string) *Index {
 }
 
 // Insert inserts a row into the table
-func (tbl *Table) Insert(rows []map[string]interface{}) ([]int64, []map[string]interface{}, error) {
+func (tbl *Table) Insert(rows []map[string]interface{}, db *Database) ([]int64, []map[string]interface{}, error) {
 	rowIds := make([]int64, 0)                        // inserted row ids
 	insertedRows := make([]map[string]interface{}, 0) // inserted rows
 
 	for _, row := range rows {
 		// Insert row into table
-		rowId, err := tbl.insert(row)
+		rowId, err := tbl.insert(row, db)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -767,7 +767,7 @@ func (tbl *Table) Insert(rows []map[string]interface{}) ([]int64, []map[string]i
 }
 
 // insert inserts a row into the table
-func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
+func (tbl *Table) insert(row map[string]interface{}, db *Database) (int64, error) {
 	// Check row against schema
 	for colName, colDef := range tbl.TableSchema.ColumnDefinitions {
 
@@ -1102,8 +1102,14 @@ func (tbl *Table) insert(row map[string]interface{}) (int64, error) {
 				return -1, fmt.Errorf("column %s cannot be null", colName)
 			}
 
+			// Get referenced table
+			refTbl := db.GetTable(colDef.References.TableName)
+			if refTbl == nil {
+				return -1, fmt.Errorf("foreign key constraint violation on column %s", colName)
+			}
+
 			// Check if foreign key exists
-			idx := tbl.CheckIndexedColumn(colName, true)
+			idx := refTbl.CheckIndexedColumn(colName, true)
 			if idx == nil {
 				return -1, fmt.Errorf("foreign key constraint violation on column %s", colName)
 			}
