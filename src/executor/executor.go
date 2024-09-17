@@ -1711,7 +1711,7 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 				// Because we evaluated the aggregates in the having clause we don't need to evaluate the aggregates in the select list,
 				// We can just filter the columns based on the select list
-				ex.removeAggregatesFromSelectList(stmt.SelectList)
+				ex.removeAggregatesFromSelectList(stmt.SelectList, &headers)
 
 				err = ex.selectListFilter(&results, stmt.SelectList, &headers)
 				if err != nil {
@@ -1834,7 +1834,7 @@ func (ex *Executor) checkWildcard(selectList *parser.SelectList) bool {
 }
 
 // removeAggregatesFromSelectList removes aggregates from the select list, after evaluating the having clause
-func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList) {
+func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList, headers *[]string) {
 
 	for i, expr := range selectList.Expressions {
 		if agg, ok := expr.Value.(*parser.AggregateFunc); ok {
@@ -1848,6 +1848,7 @@ func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList
 						selectList.Expressions[i] = &parser.ValueExpression{Value: &parser.ColumnSpecification{ColumnName: &parser.Identifier{
 							Value: expr.Alias.Value,
 						}}}
+						*headers = append(*headers, expr.Alias.Value)
 					} else {
 						selectList.Expressions[i] = &parser.ValueExpression{Value: colSpec}
 					}
@@ -1855,6 +1856,8 @@ func (ex *Executor) removeAggregatesFromSelectList(selectList *parser.SelectList
 				}
 			}
 
+		} else if _, ok := expr.Value.(*parser.ColumnSpecification); ok {
+			*headers = append(*headers, expr.Value.(*parser.ColumnSpecification).ColumnName.Value)
 		}
 	}
 
@@ -2109,6 +2112,21 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 			if ok {
 				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = count
+
+				if selectList != nil {
+					for _, expr := range selectList.Expressions {
+						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
+							if expr.Value.(*parser.AggregateFunc).FuncName == "COUNT" {
+								if expr.Alias != nil {
+									group[0][expr.Alias.Value] = count
+								} else {
+
+								}
+							}
+						}
+					}
+				}
+
 				results = append(results, group[0])
 			}
 
@@ -2167,6 +2185,7 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 				}
 
 				if !usingAlias {
+
 					results = append(results, group[0])
 				}
 			}
@@ -2211,8 +2230,20 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 
 			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 			if ok {
-				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = avg
 
+				if selectList != nil {
+					for _, expr := range selectList.Expressions {
+						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
+							if expr.Value.(*parser.AggregateFunc).FuncName == "AVG" {
+								if expr.Alias != nil {
+									group[0][expr.Alias.Value] = avg
+								}
+							}
+						}
+					}
+				}
+
+				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = avg
 				results = append(results, group[0])
 			}
 
@@ -2269,6 +2300,7 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
 							if expr.Value.(*parser.AggregateFunc).FuncName == "MAX" {
 								if expr.Alias != nil {
+
 									group[0][expr.Alias.Value] = mx
 									usingAlias = true
 								}
@@ -2328,7 +2360,19 @@ func (ex *Executor) evalHavingCondition(cond interface{}, group []map[string]int
 
 			ok := ex.evaluateCondition(newComparisonPredicate, &rows, nil, nil)
 			if ok {
+				if selectList != nil {
+					for _, expr := range selectList.Expressions {
+						if _, ok := expr.Value.(*parser.AggregateFunc); ok {
+							if expr.Value.(*parser.AggregateFunc).FuncName == "MIN" {
+								if expr.Alias != nil {
+									group[0][expr.Alias.Value] = mn
+								}
+							}
+						}
+					}
+				}
 				group[0][aggFuncArgs[0].(*parser.ColumnSpecification).ColumnName.Value] = mn
+
 				results = append(results, group[0])
 			}
 
