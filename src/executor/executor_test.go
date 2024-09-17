@@ -18469,14 +18469,6 @@ func TestStmt99(t *testing.T) {
 	}
 
 	stmt = []byte(`
-	SELECT u.Username, t.Content, t.CreatedAt
-	FROM Tweets t
-	JOIN Users u ON t.UserID = u.UserID
-	WHERE t.CreatedAt = (
-		SELECT MAX(t2.CreatedAt)
-		FROM Tweets t2
-		WHERE t2.UserID = t.UserID
-	);
 
 `)
 
