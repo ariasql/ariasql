@@ -1800,6 +1800,8 @@ func (ex *Executor) executeSelectStmt(stmt *parser.SelectStmt, subquery bool) ([
 
 	}
 
+	log.Println(results)
+
 	// Now we format the results
 	if !ex.json {
 		if len(headers) == 0 {
@@ -4290,6 +4292,7 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 	case *parser.ComparisonPredicate:
 
+		log.Println(rows)
 		left := ex.evaluateValueExpression(condition.Left, rows)
 		right := ex.evaluateValueExpression(condition.Right, rows)
 
@@ -4311,6 +4314,8 @@ func (ex *Executor) evaluateCondition(condition interface{}, rows *[]map[string]
 
 			}
 		}
+
+		log.Println(left, right)
 
 		switch left.(type) {
 		case int:

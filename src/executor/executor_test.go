@@ -18469,7 +18469,8 @@ func TestStmt99(t *testing.T) {
 	}
 
 	stmt = []byte(`
-
+	SELECT * FROM Users u, Tweets t
+	WHERE u.UserID = t.UserID;
 `)
 
 	lexer = parser.NewLexer(stmt)

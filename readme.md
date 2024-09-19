@@ -6,6 +6,9 @@ AriaSQL is a relational database management system designed and engineered from 
 
 > [!WARNING]
 > Still in beta stages, use at your own risk.
+> An official release will be made once the project is stable.
+> The repository is under active development and may change frequently.
+> Things can break, change, or disappear at any time.
 
 ## Features
 - [x] SQL1+ handwritten parser, lexer implementation (**AriaSQL follows and implements majority of ANSI SQL1 standard with some minor upgrades**)
